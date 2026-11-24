@@ -158,24 +158,30 @@ def test_migratieplan_per_cluster():
 
 
 def test_plan_en_voortgang_via_de_webapp(server):
+    """De server bewaart niets: de browser stuurt de inventaris en de afgevinkte stappen mee."""
     data = xlsx({"AP Inventory": [AP_KOP] + APS, "Controllers": [CTRL_KOP] + CTRLS})
-    status, _ = vraag(server + "/api/web/aos8/plan", {"klant": "Klant X", "clusters": ["CTRL-B"]})
-    assert status == 400                                   # nog geen inventaris voor deze klant
-    assert vraag(server + "/api/web/aos8/gereedheid", {"bestanden": [bestand("inv.xlsx", data)], "klant": "Klant X"})[0] == 200
-    # de inventaris is bewaard: later opnieuw te laden zonder bestand
-    status, tekst = vraag(server + "/api/web/aos8/laatste?klant=Klant%20X&t=" + web_token())
-    assert status == 200 and json.loads(tekst)["samenvatting"]["aps"] == 4 and "<html" in json.loads(tekst)["rapport"]
-    assert json.loads(vraag(server + "/api/web/aos8/laatste?klant=Andere&t=" + web_token())[1]) == {"geen": True}
-    status, tekst = vraag(server + "/api/web/aos8/voortgang", {"klant": "Klant X", "cluster": "CTRL-B", "stap": "a-backup", "gedaan": True})
-    assert status == 200 and "a-backup" in json.loads(tekst)["voortgang"]["CTRL-B"]
-    assert vraag(server + "/api/web/aos8/voortgang", {"klant": "Klant X", "cluster": "CTRL-B", "stap": "../x", "gedaan": True})[0] == 400
-    status, tekst = vraag(server + "/api/web/aos8/plan", {"klant": "Klant X", "clusters": ["CTRL-B"]})
+    status, _ = vraag(server + "/api/web/aos8/plan", {"clusters": ["CTRL-B"]})
+    assert status == 400                                   # zonder inventaris geen plan
+    status, tekst = vraag(server + "/api/web/aos8/gereedheid", {"bestanden": [bestand("inv.xlsx", data)], "klant": "Klant X"})
+    inv = json.loads(tekst)
+    assert status == 200
+    del inv["rapport"]                                     # zo bewaart de browser het
+    for weg in ("/api/web/aos8/laatste?klant=Klant%20X", "/api/web/aos8/voortgang?klant=Klant%20X"):
+        assert vraag(server + weg + "&t=" + web_token())[0] == 404
+    vg = {"CTRL-B": {"a-backup": "2026-11-24T10:00", "../x": "2026-11-24T10:00"}, "kapot": "x"}
+    status, tekst = vraag(server + "/api/web/aos8/plan", {"inventaris": inv, "voortgang": vg, "clusters": ["CTRL-B"]})
     plan = json.loads(tekst)
     assert status == 200 and plan["clusters"][0]["naam"] == "CTRL-B" and "gedaan " in plan["html"] and "✓" in plan["html"]
-    status, tekst = vraag(server + "/api/web/aos8/voortgang?klant=Klant%20X&t=" + web_token())
-    assert json.loads(tekst)["voortgang"]["CTRL-B"].keys() == {"a-backup"}
-    vraag(server + "/api/web/aos8/voortgang", {"klant": "Klant X", "cluster": "CTRL-B", "stap": "a-backup", "gedaan": False})
-    assert json.loads(vraag(server + "/api/web/aos8/voortgang?klant=Klant%20X&t=" + web_token())[1])["voortgang"]["CTRL-B"] == {}
+    assert "../x" not in plan["html"]
+    status, tekst = vraag(server + "/api/web/aos8/rapport", {"inventaris": inv})
+    assert status == 200 and json.loads(tekst)["rapport"].startswith("<!DOCTYPE html>")
+    assert vraag(server + "/api/web/aos8/plan", {"inventaris": {"clusters": "x"}, "clusters": ["CTRL-B"]})[0] == 400
+
+
+def test_voortgang_uit_de_browser_wordt_nagekeken():
+    from cnx_api import migratieplan as mp
+    assert mp.voortgang_uit({"A": {"a-backup": "2026-11-24T10:00", "Slecht ID": "x", "b-x": 5}, "B": [], 3: {"c": "t" * 50}}) ==         {"A": {"a-backup": "2026-11-24T10:00"}, "3": {"c": "t" * 20}}
+    assert mp.voortgang_uit(None) == {} and mp.voortgang_uit([1]) == {}
 
 
 def web_token():

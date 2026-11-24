@@ -27,6 +27,7 @@ from . import overrides as ov
 POORT = int(os.environ.get("CNX_WEB_POORT", "8766"))
 MAX_BODY = 50 * 1024 * 1024
 WERKMAP = os.path.join(os.getcwd(), "cnx-web")
+OPSLAG = True               # False (--zonder-opslag, servermodus): niets op schijf; bestanden en logboeken gaan naar de browser
 
 
 class Fout(Exception):
@@ -38,13 +39,6 @@ def veilige_naam(naam):
     return naam or "bestand"
 
 
-def veilig_pad(rel):
-    """Pad binnen WERKMAP, of None. Beschermt tegen ../ en absolute paden."""
-    basis = os.path.realpath(WERKMAP)
-    p = os.path.realpath(os.path.join(basis, str(rel or "").replace("\\", "/").lstrip("/")))
-    return p if p.startswith(basis + os.sep) else None
-
-
 # ---------------------------------------------------------------- Switches onboarden: importbestand voor Central
 
 ONBOARD_MAX_RIJEN = 5000
@@ -52,7 +46,8 @@ ONBOARD_MAX_RIJEN = 5000
 
 def onboard_bestand(groep, rijen):
     """Onboarding: rijen (zoals toestellen_uit_groep ze geeft, eventueel aangepast) naar het importbestand voor Central.
-    Geen klantconfig nodig: VLAN, profiel en device function staan per switch. Schrijft het bestand ook in cnx-web/onboarding."""
+    Geen klantconfig nodig: VLAN, profiel en device function staan per switch. De browser krijgt de inhoud; met opslag
+    komt er ook een kopie in cnx-web/onboarding."""
     if not isinstance(rijen, list) or not rijen:
         raise Fout("kies minstens een switch")
     if len(rijen) > 5000:
@@ -100,16 +95,20 @@ def onboard_bestand(groep, rijen):
         n += len(r)
     delen.append(huidig)
     map_ = os.path.join(WERKMAP, "onboarding")
-    os.makedirs(map_, exist_ok=True)
+    if OPSLAG:
+        os.makedirs(map_, exist_ok=True)
     stam = f"{veilige_naam(groep or 'switches').replace(' ', '_')}-{datetime.datetime.now():%Y%m%d-%H%M%S}"
     bestanden = []
     for i, deel in enumerate(delen, 1):
         naam = stam + (f"-deel{i}" if len(delen) > 1 else "") + ".csv"
-        pad = os.path.join(map_, naam)
-        aliassen.schrijf_bulk(pad, deel)
-        with open(pad, encoding="utf-8") as f:
-            inhoud = f.read()
-        bestanden.append({"naam": naam, "pad": os.path.relpath(pad, WERKMAP).replace(os.sep, "/"), "inhoud": inhoud,
+        inhoud = aliassen.bulk_tekst(deel)
+        rel = None
+        if OPSLAG:
+            pad = os.path.join(map_, naam)
+            with open(pad, "w", newline="", encoding="utf-8") as f:
+                f.write(inhoud)
+            rel = os.path.relpath(pad, WERKMAP).replace(os.sep, "/")
+        bestanden.append({"naam": naam, "pad": rel, "inhoud": inhoud,
                           "rijen": len(deel), "switches": len({tuple(r[4]) for r in deel})})
     return {"fouten": 0, "bevindingen": bevindingen, "bestanden": bestanden, "stacks": [x["hostname"] or x["serial"] for x in stacks]}
 
@@ -306,7 +305,8 @@ class Handler(ov.Handler):
         u = urlparse(self.path)
         q = parse_qs(u.query)
         if u.path == "/":
-            return self._html(pagina("web.html").replace("__TOKEN__", ov.TOKEN).replace("__VERSIE__", __version__))
+            return self._html(pagina("web.html").replace("__TOKEN__", ov.TOKEN).replace("__VERSIE__", __version__)
+                              .replace("__OPSLAG__", "true" if OPSLAG else "false"))
         if u.path == "/hulp":
             return self._html(pagina("LEESMIJ.html"))
         if not u.path.startswith("/api/web/"):
@@ -327,6 +327,8 @@ class Handler(ov.Handler):
                 o = self.sessie.ophalingen.get(arg("id"))
                 return self._json(o.info() if o else {"fout": "niet gevonden"}, 200 if o else 404)
             return self._json({"fout": "onbekend"}, 404)
+        if not OPSLAG and u.path in ("/api/web/klantconfig", "/api/web/klantconfig/bestand"):
+            return self._json({"fout": "niet beschikbaar zonder opslag"}, 404)
         if u.path in ("/api/web/klantconfig", "/api/web/klantconfig/bestand"):
             if u.path == "/api/web/klantconfig":
                 return self._json(klantconfig_info())
@@ -334,21 +336,6 @@ class Handler(ov.Handler):
                 return self._json({"fout": "nog geen klantconfig.json opgeslagen"}, 404)
             with open(klantconfig_pad(), "rb") as f:
                 return self._bestand(f.read(), "klantconfig.json", "application/json")
-        if u.path in ("/api/web/aos8/laatste", "/api/web/aos8/voortgang"):
-            klant = q.get("klant", [""])[0]
-            if u.path.endswith("voortgang"):
-                return self._json({"voortgang": migratieplan.voortgang(WERKMAP, klant)})
-            res = migratieplan.laad_inventaris(WERKMAP, klant)
-            if not res:
-                return self._json({"geen": True})
-            res["rapport"] = aos8.rapport_html(res)
-            return self._json(res)
-        if u.path == "/api/web/bestand":
-            p = veilig_pad(q.get("pad", [""])[0])
-            if not p or not os.path.isfile(p):
-                return self._json({"fout": "bestand niet gevonden"}, 404)
-            with open(p, "rb") as f:
-                return self._bestand(f.read(), os.path.basename(p))
         return self._json({"fout": "onbekend"}, 404)
 
     def do_POST(self):
@@ -373,28 +360,26 @@ class Handler(ov.Handler):
                 return self._json({"fout": str(e)}, 400)
         if u.path == "/api/web/aos8/gereedheid":
             try:
-                res = aos8.analyseer(body.get("bestanden"), body.get("klant", ""))
-                migratieplan.bewaar_inventaris(WERKMAP, res)
-                return self._json(res)
+                return self._json(aos8.analyseer(body.get("bestanden"), body.get("klant", "")))   # de browser bewaart het
             except aos8.Fout as e:
                 return self._json({"fout": str(e)}, 400)
             except (ET.ParseError, KeyError, ValueError, AttributeError) as e:
                 return self._json({"fout": f"bestand niet te lezen ({type(e).__name__}: {e})"}, 400)
-        if u.path in ("/api/web/aos8/plan", "/api/web/aos8/voortgang"):
-            klant = str(body.get("klant") or "")
+        if u.path in ("/api/web/aos8/plan", "/api/web/aos8/rapport"):
+            # De inventaris en de voortgang komen van de browser; de server bewaart niets.
             try:
-                if u.path.endswith("voortgang"):
-                    return self._json({"voortgang": migratieplan.zet_voortgang(WERKMAP, klant, body.get("cluster"), body.get("stap"), bool(body.get("gedaan")))})
-                res = migratieplan.laad_inventaris(WERKMAP, klant)
-                if not res:
-                    return self._json({"fout": "Lees eerst de inventaris van deze klant in."}, 400)
+                res = migratieplan.inventaris_uit(body.get("inventaris"))
+                if u.path.endswith("rapport"):
+                    return self._json({"rapport": aos8.rapport_html(res)})
                 plan = migratieplan.maak_plan(res, body.get("clusters"))
-                plan["html"] = migratieplan.plan_html(plan, migratieplan.voortgang(WERKMAP, klant))
+                plan["html"] = migratieplan.plan_html(plan, migratieplan.voortgang_uit(body.get("voortgang")))
                 return self._json(plan)
-            except ValueError as e:
-                return self._json({"fout": str(e)}, 400)
+            except (ValueError, KeyError, TypeError, AttributeError) as e:
+                return self._json({"fout": str(e) or "ongeldige inventaris"}, 400)
         if u.path == "/api/web/ov/ophaal":
             return self._monitor(lambda: {"id": start_ophaling(self.sessie, body.get("soort", ""), body.get("opties") or {}).id})
+        if not OPSLAG and u.path.startswith("/api/web/klantconfig"):
+            return self._json({"fout": "niet beschikbaar zonder opslag"}, 404)
         if u.path in ("/api/web/klantconfig", "/api/web/klantconfig/voorstel"):
             try:
                 if u.path.endswith("voorstel"):
@@ -419,7 +404,10 @@ class Handler(ov.Handler):
 
 
 def logboek(naam, regels):
-    """Wat er in Central gewijzigd is, in cnx-web/<naam>-<tijd>.json."""
+    """Wat er in Central gewijzigd is, in cnx-web/<naam>-<tijd>.json. Zonder opslag niets (None): de browser biedt het
+    logboek dan als download aan."""
+    if not OPSLAG:
+        return None
     os.makedirs(WERKMAP, exist_ok=True)
     pad = os.path.join(WERKMAP, f"{naam}-{datetime.datetime.now():%Y%m%d-%H%M%S}.json")
     with open(pad, "w", encoding="utf-8") as f:
@@ -458,8 +446,9 @@ def start_ophaling(sessie, soort, opties):
 
         def doe(v):
             res = configapi.wis_uitvoeren(acties, df, v)
-            logboek("overrides-wissen-log", res)
-            return {"resultaten": res}
+            pad = logboek("overrides-wissen-log", res)
+            return {"resultaten": res, "logboek": os.path.relpath(pad, WERKMAP).replace(os.sep, "/") if pad else None,
+                    "versie": __version__}
     elif soort == "afwijkingen":
         serials = [str(x) for x in (opties.get("serials") or []) if isinstance(x, (str, int))][:2000] or None
         doe = lambda v: configapi.afwijkingen_scan(serials, opties.get("device_function") or "ACCESS_SWITCH", v)  # noqa: E731
@@ -499,16 +488,21 @@ def main():
     p.add_argument("--poort", type=int, default=POORT)
     p.add_argument("--geen-browser", action="store_true", help="de browser niet zelf openen")
     p.add_argument("--map", default=WERKMAP, help="map voor importbestanden en logboeken")
+    p.add_argument("--zonder-opslag", action="store_true",
+                   help="niets op schijf: importbestanden en logboeken enkel als download in de browser")
     a = p.parse_args()
+    global OPSLAG
+    OPSLAG = not a.zonder_opslag
     WERKMAP = os.path.abspath(a.map)
-    os.makedirs(WERKMAP, exist_ok=True)
+    if OPSLAG:
+        os.makedirs(WERKMAP, exist_ok=True)
     if os.environ.get("CNX_CLIENT_ID") and os.environ.get("CNX_CLIENT_SECRET") and os.environ.get("CNX_BASE_URL"):
         ok, msg = ov.aanmelden(os.environ["CNX_BASE_URL"], os.environ["CNX_CLIENT_ID"], os.environ["CNX_CLIENT_SECRET"])
         print(msg)
     srv = maak_server(a.poort)
     url = f"http://127.0.0.1:{srv.server_address[1]}/"
     print(f"CNX Toolkit {__version__} draait op {url}  (Ctrl+C of dit venster sluiten om te stoppen)")
-    print(f"Importbestanden en logboeken: {WERKMAP}")
+    print(f"Importbestanden en logboeken: {WERKMAP}" if OPSLAG else "Zonder opslag: er wordt niets op schijf bewaard.")
     if not a.geen_browser:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     try:

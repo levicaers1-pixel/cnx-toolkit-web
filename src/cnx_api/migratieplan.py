@@ -2,68 +2,45 @@
 
 Een plan bestaat uit een klantbreed deel (eenmalig: GreenLake, licenties, structuur en configuratie in Central) en
 per gekozen cluster een stappenplan in fasen. Elke stap heeft een vaste id, zodat de voortgang (afgevinkte stappen)
-per klant bewaard kan worden in <werkmap>/migratie/<klant>/voortgang.json.
+in de browser bewaard kan worden (de server bewaart niets).
 
 De stappen zijn een werkwijze, geen vervanging van de migratiegids van HPE: commando's die per AOS-8-versie kunnen
 verschillen, staan gemarkeerd als na te kijken.
 """
-import datetime, hashlib, html, json, os, re
+import datetime, hashlib, html, re
 from collections import Counter, defaultdict
 
 KLANTBREED = "_klant"
 
 
-# ---------------------------------------------------------------- opslag per klant
+# ---------------------------------------------------------------- invoer van de browser
 
-def slug(klant):
-    s = re.sub(r"[^A-Za-z0-9_-]+", "_", str(klant or "").strip()).strip("_")[:60]
-    return s or "zonder-naam"
+MAX_STAPPEN = 5000
 
 
-def _map(basis, klant):
-    return os.path.join(basis, "migratie", slug(klant))
+def inventaris_uit(x):
+    """De inventaris zoals de browser ze terugstuurt (het resultaat van aos8.analyseer). Kijkt de vorm na."""
+    if not isinstance(x, dict) or not isinstance(x.get("clusters"), list) or not isinstance(x.get("aps"), list):
+        raise ValueError("Lees eerst de inventaris van deze klant in.")
+    for k in ("clusters", "aps", "controllers"):
+        if not all(isinstance(i, dict) for i in x.get(k) or []):
+            raise ValueError("ongeldige inventaris")
+    return x
 
 
-def _schrijf(pad, data):
-    os.makedirs(os.path.dirname(pad), exist_ok=True)
-    tmp = pad + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=1)
-    os.replace(tmp, pad)
-
-
-def _lees(pad, standaard):
-    try:
-        with open(pad, encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        return standaard
-
-
-def bewaar_inventaris(basis, res):
-    _schrijf(os.path.join(_map(basis, res.get("klant")), "inventaris.json"), {k: v for k, v in res.items() if k != "rapport"})
-
-
-def laad_inventaris(basis, klant):
-    return _lees(os.path.join(_map(basis, klant), "inventaris.json"), None)
-
-
-def voortgang(basis, klant):
-    return _lees(os.path.join(_map(basis, klant), "voortgang.json"), {})
-
-
-def zet_voortgang(basis, klant, cluster, stap, gedaan):
-    if not str(cluster or "") or not re.fullmatch(r"[a-z0-9-]{1,40}", str(stap or "")):
-        raise ValueError("ongeldige stap")
-    pad = os.path.join(_map(basis, klant), "voortgang.json")
-    v = _lees(pad, {})
-    c = v.setdefault(str(cluster)[:200], {})
-    if gedaan:
-        c[stap] = datetime.datetime.now().isoformat(timespec="minutes")
-    else:
-        c.pop(stap, None)
-    _schrijf(pad, v)
-    return v
+def voortgang_uit(v):
+    """Afgevinkte stappen van de browser: {cluster: {stap-id: tijd}}. Enkel geldige ids en tekst, de rest valt weg."""
+    uit, n = {}, 0
+    for c, stappen in (v.items() if isinstance(v, dict) else []):
+        if not isinstance(stappen, dict):
+            continue
+        for stap, tijd in stappen.items():
+            if n >= MAX_STAPPEN:
+                return uit
+            if re.fullmatch(r"[a-z0-9-]{1,40}", str(stap)) and isinstance(tijd, str):
+                uit.setdefault(str(c)[:200], {})[stap] = tijd[:20]
+                n += 1
+    return uit
 
 
 # ---------------------------------------------------------------- het plan

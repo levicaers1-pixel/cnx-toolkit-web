@@ -27,7 +27,7 @@ Uitvoer van genereer:
   05-aliassen/rapport.md                            wat er in elk bestand zit
 Dezelfde uitvoer als de pagina cnx-alias-invoer.html. Enkel standaardbibliotheek, geen API-calls.
 """
-import argparse, csv, ipaddress, json, os, re, sys
+import argparse, csv, io, ipaddress, json, os, re, sys
 from collections import OrderedDict, defaultdict
 
 from . import __version__, resource
@@ -341,28 +341,35 @@ def rijen_voor_toestel(t, cfg, x_hierarchie=False):
 
 
 def schrijf_bulk(pad, rijen):
+    with open(pad, "w", newline="", encoding="utf-8") as f:
+        f.write(bulk_tekst(rijen))
+
+
+def bulk_tekst(rijen):
+    """Het bulkbestand voor de UI van Central als tekst (zonder het weg te schrijven)."""
     per_sectie = OrderedDict((s, OrderedDict()) for s in SECTIE_VOLGORDE)
     for sec, kol, naam, inst, basis, w in rijen:
         sleutel = ("" if sec.startswith("#ALIAS_") else naam, kol)
         per_sectie[sec].setdefault(sleutel, []).append((naam, inst, basis, w))
-    with open(pad, "w", newline="", encoding="utf-8") as f:
-        wr = csv.writer(f, lineterminator="\n")
-        eerste = True
-        for sec, tabellen in per_sectie.items():
-            if not tabellen:
-                continue
-            if not eerste:
+    f = io.StringIO(newline="")
+    wr = csv.writer(f, lineterminator="\n")
+    eerste = True
+    for sec, tabellen in per_sectie.items():
+        if not tabellen:
+            continue
+        if not eerste:
+            wr.writerow([])
+        eerste = False
+        f.write(sec + "\n")
+        for i, ((_, kol), items) in enumerate(tabellen.items()):
+            if i:
                 wr.writerow([])
-            eerste = False
-            f.write(sec + "\n")
-            for i, ((_, kol), items) in enumerate(tabellen.items()):
-                if i:
-                    wr.writerow([])
-                kop = KOP_EIGEN if sec.startswith("#ALIAS_") else KOP_VOORGEDEF
-                wr.writerow(kop + BASIS + list(kol))
-                for naam, inst, basis, w in items:
-                    wr.writerow([naam, inst] + basis + list(w))
-        f.write("\n")
+            kop = KOP_EIGEN if sec.startswith("#ALIAS_") else KOP_VOORGEDEF
+            wr.writerow(kop + BASIS + list(kol))
+            for naam, inst, basis, w in items:
+                wr.writerow([naam, inst] + basis + list(w))
+    f.write("\n")
+    return f.getvalue()
 
 
 def veilig(s):

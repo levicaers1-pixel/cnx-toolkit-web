@@ -16,14 +16,16 @@ cookie `cnx_sessie`; tests in `tests/test_sessies.py`.
 - `ov.CACHE`, `OPHALINGEN` en `WISPLANNEN` per sessie.
 - Test: twee gelijktijdige sessies op twee nep-Centrals zien elkaars data nooit.
 
-## Fase 2: niets op schijf (`--zonder-opslag`)
+## Fase 2: niets op schijf (`--zonder-opslag`) (klaar)
+
+Tests in `tests/test_zonder_opslag.py`: elke schrijfpoging naar een bestand doet de test falen.
 
 - Onboarden: importbestand rechtstreeks als download, geen kopie in `cnx-web/onboarding`.
-- Overrides wissen: logboek in het antwoord, met een downloadknop.
-- AP-migratie: inventaris en voortgang in de browser (IndexedDB), met "Plan exporteren" en "Plan laden" (JSON).
-- Voorstel: in het geheugen in plaats van een tijdelijk bestand.
-- Instellingen (klantconfig): niet in servermodus; enkel nodig voor `cnx alias`.
-- Test: alles werkt met een alleen-lezen bestandssysteem.
+- Overrides wissen: logboek in het antwoord, met een knop Logboek downloaden.
+- AP-migratie (ook lokaal): inventaris en voortgang in de browser (localStorage, per klant), met Exporteren en
+  Migratiebestand laden (JSON). De server krijgt ze bij elke aanvraag mee en bewaart niets.
+- Instellingen (klantconfig, ook het voorstel uit een bulk-download): niet zonder opslag; enkel nodig voor `cnx alias`.
+- De route die bestanden uit de werkmap gaf (`/api/web/bestand`) is weg.
 
 ## Fase 3: servermodus
 

@@ -194,6 +194,7 @@ dialog .field{max-width:none}
 
 <script>
 const T = "__TOKEN__";
+const OPSLAG = __OPSLAG__;   // false: de server bewaart niets (servermodus); bestanden enkel als download
 const $ = id => document.getElementById(id);
 function el(tag, attrs, ...kids) {
   const e = document.createElement(tag);
@@ -217,7 +218,7 @@ const TABS = [
   { id: "onboard", label: "Onboarden", eigen: true },
   { id: "overrides", label: "Overrides controleren", eigen: true, aside: true },
   { id: "aos8", label: "AP-migratie", eigen: true },
-  { id: "klant", label: "Instellingen", eigen: true },
+  ...(OPSLAG ? [{ id: "klant", label: "Instellingen", eigen: true }] : []),
   { id: "hulp", label: "Handleiding", frame: "/hulp" },
 ];
 let STATUS = { aangemeld: false };
@@ -283,6 +284,7 @@ function renderAlles() {
 // ---------------------------------------------------------------- klantconfig (Instellingen)
 let KLANT = null, KFORM = null, KMELD = null, KBULK = null, KVOORSTEL = null;
 async function laadKlant() {
+  if (!OPSLAG) return;                 // zonder opslag geen klantconfig (enkel voor cnx alias op de commandolijn)
   try { KLANT = await get("/api/web/klantconfig"); } catch (e) { KLANT = null; return; }
   KFORM = schoon(KLANT.config);
 }
@@ -477,8 +479,10 @@ function csvDownload(naam, kolommen, items) {
   const regels = [kolommen.map(k => q(k.label)).join(",")].concat(items.map(it => kolommen.map(k => q(k.tekst ? k.tekst(it) : tekstVan(it[k.k]))).join(",")));
   bewaarBestand(naam, regels.join("\r\n") + "\r\n", "text/csv");
 }
-function bewaarBestand(naam, tekst, soort) {
-  const a = el("a", { href: URL.createObjectURL(new Blob(["﻿" + tekst], { type: soort + ";charset=utf-8" })), download: naam });
+// Lokale tijd als 2026-11-24T15:53:07 (toISOString geeft UTC).
+function lokaleTijd() { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 19); }
+function bewaarBestand(naam, tekst, soort, bom = true) {
+  const a = el("a", { href: URL.createObjectURL(new Blob([(bom ? "﻿" : "") + tekst], { type: soort + ";charset=utf-8" })), download: naam });
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 async function cget(pad) {
@@ -748,7 +752,8 @@ function onbStap3() {
     const regels = b.inhoud.split("\n"), open = ONB.voorbeeld[b.naam];
     wrap.append(el("div", { class: "blok" },
       el("div", { class: "row" }, el("div", {}, el("h3", { class: "mono" }, b.naam), el("span", { class: "hint" }, b.switches + " switches · " + b.rijen + " rijen")), el("span", { class: "sp" }),
-        el("a", { class: "btn primary", href: bestandUrl(b.pad), download: b.naam }, "Download")),
+        b.pad ? el("span", { class: "hint", title: "Kopie op deze pc" }, "kopie in cnx-web/" + b.pad) : "",
+        el("button", { class: "btn primary", onclick: () => bewaarBestand(b.naam, b.inhoud, "text/csv", false) }, "Download")),
       el("pre", { class: "log", style: "max-height:" + (open ? "none" : "260px") + ";overflow:auto;margin-top:10px" }, (open ? regels : regels.slice(0, 40)).join("\n")),
       regels.length > 40 ? el("button", { class: "btn small", onclick: () => { ONB.voorbeeld[b.naam] = !open; renderOnb(); } }, open ? "Minder tonen" : "Alles tonen (" + regels.length + " regels)") : ""));
   }
@@ -1020,14 +1025,17 @@ function wisPaneel(ctx) {
           const r = await ophaalEnWacht("wissen", { plan: plan.id }, i => { st.vg = i; ctx.herteken(); });
           st.bezig = ""; st.vg = null;
           if (r.fout) { st.fout = r.fout; ctx.herteken(); return; }
-          st.werk = r.resultaat.resultaten; st.plan = null; st.sel.clear(); ctx.herteken();
+          st.werk = r.resultaat.resultaten; st.logpad = r.resultaat.logboek; st.versie = r.resultaat.versie; st.plan = null; st.sel.clear(); ctx.herteken();
           if (ctx.naUitvoeren) await ctx.naUitvoeren();
         } }, "Echt wissen (" + plan.acties.length + ")")) : el("div", { class: "banner info", style: "margin-top:12px" }, "Niets meer om te wissen."));
     }
   }
   if (res) {
     const ok = res.filter(x => x.resultaat === "gewist" || x.resultaat === "bestond niet meer").length;
-    blok.append(el("div", { class: "banner " + (ok === res.length ? "ok" : "warn") }, ok + " van " + res.length + " gewist. Alles staat in cnx-web/overrides-wissen-log.",
+    const tijd = lokaleTijd();
+    const logNaam = "overrides-wissen-log-" + tijd.replace(/[-:]/g, "").replace("T", "-") + ".json";
+    blok.append(el("div", { class: "banner " + (ok === res.length ? "ok" : "warn") }, ok + " van " + res.length + " gewist. " + (st.logpad ? "Het logboek staat in cnx-web/" + st.logpad + "." : "Download het logboek: de server bewaart het niet."), " ",
+        el("button", { class: "btn small", onclick: () => bewaarBestand(logNaam, JSON.stringify(res.map(r => Object.assign({ versie: st.versie, tijd }, r)), null, 2), "application/json", false) }, "Logboek downloaden"), " ",
         el("button", { class: "btn small", onclick: () => { st.werk = null; ctx.herteken(); } }, "Sluiten")),
       el("div", { class: "tabelbox" }, el("table", {}, el("thead", {}, el("tr", {}, ["Switch", "Status", "Profiel", "Object", "Resultaat"].map(x => el("th", {}, x)))),
         el("tbody", {}, res.map(r => el("tr", {}, el("td", {}, r.naam), el("td", {}, ovrLabel(r.status || "gelijk")), el("td", {}, r.profiel), el("td", { class: "mono" }, r.object),
@@ -1042,39 +1050,74 @@ const AOS8 = { bestanden: [], klant: lezen("aos8-klant") || "", res: null, bezig
   geladen: null, gekeken: false, kies: new Set(), plan: null, planBezig: false, planFout: null, vg: {} };
 const AOS8_PILL = { "klaar": "ok", "einde nadert": "warn", "vervangen": "bad", "valt weg": "neu", "na te kijken": "info" };
 const aos8Pill = w => AOS8_PILL[w] || "neu";
+// De inventaris en de afgevinkte stappen staan enkel in deze browser (per klant), nooit op de server.
+// Met "Exporteren" en "Laden" geef je ze door of zet je ze op een andere pc.
+const aos8Sleutel = (soort, klant = AOS8.klant) => "aos8-" + soort + "-" + (klant || "").trim();
+function aos8Bewaar() {
+  if (!AOS8.res) return;
+  const inv = Object.assign({}, AOS8.res); delete inv.rapport;
+  const tekst = JSON.stringify(inv);
+  opslaan(aos8Sleutel("inventaris"), tekst);
+  AOS8.nietBewaard = lezen(aos8Sleutel("inventaris")) !== tekst;
+}
+function aos8BewaarVoortgang() { opslaan(aos8Sleutel("voortgang"), JSON.stringify(AOS8.vg)); }
+const aos8Inventaris = () => { const inv = Object.assign({}, AOS8.res); delete inv.rapport; return inv; };
+function aos8Exporteer() {
+  const r = AOS8.res; if (!r) return;
+  const data = { soort: "cnx-aos8-migratie", versie: 1, klant: AOS8.klant, inventaris: aos8Inventaris(), voortgang: AOS8.vg, clusters: [...AOS8.kies] };
+  bewaarBestand("Migratie" + (AOS8.klant ? "-" + AOS8.klant.replace(/[^A-Za-z0-9_-]+/g, "_") : "") + "-" + lokaleTijd().slice(0, 10) + ".json",
+    JSON.stringify(data), "application/json", false);
+}
+async function aos8Importeer(bestand) {
+  AOS8.fout = null;
+  try {
+    const d = JSON.parse(await bestand.text());
+    if (d.soort !== "cnx-aos8-migratie" || !d.inventaris || !Array.isArray(d.inventaris.clusters)) throw new Error("geen migratiebestand van de CNX Toolkit");
+    AOS8.klant = String(d.klant || ""); opslaan("aos8-klant", AOS8.klant);
+    AOS8.res = d.inventaris; AOS8.vg = d.voortgang && typeof d.voortgang === "object" ? d.voortgang : {};
+    AOS8.kies = new Set(Array.isArray(d.clusters) ? d.clusters.map(String) : []);
+    AOS8.bestanden = []; AOS8.st = {}; AOS8.plan = null; AOS8.geladen = d.inventaris.tijd || ""; AOS8.gekeken = true;
+    aos8Bewaar(); aos8BewaarVoortgang(); opslaan("aos8-kies-" + AOS8.klant, JSON.stringify([...AOS8.kies]));
+  } catch (e) { AOS8.fout = "Niet geladen: " + (e.message || e); }
+  renderAos8();
+}
 async function aos8Inlezen() {
   AOS8.fout = null;
   if (!AOS8.bestanden.length) { AOS8.fout = "Kies eerst een of meer bestanden."; renderAos8(); return; }
   AOS8.bezig = true; renderAos8();
   try {
     const r = await post("/api/web/aos8/gereedheid", { bestanden: AOS8.bestanden, klant: AOS8.klant });
-    if (r.fout) AOS8.fout = r.fout; else { AOS8.res = r; AOS8.st = {}; AOS8.geladen = null; AOS8.plan = null; await aos8LaadVoortgang(); }
+    if (r.fout) AOS8.fout = r.fout; else { AOS8.res = r; AOS8.st = {}; AOS8.geladen = null; AOS8.plan = null; aos8LaadVoortgang(); aos8Bewaar(); }
   } catch (e) { AOS8.fout = "Geen antwoord van cnx: " + e; }
   AOS8.bezig = false; renderAos8();
 }
-function aos8Rapport() {
+async function aos8Rapport() {
   const r = AOS8.res; if (!r) return;
+  if (!r.rapport) {
+    const x = await post("/api/web/aos8/rapport", { inventaris: aos8Inventaris() }).catch(e => ({ fout: String(e) }));
+    if (x.fout) { AOS8.fout = x.fout; renderAos8(); return; }
+    r.rapport = x.rapport;
+  }
   const naam = "AOS10-gereedheid" + (r.klant ? "-" + r.klant.replace(/[^A-Za-z0-9_-]+/g, "_") : "") + "-" + r.tijd.slice(0, 10) + ".html";
   bewaarBestand(naam, r.rapport, "text/html");
 }
-async function aos8LaadVoortgang() {
-  const v = await cget("/api/web/aos8/voortgang?klant=" + encodeURIComponent(AOS8.klant));
-  AOS8.vg = v.voortgang || {};
+function aos8LaadVoortgang() {
+  try { AOS8.vg = JSON.parse(lezen(aos8Sleutel("voortgang")) || "{}") || {}; } catch (e) { AOS8.vg = {}; }
   try { AOS8.kies = new Set(JSON.parse(lezen("aos8-kies-" + AOS8.klant) || "[]")); } catch (e) { AOS8.kies = new Set(); }
 }
-async function aos8LaadLaatste() {
+function aos8LaadLaatste() {
   AOS8.gekeken = true;
-  if (!AOS8.klant.trim()) return;
-  const r = await cget("/api/web/aos8/laatste?klant=" + encodeURIComponent(AOS8.klant));
-  if (r.fout || !r.samenvatting) return;
+  let r = null;
+  try { r = JSON.parse(lezen(aos8Sleutel("inventaris")) || "null"); } catch (e) { r = null; }
+  if (!r || !r.samenvatting) return;
   AOS8.res = r; AOS8.geladen = r.tijd; AOS8.st = {};
-  await aos8LaadVoortgang();
-  renderAos8();
+  aos8LaadVoortgang();
 }
 function renderAos8() {
   const werk = $("werk-aos8");
   if (!werk) return;
   if (!AOS8.res && !AOS8.gekeken) aos8LaadLaatste();
+  const laad = el("input", { type: "file", accept: ".json", hidden: true, "aria-label": "Migratiebestand laden", onchange: e => { if (e.target.files[0]) aos8Importeer(e.target.files[0]); e.target.value = ""; } });
   const sc = werk.scrollTop;
   const gekozen = el("div", { class: "gekozen" }, AOS8.bestanden.length ? AOS8.bestanden.map(b => el("span", { class: "mono" }, b.naam)) : el("span", { class: "muted" }, "Nog geen bestand gekozen"));
   const kies = el("input", { type: "file", multiple: true, accept: ".xlsx,.csv,.txt,.log", hidden: true, "aria-label": "AOS-8-inventaris", onchange: async e => {
@@ -1090,18 +1133,22 @@ function renderAos8() {
     el("div", { class: "field" }, el("label", { for: "aos8-klant" }, "Klant (voor het rapport)"),
       el("input", { id: "aos8-klant", type: "text", value: AOS8.klant, placeholder: "optioneel", oninput: e => { AOS8.klant = e.target.value; opslaan("aos8-klant", AOS8.klant); },
         onchange: () => { if (!AOS8.bestanden.length) { AOS8.res = null; AOS8.plan = null; AOS8.gekeken = false; renderAos8(); } } }),
-      el("span", { class: "hint" }, "De inventaris en de afgevinkte stappen worden per klant bewaard in de werkmap.")),
+      el("span", { class: "hint" }, "De inventaris en de afgevinkte stappen worden per klant bewaard in deze browser, niet op de server. Exporteer ze om ze door te geven of op een andere pc verder te werken.")),
     el("div", { class: "field" }, el("div", { class: "lbl" }, "Inventaris"),
       el("div", { class: "bestand" + (AOS8.bestanden.length ? " gevuld" : "") }, kies, el("button", { class: "btn", type: "button", onclick: () => kies.click() }, "Bestanden kiezen..."), gekozen),
       el("details", {}, el("summary", { class: "hint" }, "Wat exporteer ik?"),
         el("p", { class: "hint", style: "margin:4px 0" }, "Op de mobility conductor de uitvoer van deze twee commando's, elk als tekstbestand (of samen in een bestand):"),
         el("div", { class: "cmdline" }, "show ap database long"), el("div", { class: "cmdline" }, "show switches"),
         el("p", { class: "hint", style: "margin:4px 0" }, "Een Excel- of CSV-bestand met dezelfde kolommen kan ook (AP Type, Serial #, Switch IP, Standby IP; voor controllers Name, Model, Type, Version). Zonder controllerlijst worden de controllers uit de AP-lijst afgeleid, maar zonder model."))),
-    el("div", { class: "row" }, el("button", { class: "btn primary", disabled: AOS8.bezig || null, onclick: aos8Inlezen }, AOS8.bezig ? "Inlezen..." : AOS8.res ? "Opnieuw inlezen" : "Inlezen")),
+    el("div", { class: "row" }, el("button", { class: "btn primary", disabled: AOS8.bezig || null, onclick: aos8Inlezen }, AOS8.bezig ? "Inlezen..." : AOS8.res ? "Opnieuw inlezen" : "Inlezen"),
+      el("span", { class: "sp" }), laad,
+      el("button", { class: "btn", onclick: () => laad.click() }, "Migratiebestand laden..."),
+      AOS8.res ? el("button", { class: "btn", onclick: aos8Exporteer }, "Exporteren") : ""),
+    AOS8.nietBewaard ? el("div", { class: "banner warn", style: "margin-top:12px" }, "Deze inventaris is te groot om in de browser te bewaren. Exporteer ze, anders ben je ze kwijt als je de pagina sluit.") : "",
     AOS8.fout ? el("div", { class: "banner bad", style: "margin-top:12px" }, AOS8.fout) : "");
   const delen = [invoer];
   if (AOS8.res) {
-    if (AOS8.geladen) delen.push(el("div", { class: "banner info", style: "max-width:1180px;margin:0 auto 16px" }, "Laatste inventaris van " + (AOS8.res.klant || "deze klant") + " geladen, ingelezen op " + AOS8.geladen.slice(0, 16).replace("T", " ") + "."));
+    if (AOS8.geladen) delen.push(el("div", { class: "banner info", style: "max-width:1180px;margin:0 auto 16px" }, "Inventaris van " + (AOS8.res.klant || "deze klant") + " geladen, ingelezen op " + AOS8.geladen.slice(0, 16).replace("T", " ") + "."));
     delen.push(aos8Resultaat(AOS8.res), aos8PlanKaart(AOS8.res));
   }
   werk.replaceChildren(...delen);
@@ -1161,18 +1208,19 @@ function aos8Resultaat(r) {
 function aos8Gedaan(cluster) { return Object.keys(AOS8.vg[cluster] || {}).length; }
 async function aos8Plan() {
   AOS8.planFout = null; AOS8.planBezig = true; renderAos8();
-  const r = await post("/api/web/aos8/plan", { klant: AOS8.klant, clusters: [...AOS8.kies] }).catch(e => ({ fout: "Geen antwoord van cnx: " + e }));
+  const r = await post("/api/web/aos8/plan", { inventaris: aos8Inventaris(), voortgang: AOS8.vg, clusters: [...AOS8.kies] }).catch(e => ({ fout: "Geen antwoord van cnx: " + e }));
   AOS8.planBezig = false;
   if (r.fout) AOS8.planFout = r.fout; else AOS8.plan = r;
   renderAos8();
 }
-async function aos8Vink(cluster, stap, gedaan) {
-  const r = await post("/api/web/aos8/voortgang", { klant: AOS8.klant, cluster, stap, gedaan }).catch(e => ({ fout: String(e) }));
-  if (r.fout) AOS8.planFout = "Niet bewaard: " + r.fout; else AOS8.vg = r.voortgang;
+function aos8Vink(cluster, stap, gedaan) {
+  const c = AOS8.vg[cluster] = AOS8.vg[cluster] || {};
+  if (gedaan) c[stap] = lokaleTijd().slice(0, 16); else delete c[stap];
+  aos8BewaarVoortgang();
   renderAos8();
 }
 async function aos8PlanDownload() {
-  const r = await post("/api/web/aos8/plan", { klant: AOS8.klant, clusters: AOS8.plan.clusters.map(c => c.naam) });
+  const r = await post("/api/web/aos8/plan", { inventaris: aos8Inventaris(), voortgang: AOS8.vg, clusters: AOS8.plan.clusters.map(c => c.naam) });
   if (r.fout) { AOS8.planFout = r.fout; renderAos8(); return; }
   bewaarBestand("Migratieplan" + (AOS8.klant ? "-" + AOS8.klant.replace(/[^A-Za-z0-9_-]+/g, "_") : "") + "-" + r.tijd.slice(0, 10) + ".html", r.html, "text/html");
 }
@@ -1180,7 +1228,7 @@ function aos8PlanKaart(r) {
   const met = r.clusters.filter(c => c.aps);
   const zetKies = (naam, aan) => { aan ? AOS8.kies.add(naam) : AOS8.kies.delete(naam); opslaan("aos8-kies-" + AOS8.klant, JSON.stringify([...AOS8.kies])); renderAos8(); };
   const kaart = el("div", { class: "card" }, el("h2", {}, "Migratieplan"),
-    el("p", { class: "lead" }, "Vink de clusters aan die je in deze golf migreert en maak het stappenplan. Vink stappen af terwijl je werkt; dat wordt per klant bewaard. Download het plan voor de technieker of de klant (af te drukken als PDF)."),
+    el("p", { class: "lead" }, "Vink de clusters aan die je in deze golf migreert en maak het stappenplan. Vink stappen af terwijl je werkt; dat wordt per klant in deze browser bewaard. Download het plan voor de technieker of de klant (af te drukken als PDF)."),
     el("div", { class: "tabelbox", style: "max-height:300px" }, el("table", {},
       el("thead", {}, el("tr", {}, el("th", { style: "width:32px" }), ...["Cluster", "Stand", "APs", "Vervangen", "Redundant", "Afgevinkt"].map(x => el("th", {}, x)))),
       el("tbody", {}, met.map(c => el("tr", {},
@@ -1230,7 +1278,6 @@ function aos8Fasen(titel, sleutel, fasen, sub, terugval) {
 
 function ib(tekst) { return el("span", { class: "ib", tabindex: 0, role: "note", "aria-label": tekst, "data-tip": tekst }, "i"); }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-function bestandUrl(pad) { return "/api/web/bestand?pad=" + encodeURIComponent(pad) + "&t=" + T; }
 // Lange ophaling starten en wachten tot ze klaar is (gebruikt door het wissen van overrides).
 async function ophaalEnWacht(soort, opties, opVoortgang) {
   const r = await post("/api/web/ov/ophaal", { soort, opties });

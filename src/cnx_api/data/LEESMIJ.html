@@ -136,7 +136,9 @@ wordt niets gewijzigd en je hoeft niet aan te melden.</p>
    Gateway omzetten bij een cluster met een controller), APs omzetten (een stap per AP-groep), Tweede gateway en
    Afronden, met een terugvalplan en de lijst van APs.</li>
 <li>Vink stappen af terwijl je werkt. De voortgang en de laatst ingelezen inventaris worden per klant bewaard in
-     <code>cnx-web/migratie/&lt;klant&gt;</code>; typ de klantnaam en de toolkit laadt ze opnieuw, ook na een herstart.</li>
+     deze browser, niet op de server; typ de klantnaam en de toolkit laadt ze opnieuw, ook na een herstart.</li>
+<li><strong>Exporteren</strong> maakt een migratiebestand (<code>.json</code>) met de inventaris, de afgevinkte stappen en de gekozen
+     clusters. Met <strong>Migratiebestand laden...</strong> werk je verder op een andere pc of geef je het plan door aan een collega.</li>
 <li><strong>Download stappenplan (HTML)</strong> geeft het plan met de afgevinkte stappen, voor de technieker of de klant.</li>
 <li>Stappen met <em>nakijken</em> bevatten commando's die per AOS-8-versie kunnen verschillen (omzetten van controllers en
      APs): kijk ze na in de migratiegids van HPE voor je ze uitvoert.</li>
@@ -162,11 +164,13 @@ van HPE.</p>
    fouten zijn, kan je niet verder. Een lege of ongeldige hostname is geen fout: dan gaat enkel het IP mee.</li>
 <li>
 <p><strong>Bestand.</strong> Een voorbeeld van het importbestand zoals Central het krijgt, met de knop Download. Laad het op via
-   Configuration &gt; Library &gt; Named Objects &gt; Aliases &gt; Bulk upload. Een kopie staat in <code>cnx-web/onboarding</code>.</p>
+   Configuration &gt; Library &gt; Named Objects &gt; Aliases &gt; Bulk upload. Een kopie staat in <code>cnx-web/onboarding</code> (niet met <code>--zonder-opslag</code>).</p>
 </li>
 <li>
 <p>De webapp draait enkel op je eigen computer (<code>127.0.0.1</code>), niet op internet. Sluit het zwarte venster om te stoppen.</p>
 </li>
+<li><code>cnx web --zonder-opslag</code>: de webapp schrijft niets op schijf. Importbestanden en logboeken krijg je enkel als
+  download, en het tabblad Instellingen (klantconfig) is er niet. Zo werkt ook de gehoste versie.</li>
 <li>Overrides wissen gebeurt altijd in twee stappen: eerst een plan dat je ziet, dan pas uitvoeren.</li>
 <li>Aanmelden kan in het scherm of met de omgevingsvariabelen hieronder. Het client secret blijft enkel in het geheugen.
   Een token van Central verloopt na een tijd; de toolkit meldt dan zelf opnieuw aan en probeert de aanvraag nog
@@ -231,7 +235,7 @@ Global.</p>
 veranderd is, valt eruit. Het plan toont per object het gevolg. Zitten er objecten in die de switch veranderen, dan
 typ je WISSEN om te bevestigen. Een object dat nog gebruikt wordt (bv. een VLAN op een poort) weigert Central; dat staat
 als "in gebruik, niet gewist" in het resultaat. Na het wissen kijkt de toolkit na dat het object weg is. Systeeminfo, beheerinterface, lokaal beheer en het
-firmwarebeleid worden nooit gewist. Alles komt in <code>cnx-web/overrides-wissen-log-&lt;tijd&gt;.json</code>.
+firmwarebeleid worden nooit gewist. Alles komt in <code>cnx-web/overrides-wissen-log-&lt;tijd&gt;.json</code>; met <strong>Logboek downloaden</strong> krijg je het ook als bestand.
 Het vroegere wisscherm voor VLAN's blijft beschikbaar met <code>cnx overrides</code>.</p>
 <h2>Vereisten</h2>
 <ul>
