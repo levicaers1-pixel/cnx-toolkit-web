@@ -1,0 +1,8 @@
+*
+!pyproject.toml
+!LEESMIJ.md
+!LICENSE
+!NOTICE
+!src/
+**/__pycache__
+**/*.pyc

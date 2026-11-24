@@ -20,3 +20,5 @@ Versienummers volgen MAJOR.MINOR.PATCH.
   taken per sessie, uploads tot 20 MB, logs zonder parameters of gegevens, veiligheidskoppen en `/gezond` voor de
   gezondheidscheck. Aanmelden enkel bij https-adressen op `arubanetworks.com` (`CNX_CENTRAL_DOMEINEN`).
 - De webapp bedient de routes van de oude overrides-app (`/api/switches`, `/api/overrides`, `/api/wissen`) niet meer.
+- Container-image (`Dockerfile`): servermodus, zonder root, werkt alleen-lezen. Bij elke tag op
+  `ghcr.io/levicaers1-pixel/cnx-toolkit-web`.

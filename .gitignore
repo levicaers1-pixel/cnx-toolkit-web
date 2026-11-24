@@ -11,3 +11,5 @@ toestellen.csv
 .venv/
 cnx-web/
 .claude/
+build/lib/
+build/bdist*/

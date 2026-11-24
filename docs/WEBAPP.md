@@ -48,10 +48,17 @@ Een sessie ontstaat enkel bij het openen van de pagina; losse aanvragen zonder s
 - Logs enkel technisch (route, status, duur), nooit IP's, hostnames, serials of inhoud.
 - Limieten op uploadgrootte en aantal sessies.
 
-## Fase 4: verpakking
+## Fase 4: verpakking (klaar)
 
-- Dockerfile (Python slim), image via GitHub Actions naar GitHub Container Registry bij elke tag.
-- Zelf hosten: `docker run -p 8080:8080 ghcr.io/<eigenaar>/cnx-toolkit-web`.
+```bash
+docker run -d -p 8080:8080 -e CNX_HOSTS=cnx.voorbeeld.be --read-only ghcr.io/levicaers1-pixel/cnx-toolkit-web:latest
+```
+
+- `Dockerfile`: Python 3.12 slim, draait als gebruiker 10001 (geen root), werkt met `--read-only`, gezondheidscheck op
+  `/gezond`. Start `cnx web --server`; hostnamen via `CNX_HOSTS`, poort via `PORT`.
+- `.github/workflows/docker.yml`: bouwt en test het image bij elke push (alleen-lezen, zonder root, cookie, Host-controle).
+  Bij een tag `v*` komt het op GHCR als `:<versie>` en `:latest`. De eerste keer staat het pakket op GHCR privé:
+  zet het in de pakketinstellingen op publiek.
 
 ## Fase 5: hosting voor collega's
 

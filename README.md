@@ -9,13 +9,15 @@ Mobility Gateways and AOS-8 access points. The user interface and documentation 
 
 ## Status
 
-This repository is the start of a **hosted web version** of the CNX Toolkit (based on CNX Toolkit 1.25.2). Today it
-still runs as a local app on `127.0.0.1`. The goal:
+A **hosted web version** of the CNX Toolkit (based on CNX Toolkit 1.25.2). It runs as a local app (`cnx web`) or as a
+server for several users (`cnx web --server`, or the container image):
 
 - **Stores no customer data.** No database and nothing written to disk on the server. Central credentials live only in
   memory for the session; inventories, migration plans and import files stay in the browser or are downloaded.
 - **One Central connection per user**, so several people can use one hosted instance safely.
 - **Runs as a container** (`docker run`), self-hosted or behind a login such as Microsoft Entra ID.
+
+Not yet tested behind a real HTTPS proxy or against a real Central in server mode.
 
 See [docs/WEBAPP.md](docs/WEBAPP.md) for the plan.
 
@@ -27,6 +29,15 @@ See [docs/WEBAPP.md](docs/WEBAPP.md) for the plan.
   plan you see first.
 - **AP-migratie**: read an AOS-8 inventory (`show ap database long`, `show switches`, or Excel/CSV), get an AOS-10
   readiness report and a step-by-step migration plan per cluster.
+
+## Running with Docker
+
+```bash
+docker run -d -p 8080:8080 -e CNX_HOSTS=cnx.example.com --read-only ghcr.io/levicaers1-pixel/cnx-toolkit-web:latest
+```
+
+Put it behind a reverse proxy with HTTPS: the session cookie is `Secure`. `CNX_HOSTS` lists the host names the app is
+reachable on. Health check: `GET /gezond`.
 
 ## Running locally
 
