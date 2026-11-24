@@ -10,3 +10,4 @@ klantconfig.json
 toestellen.csv
 .venv/
 cnx-web/
+.claude/

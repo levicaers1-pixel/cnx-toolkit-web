@@ -36,7 +36,7 @@ Gekende structuur: ALIAS_VLAN_DESCRIPTION. Voor een ander type met een waarde: -
 en --sjabloon-waarde <de waarde erin>. Types met meerdere rijen per alias (ALIAS_DNS_RESOLVER) slaat het script over:
 zet de DNS-servers beter in een gewoon DNS-profiel op Global.
 """
-import argparse, copy, csv, datetime, json, os, sys, threading, time
+import argparse, contextlib, contextvars, copy, csv, datetime, json, os, sys, threading, time
 from urllib.parse import quote
 
 try:
@@ -46,41 +46,87 @@ except ImportError:
 
 # ---------------------------------------------------------------- API (zelfde werking als cx_push.py)
 
-BASE = os.environ.get("CNX_BASE_URL", "").rstrip("/")
 PREFIX = "/network-config/v1alpha1"
 TOKEN_URL = os.environ.get("CNX_TOKEN_URL", "https://sso.common.cloud.hpe.com/as/token.oauth2")
 FUNC = {"ACCESS SWITCH": "ACCESS_SWITCH", "AGGREGATION SWITCH": "AGG_SWITCH", "CORE SWITCH": "CORE_SWITCH",
         "MOBILITY GATEWAY": "MOBILITY_GW", "MOBILITY GW": "MOBILITY_GW"}
-S = requests.Session()
 LOG = []
-_GEGEVENS = {}                     # client-ID en secret, enkel in het geheugen: om een verlopen token te vernieuwen
-_TOKEN_SLOT = threading.Lock()
 
 
-def _token(cid, secret):
-    """Haalt een token en zet het op de sessie. Geeft None, of de foutmelding."""
+class Verbinding:
+    """Een aanmelding bij new Central: URL, HTTP-sessie met token, en de gegevens om een verlopen token te vernieuwen.
+    De gegevens (client-ID en secret) staan enkel in het geheugen. Elke gebruiker van de webapp kan een eigen
+    verbinding hebben; de commandolijn en de lokale webapp gebruiken de standaardverbinding."""
+
+    def __init__(self, base=""):
+        self.base = (base or "").rstrip("/")
+        self.s = requests.Session()
+        self.gegevens = {}
+        self.slot = threading.Lock()          # een token tegelijk vernieuwen
+        self.cache = {}                       # leesgegevens uit Central, per verbinding (zie overrides.cache)
+
+    @property
+    def aangemeld(self):
+        return "Authorization" in self.s.headers
+
+    def wis(self):
+        self.s.headers.pop("Authorization", None)
+        self.gegevens.clear()
+        self.cache.clear()
+
+
+_STANDAARD = Verbinding(os.environ.get("CNX_BASE_URL", ""))
+_HUIDIG = contextvars.ContextVar("cnx_verbinding", default=None)
+
+
+def verbinding():
+    """De verbinding van de lopende aanvraag, anders de standaardverbinding."""
+    return _HUIDIG.get() or _STANDAARD
+
+
+@contextlib.contextmanager
+def gebruik(v):
+    """Alles binnen dit blok (ook cx.api in andere modules) gaat via verbinding v."""
+    t = _HUIDIG.set(v)
+    try:
+        yield v
+    finally:
+        _HUIDIG.reset(t)
+
+
+def __getattr__(naam):
+    """cx.S en cx.BASE blijven werken: ze geven de sessie en de URL van de huidige verbinding."""
+    if naam == "S":
+        return verbinding().s
+    if naam == "BASE":
+        return verbinding().base
+    raise AttributeError(f"module {__name__!r} has no attribute {naam!r}")
+
+
+def _token(v, cid, secret):
+    """Haalt een token en zet het op de sessie van verbinding v. Geeft None, of de foutmelding."""
     r = requests.post(TOKEN_URL, timeout=30, data={"grant_type": "client_credentials",
                                                    "client_id": cid, "client_secret": secret})
     if r.status_code >= 300:
         return f"Aanmelden mislukt ({r.status_code}): {r.text[:300]}"
-    S.headers.update({"Authorization": f"Bearer {r.json()['access_token']}", "Content-Type": "application/json"})
+    v.s.headers.update({"Authorization": f"Bearer {r.json()['access_token']}", "Content-Type": "application/json"})
     return None
 
 
 def aanmelden(base, cid, secret):
-    global BASE
-    BASE = base.rstrip("/")
-    fout = _token(cid, secret)
+    v = verbinding()
+    v.base = base.rstrip("/")
+    fout = _token(v, cid, secret)
     if fout:
         return False, fout
-    _GEGEVENS.clear()
-    _GEGEVENS.update(id=cid, secret=secret)
+    v.gegevens.clear()
+    v.gegevens.update(id=cid, secret=secret)
+    v.cache.clear()
     return True, "aangemeld"
 
 
 def afmelden():
-    S.headers.pop("Authorization", None)
-    _GEGEVENS.clear()
+    verbinding().wis()
 
 
 def login():
@@ -95,11 +141,12 @@ def login():
 def api(method, path, params=None, body=None):
     """Een 401 (token verlopen) vernieuwt het token een keer en probeert opnieuw. Central weigert een aanvraag met
     een verlopen token voor ze iets doet, dus opnieuw sturen is veilig, ook voor POST en DELETE."""
+    v = verbinding()
     r = _api(method, path, params, body)
-    if r.status_code == 401 and _GEGEVENS:
+    if r.status_code == 401 and v.gegevens:
         print("      401: token verlopen, opnieuw aanmelden")
-        with _TOKEN_SLOT:
-            fout = _token(_GEGEVENS["id"], _GEGEVENS["secret"])
+        with v.slot:
+            fout = _token(v, v.gegevens["id"], v.gegevens["secret"])
         if fout:
             print(f"      {fout}")
             return r
@@ -110,8 +157,9 @@ def api(method, path, params=None, body=None):
 def _api(method, path, params=None, body=None):
     """429 en 5xx: opnieuw proberen (DELETE maximaal 2 keer). Geeft altijd het laatste antwoord terug."""
     pogingen = 3 if method == "DELETE" else 6
+    v = verbinding()
     for attempt in range(pogingen):
-        r = S.request(method, BASE + path, params=params, json=body, timeout=60)
+        r = v.s.request(method, v.base + path, params=params, json=body, timeout=60)
         if (r.status_code == 429 or r.status_code >= 500) and attempt < pogingen - 1:
             print(f"      {r.status_code}, opnieuw over {2 ** attempt}s")
             time.sleep(2 ** attempt)

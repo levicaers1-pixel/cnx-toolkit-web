@@ -72,7 +72,7 @@ def test_verlopen_token_wordt_vernieuwd(monkeypatch):
     tokens = []
     monkeypatch.setattr(cx.S, "request", lambda *a, **k: antwoorden.pop(0))
     monkeypatch.setattr(cx.requests, "post", lambda *a, **k: tokens.append(k["data"]["client_id"]) or _Antwoord(200, {"access_token": "nieuw"}))
-    monkeypatch.setattr(cx, "_GEGEVENS", {"id": "cid", "secret": "geheim"})
+    monkeypatch.setattr(cx.verbinding(), "gegevens", {"id": "cid", "secret": "geheim"})
     monkeypatch.setitem(cx.S.headers, "Authorization", "Bearer oud")
     r = cx.api("GET", "/x")
     assert r.status_code == 200 and tokens == ["cid"] and cx.S.headers["Authorization"] == "Bearer nieuw"
@@ -81,7 +81,7 @@ def test_verlopen_token_wordt_vernieuwd(monkeypatch):
 def test_zonder_gegevens_geen_nieuwe_aanmelding(monkeypatch):
     monkeypatch.setattr(cx.S, "request", lambda *a, **k: _Antwoord(401))
     monkeypatch.setattr(cx.requests, "post", lambda *a, **k: pytest.fail("mag niet aanmelden zonder gegevens"))
-    monkeypatch.setattr(cx, "_GEGEVENS", {})
+    monkeypatch.setattr(cx.verbinding(), "gegevens", {})
     assert cx.api("GET", "/x").status_code == 401
 
 

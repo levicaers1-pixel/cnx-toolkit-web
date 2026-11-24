@@ -10,7 +10,7 @@ De webapp draait enkel op deze computer (127.0.0.1). Overrides wissen gebeurt pa
 Aanmelden: met CNX_BASE_URL, CNX_CLIENT_ID en CNX_CLIENT_SECRET, of in het scherm zelf
 (de gegevens blijven enkel in het geheugen van dit programma).
 """
-import argparse, base64, datetime, json, os, re, shutil, threading, webbrowser
+import argparse, base64, datetime, http.cookies, json, os, re, secrets, shutil, threading, time, webbrowser
 from http.server import ThreadingHTTPServer
 import xml.etree.ElementTree as ET
 from urllib.parse import parse_qs, quote, urlparse
@@ -210,7 +210,62 @@ def pagina(naam):
         return f.read()
 
 
+# ---------------------------------------------------------------- sessies
+
+class Sessie:
+    """Wat bij een gebruiker hoort: de verbinding met Central en de lopende ophalingen en wisplannen."""
+
+    def __init__(self, verbinding):
+        self.id = secrets.token_urlsafe(24)
+        self.verbinding = verbinding
+        self.ophalingen = {}
+        self.wisplannen = {}
+        self.laatst = time.time()
+
+
+PER_SESSIE = False          # True: elke browser een eigen verbinding met Central (servermodus). False: een gebruiker op deze pc
+COOKIE = "cnx_sessie"
+LOKAAL = Sessie(cx.verbinding())      # de standaardverbinding, ook die van de commandolijn
+SESSIES = {}
+_SESSIE_SLOT = threading.Lock()
+
+
+def sessie_van(cookie):
+    """Zoekt de sessie bij de cookie van de browser. Geeft (sessie, id van een nieuwe sessie of None)."""
+    if not PER_SESSIE:
+        return LOKAAL, None
+    sid = None
+    try:
+        c = http.cookies.SimpleCookie(cookie or "")
+        sid = c[COOKIE].value if COOKIE in c else None
+    except http.cookies.CookieError:
+        pass
+    with _SESSIE_SLOT:
+        sessie = SESSIES.get(sid)
+        nieuw = None
+        if sessie is None:
+            sessie = Sessie(cx.Verbinding(os.environ.get("CNX_BASE_URL", "")))
+            nieuw = sessie.id
+            SESSIES[sessie.id] = sessie
+    sessie.laatst = time.time()
+    return sessie, nieuw
+
+
 class Handler(ov.Handler):
+    def parse_request(self):
+        """Na het lezen van de kop: de sessie van deze browser zoeken en haar verbinding gebruiken voor de aanvraag."""
+        if not super().parse_request():
+            return False
+        self.sessie, self._nieuwe_sessie = sessie_van(self.headers.get("Cookie"))
+        cx._HUIDIG.set(self.sessie.verbinding)
+        return True
+
+    def end_headers(self):
+        if getattr(self, "_nieuwe_sessie", None):
+            self.send_header("Set-Cookie", f"{COOKIE}={self._nieuwe_sessie}; Path=/; HttpOnly; SameSite=Strict")
+            self._nieuwe_sessie = None
+        super().end_headers()
+
     def _host_ok(self):
         """Enkel aanvragen voor 127.0.0.1 of localhost: beschermt tegen DNS-rebinding."""
         poort = self.server.server_address[1]
@@ -269,7 +324,7 @@ class Handler(ov.Handler):
             if u.path == "/api/web/ov/keuzes":
                 return self._monitor(configapi.keuzes)
             if u.path == "/api/web/ov/ophaling":
-                o = OPHALINGEN.get(arg("id"))
+                o = self.sessie.ophalingen.get(arg("id"))
                 return self._json(o.info() if o else {"fout": "niet gevonden"}, 200 if o else 404)
             return self._json({"fout": "onbekend"}, 404)
         if u.path in ("/api/web/klantconfig", "/api/web/klantconfig/bestand"):
@@ -339,7 +394,7 @@ class Handler(ov.Handler):
             except ValueError as e:
                 return self._json({"fout": str(e)}, 400)
         if u.path == "/api/web/ov/ophaal":
-            return self._monitor(lambda: {"id": start_ophaling(body.get("soort", ""), body.get("opties") or {}).id})
+            return self._monitor(lambda: {"id": start_ophaling(self.sessie, body.get("soort", ""), body.get("opties") or {}).id})
         if u.path in ("/api/web/klantconfig", "/api/web/klantconfig/voorstel"):
             try:
                 if u.path.endswith("voorstel"):
@@ -350,8 +405,9 @@ class Handler(ov.Handler):
             except (OSError, ValueError) as e:
                 return self._json({"fout": f"{type(e).__name__}: {e}"}, 500)
         if u.path == "/api/web/afmelden":
-            cx.afmelden()
-            ov.CACHE.update({"switches": None, "scopes": None, "toewijzingen": {}})
+            cx.afmelden()                        # ook de cache van de verbinding
+            self.sessie.ophalingen.clear()
+            self.sessie.wisplannen.clear()
             return self._json({"ok": True})
         return self._json({"fout": "onbekend"}, 404)
 
@@ -360,9 +416,6 @@ class Handler(ov.Handler):
 
 
 # ---------------------------------------------------------------- ophalingen: lang lezen uit Central, met voortgang
-
-OPHALINGEN = {}
-WISPLANNEN = {}
 
 
 def logboek(naam, regels):
@@ -377,7 +430,7 @@ def logboek(naam, regels):
 
 class Ophaling:
     def __init__(self, soort):
-        self.id = f"{datetime.datetime.now():%Y%m%d-%H%M%S}-{soort}-{len(OPHALINGEN) + 1}"
+        self.id = f"{datetime.datetime.now():%Y%m%d-%H%M%S}-{soort}-{secrets.token_hex(4)}"
         self.soort, self.status, self.gedaan, self.totaal, self.stap = soort, "bezig", 0, 0, "starten"
         self.resultaat, self.fout = None, None
 
@@ -389,15 +442,16 @@ class Ophaling:
                 "stap": self.stap, "fout": self.fout, "resultaat": self.resultaat if self.status == "klaar" else None}
 
 
-def start_ophaling(soort, opties):
+def start_ophaling(sessie, soort, opties):
+    """Start een lange taak op de achtergrond, met de verbinding van deze sessie. Enkel deze sessie ziet ze."""
     if soort == "wisplan":
         def doe(v):
             plan = configapi.wis_plan(opties.get("items"), opties.get("device_function") or "ACCESS_SWITCH", v)
-            pid = f"wis-{datetime.datetime.now():%Y%m%d%H%M%S}-{len(WISPLANNEN) + 1}"
-            WISPLANNEN[pid] = (plan["acties"], plan["device_function"])
+            pid = f"wis-{datetime.datetime.now():%Y%m%d%H%M%S}-{secrets.token_hex(4)}"
+            sessie.wisplannen[pid] = (plan["acties"], plan["device_function"])
             return dict(plan, id=pid)
     elif soort == "wissen":
-        gevonden = WISPLANNEN.pop(str(opties.get("plan") or ""), None)
+        gevonden = sessie.wisplannen.pop(str(opties.get("plan") or ""), None)
         if gevonden is None:
             raise monitor.Invoer("Dit plan is verlopen of al uitgevoerd. Maak een nieuw plan.")
         acties, df = gevonden
@@ -412,11 +466,12 @@ def start_ophaling(soort, opties):
     else:
         raise monitor.Invoer("onbekende ophaling")
     o = Ophaling(soort)
-    OPHALINGEN[o.id] = o
+    sessie.ophalingen[o.id] = o
 
     def draai_ophaling():
         try:
-            o.resultaat = doe(o.voortgang)
+            with cx.gebruik(sessie.verbinding):
+                o.resultaat = doe(o.voortgang)
             o.status = "klaar"
         except monitor.ApiFout as e:
             o.fout, o.status = (e.melding if isinstance(e, monitor.Invoer) else f"Central gaf {e.status}: {e.melding}"), "fout"

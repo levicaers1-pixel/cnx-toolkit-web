@@ -3,13 +3,16 @@
 Doel: collega's gebruiken de toolkit via een URL, zonder installatie, en de server bewaart geen klantgegevens.
 Na elke fase blijft de lokale app (`cnx web`) werken.
 
-## Fase 1: elke gebruiker een eigen Central-verbinding
+## Fase 1: elke gebruiker een eigen Central-verbinding (klaar)
+
+Aan te zetten met `web.PER_SESSIE = True` (de vlag komt in fase 3 bij de servermodus). Sessie per browser via een
+cookie `cnx_sessie`; tests in `tests/test_sessies.py`.
 
 - `alias_api.py`: sessie, token, gegevens en URL samen in een object `Verbinding`, in plaats van de globale `S`,
   `_GEGEVENS` en `BASE`.
 - De verbinding van een aanvraag via een `contextvar`, zodat `cx.api(...)` in configapi, monitor en overrides blijft
   werken. CLI en lokale app gebruiken een standaardverbinding.
-- Achtergrondtaken nemen de verbinding van hun gebruiker mee (`contextvars.copy_context()`).
+- Achtergrondtaken nemen de verbinding van hun gebruiker mee (`cx.gebruik(verbinding)`).
 - `ov.CACHE`, `OPHALINGEN` en `WISPLANNEN` per sessie.
 - Test: twee gelijktijdige sessies op twee nep-Centrals zien elkaars data nooit.
 

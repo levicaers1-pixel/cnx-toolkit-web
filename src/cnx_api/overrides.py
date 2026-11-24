@@ -28,7 +28,17 @@ POORT = int(os.environ.get("CNX_OVERRIDES_POORT", "8765"))
 TOKEN = secrets.token_urlsafe(16)
 LOGPAD = os.path.join(os.getcwd(), f"overrides-log-{datetime.datetime.now():%Y%m%d-%H%M%S}.json")
 LOGBOEK, SLOT = [], threading.Lock()
-CACHE = {"switches": None, "scopes": None, "toewijzingen": {}}
+
+
+def cache():
+    """Leesgegevens uit Central (switches, scopes, toewijzingen), per verbinding: elke gebruiker de zijne."""
+    c = cx.verbinding().cache
+    c.setdefault("switches", None)
+    c.setdefault("scopes", None)
+    c.setdefault("toewijzingen", {})
+    return c
+
+
 TYPES = {
     "layer2-vlan": {"label": "VLAN", "sleutel": "vlan", "toewijzing": "layer2-vlan"},
     "aliases": {"label": "Alias", "sleutel": "name", "toewijzing": "aliases",
@@ -40,10 +50,7 @@ TYPES = {
 
 def aanmelden(base, cid, secret):
     """Via cnx api: die onthoudt de gegevens in het geheugen en vernieuwt een verlopen token zelf."""
-    ok, melding = cx.aanmelden(base, cid, secret)
-    if ok:
-        CACHE.update({"switches": None, "scopes": None, "toewijzingen": {}})
-    return ok, melding
+    return cx.aanmelden(base, cid, secret)       # maakt ook de cache van de verbinding leeg
 
 
 def lijst(data):
@@ -58,7 +65,7 @@ def lijst(data):
 
 def scopes():
     """Naam -> scope-id voor sites en device groups."""
-    if CACHE["scopes"] is None:
+    if cache()["scopes"] is None:
         sites, groepen = {}, {}
         for pad, doel in (("/network-config/v1/sites", sites), ("/network-config/v1/device-groups", groepen)):
             off = 0
@@ -74,24 +81,24 @@ def scopes():
                 off += 100
                 if not items or off >= int(j.get("total") or 0):
                     break
-        CACHE["scopes"] = {"sites": sites, "groepen": groepen, "global": cx.global_params()["scope-id"]}
-    return CACHE["scopes"]
+        cache()["scopes"] = {"sites": sites, "groepen": groepen, "global": cx.global_params()["scope-id"]}
+    return cache()["scopes"]
 
 
 def toewijzingen(scope_id):
-    if scope_id not in CACHE["toewijzingen"]:
+    if scope_id not in cache()["toewijzingen"]:
         r = cx.api("GET", f"{cx.PREFIX}/config-assignments", {"scope-id": scope_id})
         try:
             lst = r.json().get("config-assignment") or []
         except (ValueError, AttributeError):
             lst = []
-        CACHE["toewijzingen"][scope_id] = {(x.get("profile-type"), str(x.get("profile-instance")), x.get("device-function"))
+        cache()["toewijzingen"][scope_id] = {(x.get("profile-type"), str(x.get("profile-instance")), x.get("device-function"))
                                            for x in lst}
-    return CACHE["toewijzingen"][scope_id]
+    return cache()["toewijzingen"][scope_id]
 
 
 def switches(vernieuw=False):
-    if CACHE["switches"] is None or vernieuw:
+    if cache()["switches"] is None or vernieuw:
         uit, gezien = [], set()
         for serial, d in sorted(cx.switches().items(), key=lambda x: (x[1].get("siteName") or "", x[1].get("deviceName") or "")):
             sid = str(d.get("scopeId") or "")
@@ -102,8 +109,8 @@ def switches(vernieuw=False):
                         "functie_label": d.get("deviceFunction") or "", "site": d.get("siteName") or "",
                         "groep": d.get("deviceGroupName") or "", "scope": sid, "status": d.get("status") or "",
                         "model": d.get("model") or d.get("deviceModel") or ""})
-        CACHE["switches"] = uit
-    return CACHE["switches"]
+        cache()["switches"] = uit
+    return cache()["switches"]
 
 
 def vervanging(sw, typ, inst):
