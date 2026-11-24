@@ -9,9 +9,15 @@
 | Device data from Central (serials, IPs, hostnames, aliases) | Read from Central on request, sent to your browser. |
 | Uploaded files (AOS-8 inventory, CSV) | Processed in memory. |
 
-**Current version:** the app still runs locally on `127.0.0.1` and keeps import files, logs, the AOS-8 inventory and
-migration-plan progress in a local folder `cnx-web/`. The hosted version will store none of this on the server; see
-[docs/WEBAPP.md](docs/WEBAPP.md).
+**Local app** (`cnx web`, on `127.0.0.1`): keeps a copy of import files and logs in a local folder `cnx-web/`.
+**Server mode** (`cnx web --server`) and `--zonder-opslag`: nothing is written to disk. Import files and logs are
+only sent to the browser. The AOS-8 inventory and migration-plan progress always stay in the browser (local storage),
+never on the server. See [docs/WEBAPP.md](docs/WEBAPP.md).
+
+In server mode (`cnx web --server`) each browser gets its own session: an HttpOnly, Secure, SameSite=Strict cookie and
+its own CSRF token. A session, including the Central secret, is wiped after 30 minutes without activity or on sign-out.
+Logs contain only the method, the path without parameters, the status and the duration. Sign-in is only allowed to
+https addresses on the Central domains (`CNX_CENTRAL_DOMEINEN`, default `arubanetworks.com`).
 
 Use a Central API client with only the permissions you need. Anything that writes to Central runs as a dry run first.
 

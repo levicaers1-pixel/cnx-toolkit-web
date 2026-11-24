@@ -98,7 +98,10 @@ Voor switches en Mobility Gateways. Drie schermen, zonder klantconfig:
 
 - De webapp draait enkel op je eigen computer (`127.0.0.1`), niet op internet. Sluit het zwarte venster om te stoppen.
 - `cnx web --zonder-opslag`: de webapp schrijft niets op schijf. Importbestanden en logboeken krijg je enkel als
-  download, en het tabblad Instellingen (klantconfig) is er niet. Zo werkt ook de gehoste versie.
+  download, en het tabblad Instellingen (klantconfig) is er niet.
+- `cnx web --server --host-naam cnx.voorbeeld.be`: servermodus achter een reverse proxy (HTTPS), voor meerdere
+  gebruikers. Elke browser krijgt een eigen sessie en meldt zelf aan bij Central; er wordt niets op schijf bewaard.
+  Poort: `--poort` of de omgevingsvariabele `PORT` (standaard 8080). Zie [docs/WEBAPP.md](docs/WEBAPP.md).
 - Overrides wissen gebeurt altijd in twee stappen: eerst een plan dat je ziet, dan pas uitvoeren.
 - Aanmelden kan in het scherm of met de omgevingsvariabelen hieronder. Het client secret blijft enkel in het geheugen.
   Een token van Central verloopt na een tijd; de toolkit meldt dan zelf opnieuw aan en probeert de aanvraag nog

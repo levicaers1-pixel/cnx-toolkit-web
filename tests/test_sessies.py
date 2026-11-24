@@ -2,12 +2,12 @@
 ophalingen en wisplannen nooit zien, ook niet bij gelijktijdige aanvragen."""
 import json
 import os
+import re
 import sys
 import threading
 import time
 import urllib.error
 import urllib.request
-from http.cookiejar import CookieJar
 
 import pytest
 
@@ -18,23 +18,40 @@ from test_web import server  # noqa: E402,F401
 
 
 class Browser:
-    """Een gebruiker met een eigen cookie, zoals een eigen browser."""
+    """Een gebruiker met een eigen cookie, zoals een eigen browser. Opent eerst de pagina: daar komen de sessie en het
+    eigen token (CSRF) vandaan. De cookie wordt met de hand bijgehouden (ze is Secure in servermodus)."""
 
-    def __init__(self, server):
-        self.server = server
-        self.jar = CookieJar()
-        self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.jar))
+    def __init__(self, server, pagina=True):
+        self.server, self.cookie, self.token = server, None, None
+        if pagina:
+            s, html = self.ruw("/")
+            assert s == 200, s
+            self.token = re.search(r'const T = "([^"]+)"', html.decode()).group(1)
 
-    def vraag(self, pad, body=None):
-        h = {"X-Token": web.ov.TOKEN}
+    def ruw(self, pad, body=None, token=None, headers=None):
+        h = dict(headers or {})
+        if token:
+            h["X-Token"] = token
+        if self.cookie:
+            h["Cookie"] = "cnx_sessie=" + self.cookie
         data = None
         if body is not None:
             data, h["Content-Type"] = json.dumps(body).encode(), "application/json"
         try:
-            with self.opener.open(urllib.request.Request(self.server + pad, data=data, headers=h), timeout=10) as r:
-                return r.status, json.loads(r.read() or b"null")
+            r = urllib.request.urlopen(urllib.request.Request(self.server + pad, data=data, headers=h), timeout=10)
         except urllib.error.HTTPError as e:
-            return e.code, json.loads(e.read() or b"null")
+            r = e
+        with r:
+            self.koppen = r.headers
+            for c in r.headers.get_all("Set-Cookie") or []:
+                m = re.match(r"cnx_sessie=([^;]+)", c)
+                if m:
+                    self.cookie, self.set_cookie = m.group(1), c
+            return r.status, r.read()
+
+    def vraag(self, pad, body=None):
+        s, b = self.ruw(pad, body, token=self.token)
+        return s, json.loads(b or b"null")
 
 
 @pytest.fixture
@@ -129,4 +146,4 @@ def test_lokale_modus_deelt_de_standaardverbinding(server, monkeypatch):
     monkeypatch.setitem(cx.S.headers, "Authorization", "Bearer test")
     a, b = Browser(server), Browser(server)
     assert a.vraag("/api/status")[1]["aangemeld"] is True and b.vraag("/api/status")[1]["aangemeld"] is True
-    assert not list(a.jar)                   # geen cookie nodig
+    assert a.cookie is None                  # geen cookie nodig

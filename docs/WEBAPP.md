@@ -27,7 +27,20 @@ Tests in `tests/test_zonder_opslag.py`: elke schrijfpoging naar een bestand doet
 - Instellingen (klantconfig, ook het voorstel uit een bulk-download): niet zonder opslag; enkel nodig voor `cnx alias`.
 - De route die bestanden uit de werkmap gaf (`/api/web/bestand`) is weg.
 
-## Fase 3: servermodus
+## Fase 3: servermodus (klaar)
+
+```bash
+cnx web --server --host-naam cnx.voorbeeld.be        # luistert op 0.0.0.0, poort $PORT of 8080
+```
+
+| Instelling | Hoe |
+|---|---|
+| Toegelaten hostnamen | `--host-naam` (meermaals) of `CNX_HOSTS` (komma's). Verplicht; `*` schakelt de controle uit |
+| Domeinen voor Central | `CNX_CENTRAL_DOMEINEN`, standaard `arubanetworks.com` (enkel https, poort 443) |
+| Gezondheidscheck | `GET` of `HEAD /gezond` |
+
+Een sessie ontstaat enkel bij het openen van de pagina; losse aanvragen zonder sessie krijgen 401. Tests in
+`tests/test_server.py`.
 
 - Luisteren achter een reverse proxy; Host-controle via een lijst van toegelaten hosts.
 - Sessiecookie (HttpOnly, Secure, SameSite=Strict) en CSRF-token per sessie in plaats van een vast token.

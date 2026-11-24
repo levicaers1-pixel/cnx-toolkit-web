@@ -10,7 +10,7 @@ De webapp draait enkel op deze computer (127.0.0.1). Overrides wissen gebeurt pa
 Aanmelden: met CNX_BASE_URL, CNX_CLIENT_ID en CNX_CLIENT_SECRET, of in het scherm zelf
 (de gegevens blijven enkel in het geheugen van dit programma).
 """
-import argparse, base64, datetime, http.cookies, json, os, re, secrets, shutil, threading, time, webbrowser
+import argparse, base64, datetime, hmac, http.cookies, json, os, re, secrets, shutil, sys, threading, time, webbrowser
 from http.server import ThreadingHTTPServer
 import xml.etree.ElementTree as ET
 from urllib.parse import parse_qs, quote, urlparse
@@ -212,25 +212,49 @@ def pagina(naam):
 # ---------------------------------------------------------------- sessies
 
 class Sessie:
-    """Wat bij een gebruiker hoort: de verbinding met Central en de lopende ophalingen en wisplannen."""
+    """Wat bij een gebruiker hoort: de verbinding met Central, een eigen CSRF-token en de lopende ophalingen en
+    wisplannen."""
 
     def __init__(self, verbinding):
         self.id = secrets.token_urlsafe(24)
+        self.csrf = secrets.token_urlsafe(24)
         self.verbinding = verbinding
         self.ophalingen = {}
         self.wisplannen = {}
         self.laatst = time.time()
 
+    def wis(self):
+        self.verbinding.wis()
+        self.ophalingen.clear()
+        self.wisplannen.clear()
 
-PER_SESSIE = False          # True: elke browser een eigen verbinding met Central (servermodus). False: een gebruiker op deze pc
+
+SERVER = False              # servermodus (--server): achter een reverse proxy, voor meerdere gebruikers
+PER_SESSIE = False          # True: elke browser een eigen verbinding met Central. False: een gebruiker op deze pc
+TOEGELATEN_HOSTS = set()    # servermodus: hostnamen (zonder poort) die in de Host-kop mogen staan; "*" = alles
+CENTRAL_DOMEINEN = [d.strip().lower().lstrip(".") for d in os.environ.get("CNX_CENTRAL_DOMEINEN", "arubanetworks.com").split(",") if d.strip()]
+SESSIE_DUUR = 30 * 60       # seconden zonder activiteit, daarna zijn sessie en secret weg
+MAX_SESSIES = 500
+MAX_BODY_SERVER = 20 * 1024 * 1024
+WEGGOOI_GRENS = 64 * 1024 * 1024   # te grote body tot hier lezen en weggooien; daarboven de verbinding sluiten
+MAX_TAKEN = 3               # lopende ophalingen per sessie
 COOKIE = "cnx_sessie"
 LOKAAL = Sessie(cx.verbinding())      # de standaardverbinding, ook die van de commandolijn
+LOKAAL.csrf = ov.TOKEN
 SESSIES = {}
 _SESSIE_SLOT = threading.Lock()
 
 
-def sessie_van(cookie):
-    """Zoekt de sessie bij de cookie van de browser. Geeft (sessie, id van een nieuwe sessie of None)."""
+def _opruimen(nu):
+    """Sessies zonder activiteit sinds SESSIE_DUUR: verbinding (token en secret) en taken wissen. Onder _SESSIE_SLOT."""
+    for sid in [k for k, v in SESSIES.items() if nu - v.laatst > SESSIE_DUUR]:
+        SESSIES.pop(sid).wis()
+
+
+def sessie_van(cookie, mag_maken=False):
+    """Zoekt de sessie bij de cookie van de browser. Geeft (sessie of None, id van een nieuwe sessie of None).
+    Een nieuwe sessie komt er enkel bij het openen van de pagina (mag_maken), niet bij elke losse aanvraag.
+    Geeft (None, "vol") als er al MAX_SESSIES zijn."""
     if not PER_SESSIE:
         return LOKAAL, None
     sid = None
@@ -239,36 +263,141 @@ def sessie_van(cookie):
         sid = c[COOKIE].value if COOKIE in c else None
     except http.cookies.CookieError:
         pass
+    nu = time.time()
     with _SESSIE_SLOT:
-        sessie = SESSIES.get(sid)
-        nieuw = None
-        if sessie is None:
-            sessie = Sessie(cx.Verbinding(os.environ.get("CNX_BASE_URL", "")))
-            nieuw = sessie.id
-            SESSIES[sessie.id] = sessie
-    sessie.laatst = time.time()
-    return sessie, nieuw
+        _opruimen(nu)
+        sessie = SESSIES.get(sid) if sid else None
+        if sessie is not None:
+            sessie.laatst = nu
+            return sessie, None
+        if not mag_maken:
+            return None, None
+        if len(SESSIES) >= MAX_SESSIES:
+            return None, "vol"
+        sessie = Sessie(cx.Verbinding())
+        SESSIES[sessie.id] = sessie
+        return sessie, sessie.id
+
+
+def nieuwe_sessie_id(sessie):
+    """Na aanmelden een nieuw sessie-id (tegen session fixation). Geeft het nieuwe id."""
+    with _SESSIE_SLOT:
+        SESSIES.pop(sessie.id, None)
+        sessie.id = secrets.token_urlsafe(24)
+        SESSIES[sessie.id] = sessie
+    return sessie.id
+
+
+def central_url_ok(base):
+    """Servermodus: enkel https naar een domein van Central, zodat niemand de server naar een intern adres laat praten."""
+    try:
+        u = urlparse(str(base or "").strip())
+        host = (u.hostname or "").lower()
+        poort = u.port
+    except ValueError:
+        return False
+    if u.scheme != "https" or not host or u.username or u.password or poort not in (None, 443):
+        return False
+    return any(host == d or host.endswith("." + d) for d in CENTRAL_DOMEINEN)
 
 
 class Handler(ov.Handler):
     def parse_request(self):
         """Na het lezen van de kop: de sessie van deze browser zoeken en haar verbinding gebruiken voor de aanvraag."""
+        self._start = time.monotonic()
         if not super().parse_request():
             return False
-        self.sessie, self._nieuwe_sessie = sessie_van(self.headers.get("Cookie"))
-        cx._HUIDIG.set(self.sessie.verbinding)
+        pad = urlparse(self.path).path
+        self.sessie, self._nieuwe_sessie = sessie_van(self.headers.get("Cookie"), mag_maken=self.command == "GET" and pad == "/")
+        if self._nieuwe_sessie == "vol":
+            self._nieuwe_sessie = None
+            self._vol = True
+        # Zonder sessie een lege verbinding, nooit de standaardverbinding of die van een vorige aanvraag op dezelfde draad.
+        cx._HUIDIG.set(self.sessie.verbinding if self.sessie else cx.Verbinding())
         return True
 
     def end_headers(self):
         if getattr(self, "_nieuwe_sessie", None):
-            self.send_header("Set-Cookie", f"{COOKIE}={self._nieuwe_sessie}; Path=/; HttpOnly; SameSite=Strict")
+            self.send_header("Set-Cookie", f"{COOKIE}={self._nieuwe_sessie}; Path=/; HttpOnly; SameSite=Strict" + ("; Secure" if SERVER else ""))
             self._nieuwe_sessie = None
+        if SERVER:
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "SAMEORIGIN")
+            self.send_header("Referrer-Policy", "no-referrer")
         super().end_headers()
 
+    def log_request(self, code="-", size="-"):
+        """Servermodus: een regel per aanvraag, met methode, pad zonder parameters, status en duur. Nooit IP-adressen,
+        parameters (serials, groepen, het token) of inhoud."""
+        if SERVER:
+            ms = int((time.monotonic() - getattr(self, "_start", time.monotonic())) * 1000)
+            sys.stderr.write(f"{self.log_date_time_string()} {self.command} {urlparse(self.path).path} {code} {ms}ms\n")
+
+    def _json(self, data, code=200):
+        b = json.dumps(data).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(b)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(b)
+
     def _host_ok(self):
-        """Enkel aanvragen voor 127.0.0.1 of localhost: beschermt tegen DNS-rebinding."""
+        """Lokaal enkel 127.0.0.1 of localhost (tegen DNS-rebinding); in servermodus de toegelaten hostnamen."""
+        host = self.headers.get("Host", "")
+        if SERVER:
+            naam = host.rsplit(":", 1)[0] if not host.endswith("]") else host
+            return "*" in TOEGELATEN_HOSTS or naam.strip("[]").lower() in TOEGELATEN_HOSTS
         poort = self.server.server_address[1]
-        return self.headers.get("Host", "") in (f"127.0.0.1:{poort}", f"localhost:{poort}")
+        return host in (f"127.0.0.1:{poort}", f"localhost:{poort}")
+
+    def _ok(self, q):
+        """Het CSRF-token van de pagina, als kop X-Token of parameter t. In servermodus het token van deze sessie."""
+        verwacht = self.sessie.csrf if self.sessie else None
+        gegeven = self.headers.get("X-Token") or (q.get("t", [""])[0] if q else "")
+        return bool(verwacht and gegeven) and hmac.compare_digest(str(gegeven), str(verwacht))
+
+    def _voor_alles(self, pad):
+        """Gezondheidscheck, Host-kop en sessie. Geeft True als de aanvraag al beantwoord is."""
+        if pad == "/gezond":
+            self._json({"ok": True})
+            return True
+        if pad == "/favicon.ico":
+            self.send_response(204)
+            self.end_headers()
+            return True
+        if not self._host_ok():
+            self._json({"fout": "geen toegang"}, 403)
+            return True
+        if getattr(self, "_vol", False):
+            self._json({"fout": "Te veel gebruikers tegelijk. Probeer later opnieuw."}, 503)
+            return True
+        if self.sessie is None and pad not in ("/", "/hulp"):
+            self._json({"fout": "Je sessie is verlopen. Herlaad de pagina."}, 401)
+            return True
+        return False
+
+    def do_HEAD(self):
+        """Voor gezondheidschecks die HEAD gebruiken: enkel /gezond, zonder inhoud."""
+        ok = urlparse(self.path).path == "/gezond"
+        self.send_response(200 if ok else 405)
+        if not ok:
+            self.send_header("Allow", "GET, POST")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _status(self):
+        v = cx.verbinding()
+        return {"aangemeld": v.aangemeld, "base": v.base, "env": bool(os.environ.get("CNX_CLIENT_ID")) and not SERVER}
+
+    def _aanmelden(self, body):
+        base = str(body.get("base") or "")
+        if SERVER and not central_url_ok(base):
+            return {"ok": False, "melding": "Geef de API-URL van new Central, bv. https://de1.api.central.arubanetworks.com. Een ander domein moet de beheerder eerst toelaten (CNX_CENTRAL_DOMEINEN)."}
+        ok, msg = cx.aanmelden(base, str(body.get("id") or ""), str(body.get("secret") or ""))
+        if ok and PER_SESSIE:
+            self._nieuwe_sessie = nieuwe_sessie_id(self.sessie)
+        return {"ok": ok, "melding": msg}
 
     def _html(self, tekst):
         b = tekst.encode("utf-8")
@@ -300,19 +429,21 @@ class Handler(ov.Handler):
             return self._json({"fout": f"{type(e).__name__}: {e}"}, 500)
 
     def do_GET(self):
-        if not self._host_ok():
-            return self._json({"fout": "geen toegang"}, 403)
         u = urlparse(self.path)
         q = parse_qs(u.query)
+        if self._voor_alles(u.path):
+            return
         if u.path == "/":
-            return self._html(pagina("web.html").replace("__TOKEN__", ov.TOKEN).replace("__VERSIE__", __version__)
+            return self._html(pagina("web.html").replace("__TOKEN__", self.sessie.csrf).replace("__VERSIE__", __version__)
                               .replace("__OPSLAG__", "true" if OPSLAG else "false"))
         if u.path == "/hulp":
             return self._html(pagina("LEESMIJ.html"))
-        if not u.path.startswith("/api/web/"):
-            return super().do_GET()
         if not self._ok(q):
             return self._json({"fout": "geen toegang"}, 403)
+        if u.path == "/api/status":
+            return self._json(self._status())
+        if not u.path.startswith("/api/web/"):
+            return self._json({"fout": "onbekend"}, 404)      # de routes van de oude overrides-app horen hier niet
         if u.path.startswith(("/api/web/sw/", "/api/web/ov/")):
             arg = lambda k, d="": q.get(k, [d])[0]  # noqa: E731
             if u.path == "/api/web/sw/overrides-lijst":
@@ -339,20 +470,45 @@ class Handler(ov.Handler):
         return self._json({"fout": "onbekend"}, 404)
 
     def do_POST(self):
-        if not self._host_ok():
-            return self._json({"fout": "geen toegang"}, 403)
         u = urlparse(self.path)
-        if not u.path.startswith("/api/web/"):
-            return super().do_POST()
+        # Eerst de body lezen (binnen de grens), ook als de aanvraag straks geweigerd wordt: anders breekt de
+        # verbinding af voor de browser het antwoord leest.
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            n = -1
+        grens = MAX_BODY_SERVER if SERVER else MAX_BODY
+        if n < 0:
+            self.close_connection = True
+            return self._json({"fout": "ongeldige aanvraag"}, 400)
+        if n > grens:
+            if n <= WEGGOOI_GRENS:                # lezen en weggooien, zodat de browser de melding netjes krijgt
+                rest = n
+                while rest > 0:
+                    blok = self.rfile.read(min(rest, 1 << 20))
+                    if not blok:
+                        break
+                    rest -= len(blok)
+            else:
+                self.close_connection = True
+            if not self._voor_alles(u.path):
+                self._json({"fout": f"bestanden te groot (maximum {grens // (1024 * 1024)} MB per taak)"}, 413)
+            return
+        ruw = self.rfile.read(n) if n else b""
+        if self._voor_alles(u.path):
+            return
         if not self._ok({}):
             return self._json({"fout": "geen toegang"}, 403)
-        n = int(self.headers.get("Content-Length") or 0)
-        if n > MAX_BODY:
-            return self._json({"fout": "bestanden te groot (maximum 50 MB per taak)"}, 413)
         try:
-            body = json.loads(self.rfile.read(n) or b"{}")
+            body = json.loads(ruw or b"{}")
+            if not isinstance(body, dict):
+                raise ValueError
         except ValueError:
             return self._json({"fout": "ongeldige aanvraag"}, 400)
+        if u.path == "/api/aanmelden":
+            return self._json(self._aanmelden(body))
+        if not u.path.startswith("/api/web/"):
+            return self._json({"fout": "onbekend"}, 404)
         if u.path == "/api/web/onboard/bestand":
             try:
                 return self._json(onboard_bestand(body.get("groep"), body.get("rijen")))
@@ -390,9 +546,7 @@ class Handler(ov.Handler):
             except (OSError, ValueError) as e:
                 return self._json({"fout": f"{type(e).__name__}: {e}"}, 500)
         if u.path == "/api/web/afmelden":
-            cx.afmelden()                        # ook de cache van de verbinding
-            self.sessie.ophalingen.clear()
-            self.sessie.wisplannen.clear()
+            self.sessie.wis()                    # token, secret, cache, ophalingen en wisplannen
             return self._json({"ok": True})
         return self._json({"fout": "onbekend"}, 404)
 
@@ -454,6 +608,11 @@ def start_ophaling(sessie, soort, opties):
         doe = lambda v: configapi.afwijkingen_scan(serials, opties.get("device_function") or "ACCESS_SWITCH", v)  # noqa: E731
     else:
         raise monitor.Invoer("onbekende ophaling")
+    if sum(x.status == "bezig" for x in sessie.ophalingen.values()) >= MAX_TAKEN:
+        raise monitor.Invoer(f"Er lopen al {MAX_TAKEN} taken. Wacht tot er een klaar is.")
+    klaar = [k for k, x in sessie.ophalingen.items() if x.status != "bezig"]
+    for k in klaar[:max(0, len(sessie.ophalingen) - 20)]:      # oude resultaten niet eindeloos bijhouden
+        sessie.ophalingen.pop(k, None)
     o = Ophaling(soort)
     sessie.ophalingen[o.id] = o
 
@@ -471,12 +630,12 @@ def start_ophaling(sessie, soort, opties):
     return o
 
 
-def maak_server(poort):
-    """Probeert de poort en de negen volgende, voor als er al iets draait."""
+def maak_server(poort, adres="127.0.0.1"):
+    """Probeert de poort en de negen volgende, voor als er al iets draait (in servermodus enkel de gevraagde poort)."""
     laatste = None
-    for p in ([poort] if poort == 0 else range(poort, poort + 10)):
+    for p in ([poort] if poort == 0 or SERVER else range(poort, poort + 10)):
         try:
-            return ThreadingHTTPServer(("127.0.0.1", p), Handler)
+            return ThreadingHTTPServer((adres, p), Handler)
         except OSError as e:
             laatste = e
     raise SystemExit(f"Geen vrije poort gevonden vanaf {poort}: {laatste}")
@@ -490,9 +649,32 @@ def main():
     p.add_argument("--map", default=WERKMAP, help="map voor importbestanden en logboeken")
     p.add_argument("--zonder-opslag", action="store_true",
                    help="niets op schijf: importbestanden en logboeken enkel als download in de browser")
+    p.add_argument("--server", action="store_true",
+                   help="servermodus achter een reverse proxy: per gebruiker een sessie, niets op schijf, geen browser")
+    p.add_argument("--adres", default=None, help="servermodus: adres om op te luisteren (standaard 0.0.0.0)")
+    p.add_argument("--host-naam", action="append", default=[],
+                   help="servermodus: hostnaam waarop de app bereikbaar is (meermaals; of CNX_HOSTS, komma's). '*' = elke")
     a = p.parse_args()
-    global OPSLAG
+    global OPSLAG, SERVER, PER_SESSIE
     OPSLAG = not a.zonder_opslag
+    if a.server:
+        SERVER, PER_SESSIE, OPSLAG = True, True, False
+        TOEGELATEN_HOSTS.update(h.strip().lower() for h in a.host_naam + os.environ.get("CNX_HOSTS", "").split(",") if h.strip())
+        if not TOEGELATEN_HOSTS:
+            raise SystemExit("Servermodus: geef de hostnaam van de app met --host-naam (of CNX_HOSTS), bv. cnx.voorbeeld.be.")
+        if os.environ.get("CNX_CLIENT_ID") or os.environ.get("CNX_CLIENT_SECRET"):
+            print("Let op: CNX_CLIENT_ID/CNX_CLIENT_SECRET worden in servermodus niet gebruikt; elke gebruiker meldt zelf aan.")
+        poort = a.poort if a.poort != POORT else int(os.environ.get("PORT", "8080"))
+        srv = maak_server(poort, a.adres or "0.0.0.0")
+        print(f"CNX Toolkit {__version__} servermodus op {srv.server_address[0]}:{srv.server_address[1]}, "
+              f"hosts: {', '.join(sorted(TOEGELATEN_HOSTS))}. Er wordt niets op schijf bewaard.")
+        try:
+            srv.serve_forever()
+        except KeyboardInterrupt:
+            print("\nGestopt.")
+        finally:
+            srv.server_close()
+        return
     WERKMAP = os.path.abspath(a.map)
     if OPSLAG:
         os.makedirs(WERKMAP, exist_ok=True)

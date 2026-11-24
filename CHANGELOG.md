@@ -14,3 +14,9 @@ Versienummers volgen MAJOR.MINOR.PATCH.
 - AP-migratie: de inventaris en de afgevinkte stappen staan in de browser, niet meer in `cnx-web/migratie`. Nieuw:
   **Exporteren** en **Migratiebestand laden...** om een plan door te geven of op een andere pc verder te werken.
 - Overrides wissen: knop **Logboek downloaden**.
+- `cnx web --server`: servermodus voor meerdere gebruikers achter een reverse proxy. Toegelaten hostnamen
+  (`--host-naam` of `CNX_HOSTS`), een sessie en CSRF-token per browser, cookie HttpOnly/Secure/SameSite=Strict, nieuw
+  sessie-id na aanmelden, sessie en secret weg na 30 minuten zonder activiteit, maximaal 500 sessies en 3 lopende
+  taken per sessie, uploads tot 20 MB, logs zonder parameters of gegevens, veiligheidskoppen en `/gezond` voor de
+  gezondheidscheck. Aanmelden enkel bij https-adressen op `arubanetworks.com` (`CNX_CENTRAL_DOMEINEN`).
+- De webapp bedient de routes van de oude overrides-app (`/api/switches`, `/api/overrides`, `/api/wissen`) niet meer.
