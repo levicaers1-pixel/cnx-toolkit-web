@@ -1,0 +1,356 @@
+<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.1.0</title><style>
+:root{color-scheme:light;--paper:#f4f6f9;--panel:#fff;--panel2:#f8fafc;--ink:#122033;--ink2:#2b3a4f;--muted:#5f6c7f;--line:#e2e7ee;--accent:#2457d6;--soft:#eaf0fd}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;--paper:#0e131a;--panel:#161d27;--panel2:#1a2230;--ink:#e7ecf3;--ink2:#c9d2df;--muted:#93a0b4;--line:#253042;--accent:#7aa2ff;--soft:#1c2943}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.6 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:920px;margin:28px auto 60px;padding:28px 36px 36px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(18,32,51,.04),0 2px 6px rgba(18,32,51,.05)}
+.kop{display:flex;align-items:center;gap:12px;padding-bottom:18px;margin-bottom:8px;border-bottom:1px solid var(--line)}
+.logo{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(135deg,#2457d6,#5b8cff);color:#fff;font-weight:700;font-size:11px;letter-spacing:.04em}
+.versie{color:var(--muted);font-size:12.5px}
+h1,h2,h3{line-height:1.25;letter-spacing:-.01em;font-weight:650}
+h1{font-size:28px;margin:22px 0 8px}h2{font-size:20px;margin:34px 0 10px;padding-top:6px}h3{font-size:16px;margin:24px 0 8px}
+p,li{color:var(--ink2)}a{color:var(--accent)}
+table{border-collapse:separate;border-spacing:0;width:100%;margin:14px 0 18px;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+th,td{padding:8px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}tr:last-child td{border-bottom:0}
+th{background:var(--panel2);font-size:11.5px;color:var(--muted);font-weight:650;text-transform:uppercase;letter-spacing:.05em}
+td:first-child code{white-space:nowrap}
+code{font-family:"Cascadia Mono",Consolas,monospace;font-size:.88em;background:var(--soft);color:var(--ink);padding:1px 5px;border-radius:5px}
+pre{background:var(--panel2);border:1px solid var(--line);padding:14px 16px;border-radius:10px;overflow:auto}pre code{background:none;padding:0}
+@media (max-width:700px){main{margin:0;border-radius:0;padding:20px 16px}}
+</style></head>
+<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Handleiding</strong><div class="versie">CNX Toolkit, versie 0.1.0</div></div></div>
+<h1>CNX Toolkit</h1>
+<p>Hulpmiddelen om AOS-CX access switches naar HPE Aruba Networking Central (new Central) te brengen en daar proper
+te houden.</p>
+<table>
+<thead>
+<tr>
+<th>Commando</th>
+<th>Wat het doet</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cnx</code></td>
+<td>De webapp (ook bij dubbelklikken op <code>cnx.exe</code>): switches onboarden en overrides controleren. Zie <a href="#webapp">Webapp</a></td>
+</tr>
+<tr>
+<td><code>cnx web</code></td>
+<td>Hetzelfde, met opties (<code>--poort</code>, <code>--map</code>, <code>--geen-browser</code>)</td>
+</tr>
+<tr>
+<td><code>cnx menu</code></td>
+<td>Het menu in het venster, voor wie liever niet in de browser werkt</td>
+</tr>
+<tr>
+<td><code>cnx invoer</code></td>
+<td>Invulpagina in de browser: een veld per parameter, controle terwijl je typt, uploadbestanden voor Central</td>
+</tr>
+<tr>
+<td><code>cnx alias ...</code></td>
+<td>Hetzelfde vanaf de commandolijn, voor grote lijsten. Ook: switchlijst uit Classic omzetten, vergelijken na de upload, geimporteerde waarden analyseren</td>
+</tr>
+<tr>
+<td><code>cnx api ...</code></td>
+<td>Via de API van new Central: aliassen aanmaken en toewijzen, lokale waarden opkuisen, VLAN's van Global doorzetten naar aggregation en core</td>
+</tr>
+<tr>
+<td><code>cnx overrides</code></td>
+<td>Scherm in de browser: lokale overrides per switch bekijken en veilig wissen</td>
+</tr>
+<tr>
+<td><code>cnx sjablonen</code></td>
+<td><code>klantconfig.json</code> en <code>toestellen-sjabloon.csv</code> in de huidige map zetten</td>
+</tr>
+<tr>
+<td><code>cnx hulp</code></td>
+<td>Deze handleiding openen</td>
+</tr>
+</tbody>
+</table>
+<h2>Webapp</h2>
+<p>Dubbelklik op <code>cnx.exe</code> (of typ <code>cnx</code>) en je browser opent een scherm met deze tabbladen:</p>
+<table>
+<thead>
+<tr>
+<th>Tabblad</th>
+<th>Wat</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Onboarden</td>
+<td>Device group in new Central kiezen, switches en gateways aanvinken, IP en hostname nakijken, en het importbestand (aliassen) downloaden. Zie <a href="#onboarden">Onboarden</a></td>
+</tr>
+<tr>
+<td>Overrides controleren</td>
+<td>Wat lokaal op een switch staat tegenover wat hij erft, voor profielen en aliassen, en overrides wissen. Zie <a href="#overrides-controleren">Overrides controleren</a></td>
+</tr>
+<tr>
+<td>AP-migratie</td>
+<td>Een AOS-8-inventaris van de mobility conductor inlezen en zien wat klaar is voor AOS-10: modellen, clusters, AP-groepen, wat je opkuist, en een rapport voor de klant. Zie <a href="#ap-migratie">AP-migratie</a></td>
+</tr>
+<tr>
+<td>Instellingen</td>
+<td><code>klantconfig.json</code> invullen in een formulier, met controle. Enkel nodig voor <code>cnx alias</code>; de andere tabbladen hebben het niet nodig</td>
+</tr>
+<tr>
+<td>Handleiding</td>
+<td>Deze handleiding</td>
+</tr>
+</tbody>
+</table>
+<p>Wat de vroegere tabbladen onder Expert deden (aliasbestanden, Central API), kan nog op de commandolijn met
+<code>cnx alias</code> en <code>cnx api</code>.</p>
+<h3>Overrides controleren</h3>
+<ul>
+<li><strong>Links</strong> filter je de switches op device group en site, en scan je de getoonde (of aangevinkte) switches. Na de
+  scan staat bij elke switch hoeveel objecten afwijkend, overbodig of alleen op die switch staan.</li>
+<li><strong>Rechts</strong> zie je na een scan een tabel per switch met een oordeel (in orde, opkuisen, na te kijken); klik op een
+  switch voor de details. Per switch: tellers, een korte samenvatting, wissen, en alles wat lokaal staat.</li>
+<li>Twee tabbladen: <strong>Profielen</strong> en <strong>Aliassen</strong>.</li>
+<li>De woorden: <em>afwijkend</em> (lokaal anders dan geerfd), <em>overbodig</em> (lokaal gelijk aan geerfd), <em>alleen op deze
+  switch</em> (nergens hoger) en <em>per switch (normaal)</em> (hostname, beheer-IP: hier hoef je niets te doen).</li>
+<li>De aanvragen naar Central en profielen die niet gelezen konden worden, staan ingeklapt onder Technische details.</li>
+</ul>
+<h3>AP-migratie</h3>
+<p>Voor de stap van AOS-8 (mobility conductor en controllers) naar AOS-10 in new Central. Leest enkel bestanden: er
+wordt niets gewijzigd en je hoeft niet aan te melden.</p>
+<ol>
+<li>Neem op de mobility conductor de uitvoer van <code>show ap database long</code> en <code>show switches</code>, elk als tekstbestand
+   (of samen in een bestand). Een Excel- (.xlsx) of CSV-bestand met dezelfde kolommen kan ook.</li>
+<li>Kies de bestanden in het tabblad AP-migratie en klik op Inlezen.</li>
+<li>Je krijgt:</li>
+<li><strong>Modellen</strong>: per AP- en controllermodel of het AOS-10 ondersteunt: <em>klaar</em>, <em>einde nadert</em> (kan mee, maar de
+     support stopt binnenkort), <em>vervangen</em>, <em>valt weg</em> (de conductor) of <em>na te kijken</em> (onbekend model).</li>
+<li><strong>Clusters</strong>: controllers die elkaars stand-by zijn (uit Standby IP van de APs). Met twee of meer migreer je in
+     stappen zonder dat de getunnelde SSID's wegvallen; met een controller heb je een onderhoudsvenster of een
+     tijdelijke gateway nodig. Een cluster met APs die vervangen moeten, staat als geblokkeerd.</li>
+<li><strong>AP-groepen</strong>: de basis voor de mapping naar sites en device groups in Central.</li>
+<li><strong>Op te kuisen</strong>: APs in de groep default, zonder naam (MAC als naam), down of met een dubbele naam, en
+     controllers die down zijn of geen APs hebben.</li>
+<li><strong>Rapport downloaden (HTML)</strong>: dezelfde gegevens als rapport voor de klant, af te drukken als PDF.</li>
+<li><strong>Migratieplan</strong>: vink de clusters aan die je in een golf migreert en klik op Stappenplan maken. Je krijgt een
+   klantbreed deel (eenmalig: GreenLake en abonnementen, AOS-10-versie, structuur en draadloze configuratie in
+   Central, RADIUS-clients, bereikbaarheid, labtest) en per cluster de fasen Voorbereiden, Eerste gateway (of
+   Gateway omzetten bij een cluster met een controller), APs omzetten (een stap per AP-groep), Tweede gateway en
+   Afronden, met een terugvalplan en de lijst van APs.</li>
+<li>Vink stappen af terwijl je werkt. De voortgang en de laatst ingelezen inventaris worden per klant bewaard in
+     <code>cnx-web/migratie/&lt;klant&gt;</code>; typ de klantnaam en de toolkit laadt ze opnieuw, ook na een herstart.</li>
+<li><strong>Download stappenplan (HTML)</strong> geeft het plan met de afgevinkte stappen, voor de technieker of de klant.</li>
+<li>Stappen met <em>nakijken</em> bevatten commando's die per AOS-8-versie kunnen verschillen (omzetten van controllers en
+     APs): kijk ze na in de migratiegids van HPE voor je ze uitvoert.</li>
+</ol>
+<p>De supportstatus per model staat in <code>aos10-modellen.json</code> in de toolkit, met de datum van de lijst. Kijk de lijst na
+voor de AOS-10-versie die je gebruikt op de pagina's Supported Access Point Platforms en Supported Gateway Platforms
+van HPE.</p>
+<h3>Onboarden</h3>
+<p>Voor switches en Mobility Gateways. Drie schermen, zonder klantconfig:</p>
+<ol>
+<li><strong>Toestellen kiezen.</strong> Kies de device group en klik op Toestellen ophalen. Per switch leest de toolkit uit Central:
+   hostname, site, site collection, device function, het System-info-profiel en het beheer-IP. Staat er op de
+   switch al een alias <code>sys_vlan_ipv4_&lt;vlan&gt;</code> (switches uit Classic), dan komen IP, prefix en VLAN daaruit; anders
+   het IP uit de monitoring met de prefix die je opgeeft, en het beheer-VLAN dat op Global staat. Vink aan welke
+   toestellen je wil.</li>
+<li><strong>Gateways</strong> in dezelfde device group komen mee, met Device Function <em>Mobility Gateway</em> in het importbestand.
+     Hun beheer-IP komt enkel uit de alias <code>sys_vlan_ipv4_&lt;vlan&gt;</code> op de gateway: het IP in de monitoring is meestal
+     dat van de uplink (bv. DHCP op VLAN 4094) en wordt niet gebruikt. Staat er nog geen alias, vul dan het beheer-IP
+     in (bv. het IP van de controller in AOS-8). Andere aliassen van de gateway, zoals <code>sys_vlan_ipv4_4094</code>, blijven
+     ongemoeid.</li>
+<li><strong>Nakijken.</strong> Een tabel met per switch hostname, device function, IP, VLAN en profiel, allemaal aan te passen,
+   ook voor alle switches tegelijk. Fouten (ongeldig of dubbel IP, ongeldig VLAN) kleuren meteen rood; zolang er
+   fouten zijn, kan je niet verder. Een lege of ongeldige hostname is geen fout: dan gaat enkel het IP mee.</li>
+<li>
+<p><strong>Bestand.</strong> Een voorbeeld van het importbestand zoals Central het krijgt, met de knop Download. Laad het op via
+   Configuration &gt; Library &gt; Named Objects &gt; Aliases &gt; Bulk upload. Een kopie staat in <code>cnx-web/onboarding</code>.</p>
+</li>
+<li>
+<p>De webapp draait enkel op je eigen computer (<code>127.0.0.1</code>), niet op internet. Sluit het zwarte venster om te stoppen.</p>
+</li>
+<li>Overrides wissen gebeurt altijd in twee stappen: eerst een plan dat je ziet, dan pas uitvoeren.</li>
+<li>Aanmelden kan in het scherm of met de omgevingsvariabelen hieronder. Het client secret blijft enkel in het geheugen.
+  Een token van Central verloopt na een tijd; de toolkit meldt dan zelf opnieuw aan en probeert de aanvraag nog
+  een keer (je ziet "401: token verlopen, opnieuw aanmelden" in de uitvoer).</li>
+</ol>
+<h2>Overrides in detail</h2>
+<p>Per switch leest de toolkit alles wat lokaal op de switch staat (VLAN's, SVI's, systeem, DNS, NTP, logging, SNMP,
+poort- en interfaceprofielen, beheer, AAA, STP, LLDP, VSF, firmwarebeleid en aliassen) en vergelijkt het per veld met wat
+de switch zou erven van de dichtstbijzijnde hogere scope die het object heeft: device group, dan site, site collection,
+Global.</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Betekenis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>verschilt</td>
+<td>Lokaal anders dan geerfd; per veld zie je beide waarden</td>
+</tr>
+<tr>
+<td>gelijk</td>
+<td>Lokaal gelijk aan geerfd: overbodig, kan weg zonder dat er iets verandert</td>
+</tr>
+<tr>
+<td>enkel lokaal</td>
+<td>Staat nergens hoger; wissen haalt het van de switch</td>
+</tr>
+<tr>
+<td>per switch</td>
+<td>Hoort per switch te verschillen (hostname, beheer-IP)</td>
+</tr>
+</tbody>
+</table>
+<p>Kies links een switch, of scan alle (of de aangevinkte) switches. Alles is te exporteren naar CSV.</p>
+<p><strong>Overrides wissen.</strong> Kies welke statussen je wil zien en vink aan wat weg mag:</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Na het wissen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gelijk</td>
+<td>De switch erft dezelfde waarde: er verandert niets. Standaard aangevinkt</td>
+</tr>
+<tr>
+<td>verschilt</td>
+<td>De switch neemt de waarde over die hij van hoger erft: de werking verandert</td>
+</tr>
+<tr>
+<td>enkel lokaal</td>
+<td>Het object verdwijnt van de switch: het staat nergens hoger</td>
+</tr>
+</tbody>
+</table>
+<p>Maak een plan: de toolkit kijkt in Central opnieuw na of elk object nog dezelfde status heeft; wat ondertussen
+veranderd is, valt eruit. Het plan toont per object het gevolg. Zitten er objecten in die de switch veranderen, dan
+typ je WISSEN om te bevestigen. Een object dat nog gebruikt wordt (bv. een VLAN op een poort) weigert Central; dat staat
+als "in gebruik, niet gewist" in het resultaat. Na het wissen kijkt de toolkit na dat het object weg is. Systeeminfo, beheerinterface, lokaal beheer en het
+firmwarebeleid worden nooit gewist. Alles komt in <code>cnx-web/overrides-wissen-log-&lt;tijd&gt;.json</code>.
+Het vroegere wisscherm voor VLAN's blijft beschikbaar met <code>cnx overrides</code>.</p>
+<h2>Vereisten</h2>
+<ul>
+<li>Windows 10 of 11. Geen Python nodig.</li>
+<li>Voor <code>cnx api</code> en <code>cnx overrides</code>: een API-client in HPE GreenLake (Manage Workspace, Personal API clients) met
+  toegang tot new Central. Gebruik bij voorkeur een aparte client voor deze tool, met enkel de rechten die nodig zijn,
+  en trek hem in na de migratie.</li>
+<li><code>cnx invoer</code> en <code>cnx alias</code> werken zonder API en zonder internet.</li>
+</ul>
+<h2>Installeren</h2>
+<ol>
+<li>Pak de zip uit in een map, bijvoorbeeld <code>C:\Tools\CNX Toolkit</code>.</li>
+<li>Open PowerShell in die map (in Verkenner: rechtsklik met Shift, "PowerShell-venster hier openen").</li>
+<li>Toont Windows bij de eerste start "Windows heeft uw pc beschermd": klik op "Meer info" en dan "Toch uitvoeren".
+   Dat gebeurt bij elke niet-ondertekende <code>.exe</code>.</li>
+</ol>
+<p>Controle: <code>.\cnx.exe --version</code></p>
+<h2>Eerste keer per klant</h2>
+<pre><code class="language-powershell">.\cnx.exe sjablonen
+</code></pre>
+<p>Het makkelijkst: open het tabblad Instellingen in de webapp, vul de velden in en sla op. Het formulier controleert de
+waarden en kan ze voorstellen uit een bulk-download van de klant. Het bewaart <code>klantconfig.json</code> in de map waar je
+cnx startte (de vorige versie blijft als <code>klantconfig.json.bak</code>).</p>
+<p>Zonder webapp: vul <code>klantconfig.json</code> zelf in. Alles met <code>VUL-IN</code> moet weg:</p>
+<table>
+<thead>
+<tr>
+<th>Veld</th>
+<th>Betekenis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>klant</code></td>
+<td>Naam van de klant, enkel ter info</td>
+</tr>
+<tr>
+<td><code>velden.hostname.instance</code></td>
+<td>Naam van het gedeelde System-info-profiel in new Central waar de hostname van nieuwe switches in komt. Optioneel: leeg, dan gaat enkel het IP mee (behalve voor switches met een eigen systeemprofiel)</td>
+</tr>
+<tr>
+<td><code>velden.sys_vlan_ip.standaard_vlan</code></td>
+<td>Beheer-VLAN. Central noemt de alias van het beheer-IP <code>sys_vlan_ipv4_&lt;vlan&gt;</code></td>
+</tr>
+<tr>
+<td><code>velden.mgmt_ip.instance</code></td>
+<td>Naam van de beheerinterface (OOBM), meestal <code>mgmt</code></td>
+</tr>
+<tr>
+<td><code>modified</code></td>
+<td>Laat op <code>Yes</code>: Central past enkel rijen met <code>Yes</code> toe</td>
+</tr>
+</tbody>
+</table>
+<p><code>cnx alias</code> en <code>cnx overrides</code> gebruiken <code>klantconfig.json</code> uit de map waar je ze start. In <code>cnx invoer</code> sleep je
+het bestand naar het tabblad Export.</p>
+<h2>API-gegevens</h2>
+<p>Per PowerShell-venster:</p>
+<pre><code class="language-powershell">$env:CNX_BASE_URL      = &quot;https://de1.api.central.arubanetworks.com&quot;
+$env:CNX_CLIENT_ID     = &quot;...&quot;
+$env:CNX_CLIENT_SECRET = &quot;...&quot;
+</code></pre>
+<p>Gebruik de API-URL van de eigen cluster. <code>cnx overrides</code> vraagt de gegevens ook zelf in het scherm. De tool schrijft
+de gegevens nergens weg.</p>
+<h2>Werkwijzen</h2>
+<h3>1. Toestelwaarden per golf (hostname, beheer-IP)</h3>
+<p>De bulk-upload van Central werkt enkel voor switches die al in new Central staan, met site, device group en device
+function Access Switch. Zet de waarden dus na de verhuis of onboarding van een golf.</p>
+<pre><code class="language-powershell">.\cnx.exe alias uit-classic-lijst --lijst export_switch_list.csv --prefix 24 --site-collection Belgium --out toestellen.csv
+.\cnx.exe alias controleer --toestellen toestellen.csv
+.\cnx.exe alias genereer --toestellen toestellen.csv --out uploads
+</code></pre>
+<p>Upload elk bestand in <code>uploads</code> in new Central: Configuration, Library, Named Objects, Aliases, bulk upload.
+Controle: bulk-download ophalen en vergelijken.</p>
+<pre><code class="language-powershell">.\cnx.exe alias vergelijk --toestellen toestellen.csv --download bulk_alias_download_....csv
+</code></pre>
+<p>De switchlijst uit Classic exporteer je in Classic Central via Devices, Switches, export. Liever een scherm dan een
+CSV: <code>.\cnx.exe invoer</code>.</p>
+<h3>2. Geimporteerde VLAN-beschrijvingen naar de library</h3>
+<p>Een switch die uit Classic verhuist, krijgt zijn VLAN-beschrijvingen als lokale aliassen. Daardoor geldt een
+wijziging op Global niet voor die switch.</p>
+<pre><code class="language-powershell">.\cnx.exe alias globaliseer --download bulk_alias_download_....csv --out globaal
+.\cnx.exe api aanmaken --waarden globaal\2-global-waarden.csv --library --apply
+.\cnx.exe api toewijzen --waarden globaal\2-global-waarden.csv --apply
+.\cnx.exe api opkuisen --lijst globaal\3-opkuis-per-switch.csv --serial &lt;SERIAL&gt; --apply
+</code></pre>
+<p>Eerst zonder <code>--apply</code> (proefrun), en eerst met een switch.</p>
+<p>Elke alias die de toolkit via de API aanmaakt, krijgt als beschrijving (description) "Alias aangemaakt via CNX API
+Tool". Zo zie je in Central welke aliassen van de toolkit komen. De bulk-uploadbestanden hebben geen kolom voor de
+beschrijving: aliassen uit een upload via de UI krijgen ze dus niet.</p>
+<h3>3. VLAN's van Global ook naar aggregation en core</h3>
+<pre><code class="language-powershell">.\cnx.exe api vlans-doorzetten
+.\cnx.exe api vlans-doorzetten --apply
+</code></pre>
+<p>Kijk in de proefrun welke VLAN's en welke switches geraakt worden. Bewaar het logboek: daarmee draai je het terug
+(<code>vlans-terugdraaien --log ...</code>).</p>
+<h3>4. Lokale overrides wissen</h3>
+<pre><code class="language-powershell">.\cnx.exe overrides
+</code></pre>
+<p>Per switch staat bij elke override wat er na het wissen gebeurt. Enkel overrides met een vervanging op Global, site
+of device group worden aangevinkt. VLAN 1 en het beheer-VLAN zijn beschermd. Standaard een proefrun: vink
+"Echt uitvoeren" aan om te wissen.</p>
+<h2>Veiligheid</h2>
+<ul>
+<li>Alles wat iets wijzigt in Central is standaard een proefrun. Enkel <code>--apply</code> of "Echt uitvoeren" schrijft.</li>
+<li>Elke run die iets schrijft, laat een logboek (<code>.json</code>) achter in de werkmap, met het versienummer van de tool.</li>
+<li>Na een wijziging leest de tool terug en meldt verschillen.</li>
+<li>Een alias of VLAN waarnaar iets verwijst, weigert Central te verwijderen. De tool meldt dat als "in gebruik".</li>
+</ul>
+<h2>Beperkingen</h2>
+<ul>
+<li>AOS-CX switches. Standaard access; met de kolom <code>device_function</code> in toestellen.csv (Access Switch, Aggregation
+  Switch of Core Switch) krijgen de rijen van het aliasbestand de device function van die switch. Uit een device group
+  in new Central wordt ze overgenomen.</li>
+<li>De bulk-upload van Central werkt enkel bestaande aliassen bij: aanmaken of verwijderen kan niet, en VSF-stacks
+  worden niet ondersteund. Stacks komen in <code>manueel-stacks.csv</code>.</li>
+<li>De configuratie-API van new Central is v1alpha1: paden en velden kunnen wijzigen. Test een nieuwe versie van
+  Central eerst met een proefrun.</li>
+<li>Gebruik op eigen verantwoordelijkheid. Zie LICENSE (Apache-2.0).</li>
+</ul>
+<h2>Ondersteuning</h2>
+<p>Vermeld bij een vraag het versienummer (<code>cnx --version</code>) en stuur het logboek van de run mee.</p></main></body></html>

@@ -1,0 +1,17 @@
+{
+  "_uitleg": "Meegeleverde standaard van CNX Toolkit. Maak per klant een klantconfig.json ('cnx sjablonen') met de echte profielnamen.",
+  "modified": "Yes",
+  "hostname_regex": "^[A-Za-z][A-Za-z0-9._-]{0,31}$",
+  "velden": {
+    "hostname": {
+      "instance": "sys-system-info-profile"
+    },
+    "sys_vlan_ip": {
+      "alias_patroon": "sys_vlan_ipv4_{vlan}",
+      "standaard_vlan": 1
+    },
+    "mgmt_ip": {
+      "instance": "mgmt"
+    }
+  }
+}

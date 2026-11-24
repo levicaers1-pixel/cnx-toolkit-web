@@ -1,0 +1,19 @@
+{
+  "bijgewerkt": "2026-11-24",
+  "bron": "HPE Aruba Networking: Supported Access Point Platforms en Supported Gateway Platforms (new Central), zoekresultaten november 2026. Kijk de lijst na voor de AOS-10-versie die je gebruikt.",
+  "ap": [
+    {"patroon": "^AP-1\\d\\d", "status": "nee", "opmerking": "100-reeks: niet in AOS-10"},
+    {"patroon": "^AP-2\\d\\d", "status": "nee", "opmerking": "200-reeks: niet ondersteund in AOS-10, vervangen"},
+    {"patroon": "^AP-30[45]$", "status": "einde", "opmerking": "AOS-10 vanaf 10.3.1.1, laatste release 10.8 (LSR) volgens HPE"},
+    {"patroon": "^AP-3\\d\\d", "status": "einde", "opmerking": "300-reeks: wellicht zelfde einde als AP-305 (10.8 LSR), nakijken"},
+    {"patroon": "^AP-[5-7]\\d\\d", "status": "ok", "opmerking": "AOS-10"}
+  ],
+  "controller": [
+    {"patroon": "^MM", "status": "weg", "opmerking": "mobility conductor: valt weg, Central neemt die rol over"},
+    {"patroon": "^70(05|08|10|24|30)$", "status": "ok", "opmerking": "AOS-10-gateway vanaf 10.3.1.1"},
+    {"patroon": "^72(05|10|20|40|40XM|80)$", "status": "ok", "opmerking": "AOS-10-gateway vanaf 10.3.1.1"},
+    {"patroon": "^9240", "status": "ok", "opmerking": "AOS-10-gateway vanaf 10.4.0.0"},
+    {"patroon": "^90(04|12)", "status": "ok", "opmerking": "AOS-10-gateway"},
+    {"patroon": "^91\\d\\d", "status": "ok", "opmerking": "AOS-10-gateway"}
+  ]
+}

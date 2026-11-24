@@ -1,0 +1,18 @@
+{
+  "_uitleg": "Klantconfig voor CNX Toolkit. Vul de namen in zoals ze in new Central van deze klant bestaan. Leg dit bestand in de map waar je 'cnx alias' draait. standaard_vlan: het beheer-VLAN van de klant (bepaalt de alias sys_vlan_ipv4_<vlan>).",
+  "klant": "VUL-IN: naam van de klant",
+  "modified": "Yes",
+  "hostname_regex": "^[A-Za-z][A-Za-z0-9._-]{0,31}$",
+  "velden": {
+    "hostname": {
+      "instance": "VUL-IN: naam van het gedeelde System-info-profiel voor nieuwe switches"
+    },
+    "sys_vlan_ip": {
+      "alias_patroon": "sys_vlan_ipv4_{vlan}",
+      "standaard_vlan": 1
+    },
+    "mgmt_ip": {
+      "instance": "mgmt"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/versie.txt
+build/build/
+*-log-*.json
+klantconfig.json
+!src/cnx_api/data/klantconfig.json
+toestellen.csv
+.venv/
+cnx-web/

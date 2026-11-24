@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CNX Toolkit</title>
+<style>
+:root{color-scheme:light;
+--paper:#f4f6f9;--panel:#fff;--panel2:#f8fafc;--ink:#122033;--ink2:#2b3a4f;--muted:#5f6c7f;--line:#e2e7ee;--line2:#cfd7e2;
+--accent:#2457d6;--accent2:#1c46b0;--soft:#eaf0fd;--onaccent:#fff;
+--bad:#c4312b;--badsoft:#fdeceb;--warn:#a35d06;--warnsoft:#fdf2e1;--ok:#1f7a4a;--oksoft:#e4f4ea;
+--shadow:0 1px 2px rgba(18,32,51,.04),0 2px 6px rgba(18,32,51,.05);--ring:0 0 0 3px rgba(36,87,214,.18);
+--mono:"Cascadia Mono",Consolas,ui-monospace,monospace;--body:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;
+--paper:#0e131a;--panel:#161d27;--panel2:#1a2230;--ink:#e7ecf3;--ink2:#c9d2df;--muted:#93a0b4;--line:#253042;--line2:#334157;
+--accent:#7aa2ff;--accent2:#9ab9ff;--soft:#1c2943;--onaccent:#0b1220;
+--bad:#ff7b72;--badsoft:#3b1f22;--warn:#f0b35a;--warnsoft:#3a2b16;--ok:#56d39a;--oksoft:#14322a;
+--shadow:0 1px 2px rgba(0,0,0,.3);--ring:0 0 0 3px rgba(122,162,255,.25)}}
+*{box-sizing:border-box}html,body{height:100%;margin:0}[hidden]{display:none!important}
+body{background:var(--paper);color:var(--ink);font:14px/1.5 var(--body);display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}input[type=checkbox],input[type=radio]{accent-color:var(--accent)}
+.mono{font-family:var(--mono);font-size:12.5px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* kop */
+header{display:flex;gap:6px 18px;align-items:stretch;flex-wrap:wrap;padding:0 18px;background:var(--panel);border-bottom:1px solid var(--line);min-height:54px;position:relative;z-index:2}
+.merk{display:flex;align-items:center;gap:10px;padding-right:6px}
+.logo{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:linear-gradient(135deg,#2457d6,#5b8cff);color:#fff;font-weight:700;font-size:10.5px;letter-spacing:.04em}
+h1{font-size:15px;margin:0;white-space:nowrap;font-weight:650;letter-spacing:-.01em;line-height:1.2}
+.versie{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+h2{font-size:17px;margin:0 0 2px;font-weight:650;letter-spacing:-.01em}
+h3{font-size:11px;margin:18px 14px 6px;color:var(--muted);font-weight:650;text-transform:uppercase;letter-spacing:.06em}
+nav{display:flex;gap:2px;flex-wrap:wrap;align-items:stretch}
+nav button{border:0;background:transparent;padding:0 11px;cursor:pointer;color:var(--muted);font-weight:550;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .12s,border-color .12s}
+nav button:hover{color:var(--ink)}nav button[aria-selected=true]{color:var(--accent);border-bottom-color:var(--accent)}
+.kopacties{display:flex;align-items:center;gap:10px}
+.sp{margin-left:auto}
+
+/* knoppen, pills */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;border:1px solid var(--line2);background:var(--panel);padding:0 14px;border-radius:8px;cursor:pointer;font-weight:550;text-decoration:none;color:var(--ink);white-space:nowrap;transition:background .12s,border-color .12s,box-shadow .12s}
+.btn:hover{border-color:var(--accent);background:var(--panel2)}
+.btn.primary{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}.btn.primary:hover{background:var(--accent2);border-color:var(--accent2)}
+.btn.danger{background:var(--bad);color:#fff;border-color:var(--bad)}.btn.danger:hover{filter:brightness(.93)}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}.btn.small{min-height:28px;padding:0 10px;font-size:12.5px;border-radius:7px}
+.btn[aria-pressed=true]{background:var(--soft);border-color:var(--accent);color:var(--accent)}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:1px 9px;border-radius:999px;font-size:11.5px;font-weight:650;white-space:nowrap;line-height:20px}
+.ok{background:var(--oksoft);color:var(--ok)}.bad{background:var(--badsoft);color:var(--bad)}.warn{background:var(--warnsoft);color:var(--warn)}
+.neu{background:var(--panel2);color:var(--muted);box-shadow:inset 0 0 0 1px var(--line)}.info{background:var(--soft);color:var(--accent)}
+#stat::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.8}
+
+/* indeling */
+main{flex:1;min-height:0;display:flex}
+.pane{flex:1;min-height:0;display:none}.pane.open{display:flex}
+iframe{border:0;flex:1;width:100%;background:var(--paper)}
+aside{width:290px;flex:none;background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:4px 0 18px}
+.item{display:block;width:calc(100% - 16px);margin:1px 8px;text-align:left;border:0;background:transparent;padding:8px 12px;cursor:pointer;border-radius:8px;position:relative;color:var(--ink)}
+.item:hover{background:var(--panel2)}
+.item[aria-current=true]{background:var(--soft)}.item[aria-current=true]::before{content:"";position:absolute;left:-8px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
+.item[aria-current=true] .n{color:var(--accent)}
+.item .n{font-weight:600;font-size:13.5px}.item .s{color:var(--muted);font-size:12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+section{flex:1;min-width:0;overflow:auto;padding:24px 28px 40px}
+.pane{min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:0 auto 16px;max-width:1180px;box-shadow:var(--shadow)}
+details.card>summary{list-style:none;display:flex;align-items:center;gap:8px;font-weight:650}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::before{content:"";width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .15s;margin-right:4px}
+details.card[open]>summary::before{transform:rotate(45deg)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.lead{color:var(--muted);margin:4px 0 18px;max-width:78ch}
+.cmdline{font-family:var(--mono);font-size:12px;color:var(--muted);word-break:break-all;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin:8px 0}
+.pad{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;word-break:normal}
+
+/* formulieren */
+.field{display:grid;gap:6px;margin-bottom:18px;max-width:680px}
+.field>label,.field>.lbl,.lbl{font-weight:600;font-size:13.5px}
+.field input[type=text],.field input[type=number],.field input[type=password],.field select,.field textarea,dialog input,
+.row select,.tools select,input[type=search],.bestand select{min-height:36px;padding:6px 11px;border:1px solid var(--line2);border-radius:8px;background-color:var(--panel);width:100%;transition:border-color .12s,box-shadow .12s}
+.row select,.tools select{width:auto}
+.field input:focus,.field select:focus,.field textarea:focus,dialog input:focus,select:focus,input[type=search]:focus{outline:none;border-color:var(--accent);box-shadow:var(--ring)}
+.field textarea{font-family:var(--mono);font-size:12.5px;resize:vertical}
+.field input.mono{font-family:var(--mono);font-size:12.5px}
+.hint{color:var(--muted);font-size:12.5px}
+.err{color:var(--bad);font-weight:600;font-size:13px}.muted{color:var(--muted)}
+.bestand{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:10px}
+.bestand select{flex:1;min-width:220px;width:auto}
+.bestand .gekozen{flex-basis:100%;font-size:12.5px;color:var(--ink2);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.bestand .gekozen::before{content:"";width:13px;height:13px;flex:none;border-radius:2px;background:var(--line2)}
+.bestand.gevuld .gekozen::before{background:var(--accent)}
+.check{display:flex;gap:9px;align-items:flex-start;font-weight:400;cursor:pointer}.check input{margin-top:3px;width:15px;height:15px}
+.echt{display:inline-flex;gap:8px;align-items:center;min-height:34px;padding:0 12px;border-radius:8px;border:1px solid var(--line2);cursor:pointer;background:var(--panel)}
+.echt.aan{background:var(--badsoft);border-color:var(--bad);color:var(--bad);font-weight:650}
+input[type=search]{width:auto;min-width:230px}
+details>summary{cursor:pointer;font-weight:600;color:var(--ink2);margin-bottom:6px}
+progress{accent-color:var(--accent);height:8px}
+
+/* meldingen */
+.banner{padding:10px 14px;border-radius:10px;margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--line)}
+.ok.banner{background:var(--oksoft);color:var(--ok)}.bad.banner{background:var(--badsoft);color:var(--bad)}
+.log{font-family:var(--mono);font-size:12.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word;max-height:440px;min-height:60px;overflow:auto;background:var(--panel2);border:1px solid var(--line);padding:12px 14px;border-radius:10px;margin:12px 0;color:var(--ink2)}
+
+/* tabellen */
+table{border-collapse:separate;border-spacing:0;width:100%}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11px;color:var(--muted);font-weight:650;text-transform:uppercase;letter-spacing:.05em;background:var(--panel2)}
+tbody tr:last-child td{border-bottom:0}
+td.r{text-align:right;color:var(--muted);white-space:nowrap}
+.tabelbox{max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table.data{font-size:13px;font-variant-numeric:tabular-nums}table.data td{white-space:nowrap}
+table.data th{position:sticky;top:0;z-index:1;cursor:pointer;user-select:none;white-space:nowrap}
+table.data th:hover{color:var(--ink)}
+table.data th[aria-sort=ascending]::after{content:" \2191";color:var(--accent)}table.data th[aria-sort=descending]::after{content:" \2193";color:var(--accent)}
+table.data tbody tr:hover td{background:var(--panel2)}
+tr.r-bad td{background:var(--badsoft)}tr.r-warn td{background:var(--warnsoft)}
+tr.sectie td{font-weight:650;background:var(--soft);color:var(--accent)}tr.kop td{font-size:11.5px;color:var(--muted);font-weight:650;background:var(--panel2)}
+tr.klik{cursor:pointer}tr.klik:hover td{background:var(--soft)}
+.viewer{margin-top:18px;border-top:1px solid var(--line);padding-top:16px}
+
+/* filters */
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line2);border-radius:999px;min-height:28px;padding:0 12px;background:var(--panel);cursor:pointer;font-size:12.5px;display:inline-flex;gap:7px;align-items:center;color:var(--ink2);transition:background .12s,border-color .12s}
+.chip:hover{border-color:var(--accent)}
+.chip[aria-pressed=true]{background:var(--soft);border-color:var(--accent);color:var(--accent);font-weight:650}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}.dot.ok{background:var(--ok)}.dot.neu{background:var(--line2)}.dot.info{background:var(--accent)}
+
+/* zijbalk-werkbalk, subnav */
+.tools{padding:12px 14px;border-bottom:1px solid var(--line);display:grid;gap:9px;position:sticky;top:-4px;background:var(--panel);z-index:1}
+.tools input[type=search]{width:100%;min-width:0}
+.subnav{display:flex;gap:2px;flex-wrap:wrap;margin:-6px 0 18px;border-bottom:1px solid var(--line)}
+.subnav button{border:0;background:transparent;padding:9px 12px;cursor:pointer;color:var(--muted);font-weight:550;border-bottom:2px solid transparent;margin-bottom:-1px}
+.subnav button:hover{color:var(--ink)}.subnav button[aria-current=true]{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* tegels, details */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin:14px 0 6px}
+.tile{border:1px solid var(--line);border-radius:10px;padding:10px 13px;background:var(--panel2)}
+.tile .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:650}
+.tile .v.ok,.tile .v.warn,.tile .v.bad{background:none}
+.tile .v{font-size:20px;font-weight:650;font-variant-numeric:tabular-nums;margin-top:2px;letter-spacing:-.01em}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 18px;font-size:13.5px}.kv dt{color:var(--muted)}.kv dd{margin:0;font-family:var(--mono);font-size:12.5px;word-break:break-all}
+.swit{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:start}.swit input{margin-top:4px}
+.spark{display:block;width:100%;height:48px;margin:6px 0}.spark polyline{fill:none;stroke:var(--accent);stroke-width:1.8;vector-effect:non-scaling-stroke}
+.trend{border:1px solid var(--line);border-radius:10px;padding:10px 13px;background:var(--panel2)}.trends{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.cmdlijst{max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--panel2)}.cmdlijst summary{font-weight:600;cursor:pointer;padding:4px 0}
+.cmdlijst label{display:flex;gap:8px;font-family:var(--mono);font-size:12.5px;padding:3px 0;cursor:pointer}
+
+/* dialoog */
+dialog{border:1px solid var(--line);border-radius:14px;padding:24px 26px;width:min(480px,calc(100vw - 32px));background:var(--panel);color:var(--ink);box-shadow:0 20px 50px rgba(10,20,40,.25)}
+dialog::backdrop{background:rgba(12,20,34,.45)}
+dialog .field{max-width:none}
+
+/* assistent */
+.stappen{padding:6px 8px 4px}
+.stap{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:center;width:100%;text-align:left;border:0;background:transparent;padding:8px 8px;border-radius:9px;cursor:pointer;color:var(--ink);position:relative}
+.stap:hover{background:var(--panel2)}.stap[aria-current=step]{background:var(--soft)}
+.stap .nr{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:12px;border:2px solid var(--line2);color:var(--muted);background:var(--panel)}
+.stap[aria-current=step] .nr{border-color:var(--accent);color:var(--accent)}
+.stap.ok .nr{background:var(--ok);border-color:var(--ok);color:#fff}.stap.warn .nr{background:var(--warn);border-color:var(--warn);color:#fff}
+.stap.fout .nr{background:var(--bad);border-color:var(--bad);color:#fff}.stap.skip .nr{border-style:dashed}
+.stap .t{font-weight:600;font-size:13.5px;line-height:1.25}.stap .k{font-size:12px;color:var(--muted)}
+.stap:not(:last-child)::after{content:"";position:absolute;left:21px;top:36px;height:calc(100% - 30px);width:2px;background:var(--line);z-index:0}
+.stap .nr{position:relative;z-index:1}
+.uitleg{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:14px 0 18px}
+.uitleg>div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;font-size:13px;color:var(--ink2)}
+.uitleg strong{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:3px}
+.uitleg .letop{background:var(--warnsoft);border-color:transparent}.uitleg .letop strong{color:var(--warn)}
+.keuzes{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:6px 0 18px}
+.keuze{border:1px solid var(--line2);border-radius:12px;padding:14px 16px;background:var(--panel);cursor:pointer;text-align:left;display:grid;gap:4px;color:var(--ink)}
+.keuze:hover{border-color:var(--accent)}.keuze[aria-pressed=true]{border-color:var(--accent);box-shadow:var(--ring);background:var(--soft)}
+.keuze strong{font-size:14px}.keuze span{font-size:12.5px;color:var(--muted)}
+.checklist{display:grid;gap:8px;margin:8px 0 4px}
+.checklist label{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);cursor:pointer}
+.checklist label.af{background:var(--oksoft);border-color:transparent}
+.wizvoet{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:22px;padding-top:16px}
+.blok{border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0;background:var(--panel)}
+.blok h3{margin:0 0 4px;font-size:14.5px;text-transform:none;letter-spacing:0;color:var(--ink)}
+.ib{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:50%;background:var(--soft);color:var(--accent);font:700 11px/1 Georgia,serif;font-style:italic;cursor:help;position:relative;vertical-align:1px;margin-left:5px;border:0;padding:0}
+.ib:hover::after,.ib:focus::after{content:attr(data-tip);position:absolute;left:50%;top:calc(100% + 7px);transform:translateX(-50%);width:max-content;max-width:330px;background:var(--ink);color:var(--panel);padding:9px 11px;border-radius:9px;font:400 12.5px/1.45 var(--body);font-style:normal;z-index:30;white-space:normal;text-align:left;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.begrippen dt{font-weight:650;margin-top:12px}.begrippen dd{margin:2px 0 0;color:var(--ink2)}
+@media (max-width:820px){.pane.open{flex-direction:column}aside{width:auto;max-height:40vh;border-right:0;border-bottom:1px solid var(--line)}section{padding:16px}header{padding:0 12px}nav button{padding:10px 9px}}
+</style></head><body>
+<header>
+  <div class="merk"><span class="logo" aria-hidden="true">CNX</span><div><h1>CNX Toolkit</h1><div class="versie">versie __VERSIE__</div></div></div>
+  <nav role="tablist" id="tabs" aria-label="Onderdelen"></nav>
+  <span class="sp"></span>
+  <div class="kopacties"><span class="pill neu" id="stat">niet aangemeld</span><button class="btn small" id="aanmeldknop">Aanmelden</button></div>
+</header>
+<main id="panes"></main>
+
+<dialog id="dlg">
+  <h2>Aanmelden bij new Central</h2>
+  <p class="hint">De gegevens blijven enkel in het geheugen van dit programma op deze computer.</p>
+  <div class="field"><label for="d-base">Base URL van de API</label><input id="d-base" type="text" placeholder="https://de1.api.central.arubanetworks.com"></div>
+  <div class="field"><label for="d-id">Client ID</label><input id="d-id" type="text" autocomplete="off"></div>
+  <div class="field"><label for="d-secret">Client secret</label><input id="d-secret" type="password" autocomplete="off"></div>
+  <p id="d-fout" class="err" hidden></p>
+  <div class="row"><button class="btn primary" id="d-ok">Aanmelden</button><button class="btn" id="d-annuleer">Annuleren</button></div>
+</dialog>
+
+<script>
+const T = "__TOKEN__";
+const $ = id => document.getElementById(id);
+function el(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (k === "checked" || k === "value" || k === "disabled" || k === "selected") e[k] = v;
+    else e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of kids.flat()) if (c !== null && c !== undefined && c !== false) e.append(c.nodeType ? c : String(c));
+  return e;
+}
+async function get(p) { const r = await fetch(p + (p.includes("?") ? "&" : "?") + "t=" + T); return r.json(); }
+async function post(p, b) {
+  const r = await fetch(p, { method: "POST", headers: { "Content-Type": "application/json", "X-Token": T }, body: JSON.stringify(b) });
+  return r.json();
+}
+function opslaan(k, v) { try { localStorage.setItem("cnx-web-" + k, v); } catch (e) {} }
+function lezen(k) { try { return localStorage.getItem("cnx-web-" + k); } catch (e) { return null; } }
+const TABS = [
+  { id: "onboard", label: "Onboarden", eigen: true },
+  { id: "overrides", label: "Overrides controleren", eigen: true, aside: true },
+  { id: "aos8", label: "AP-migratie", eigen: true },
+  { id: "klant", label: "Instellingen", eigen: true },
+  { id: "hulp", label: "Handleiding", frame: "/hulp" },
+];
+let STATUS = { aangemeld: false };
+// ---------------------------------------------------------------- tabs
+function bouwTabs() {
+  for (const t of TABS) {
+    $("tabs").append(el("button", { role: "tab", id: "tab-" + t.id, "aria-selected": "false", onclick: () => openTab(t.id) }, t.label));
+    const pane = el("div", { class: "pane", id: "pane-" + t.id, role: "tabpanel" });
+    if (t.eigen) { if (t.aside) pane.append(el("aside", { id: "lijst-" + t.id })); pane.append(el("section", { id: "werk-" + t.id })); }
+    $("panes").append(pane);
+  }
+}
+function openTab(id) {
+  const t = TABS.find(x => x.id === id) || TABS[0];
+  for (const x of TABS) {
+    $("tab-" + x.id).setAttribute("aria-selected", x.id === t.id);
+    $("pane-" + x.id).classList.toggle("open", x.id === t.id);
+  }
+  const pane = $("pane-" + t.id);
+  if (t.frame && !pane.querySelector("iframe")) pane.append(el("iframe", { src: t.frame, title: t.label }));
+  if (t.id === "klant") renderKlant();
+  if (t.id === "overrides") renderOvr();
+  if (t.id === "onboard") renderOnb();
+  if (t.id === "aos8") renderAos8();
+  opslaan("tab", t.id);
+  history.replaceState(null, "", "#" + t.id);
+}
+
+// ---------------------------------------------------------------- aanmelden
+async function laadStatus() {
+  try { STATUS = await get("/api/status"); } catch (e) { STATUS = { aangemeld: false }; }
+  $("stat").textContent = STATUS.aangemeld ? "aangemeld · " + (STATUS.base || "").replace(/^https?:\/\//, "") : "niet aangemeld";
+  $("stat").className = "pill " + (STATUS.aangemeld ? "ok" : "neu");
+  $("aanmeldknop").textContent = STATUS.aangemeld ? "Afmelden" : "Aanmelden";
+}
+$("aanmeldknop").onclick = async () => {
+  if (STATUS.aangemeld) { await post("/api/web/afmelden", {}); await laadStatus(); renderAlles(); return; }
+  $("d-fout").hidden = true; $("d-secret").value = "";
+  $("d-base").value = $("d-base").value || STATUS.base || lezen("base") || "";
+  $("dlg").showModal();
+};
+$("d-annuleer").onclick = () => $("dlg").close();
+$("d-ok").onclick = async () => {
+  const base = $("d-base").value.trim(), id = $("d-id").value.trim(), secret = $("d-secret").value;
+  if (!base || !id || !secret) { $("d-fout").textContent = "Vul alle drie de velden in."; $("d-fout").hidden = false; return; }
+  $("d-ok").disabled = true;
+  try {
+    const r = await post("/api/aanmelden", { base, id, secret });
+    if (!r.ok) { $("d-fout").textContent = r.melding || r.fout || "Aanmelden mislukt."; $("d-fout").hidden = false; return; }
+    opslaan("base", base); $("d-secret").value = ""; $("dlg").close();
+    await laadStatus(); renderAlles();
+  } finally { $("d-ok").disabled = false; }
+};
+$("d-secret").addEventListener("keydown", e => { if (e.key === "Enter") $("d-ok").click(); });
+
+// ---------------------------------------------------------------- weergave
+function renderAlles() {
+  for (const t of TABS) if ($("pane-" + t.id).classList.contains("open")) {
+    if (t.id === "onboard") { if (STATUS.aangemeld && ONB.keuzes && ONB.keuzes.fout) ONB.keuzes = undefined; renderOnb(); }
+    if (t.id === "overrides") renderOvr();
+  }
+}
+// ---------------------------------------------------------------- klantconfig (Instellingen)
+let KLANT = null, KFORM = null, KMELD = null, KBULK = null, KVOORSTEL = null;
+async function laadKlant() {
+  try { KLANT = await get("/api/web/klantconfig"); } catch (e) { KLANT = null; return; }
+  KFORM = schoon(KLANT.config);
+}
+function schoon(cfg) {
+  const c = JSON.parse(JSON.stringify(cfg || {}));
+  const weg = o => { for (const k of Object.keys(o)) { if (typeof o[k] === "string" && o[k].includes("VUL-IN")) o[k] = ""; else if (o[k] && typeof o[k] === "object") weg(o[k]); } };
+  weg(c);
+  if (!c.velden || typeof c.velden !== "object") c.velden = {};
+  for (const k of ["hostname", "sys_vlan_ip", "mgmt_ip"]) if (!c.velden[k] || typeof c.velden[k] !== "object") c.velden[k] = {};
+  return c;
+}
+function kGewijzigd() { return !!(KLANT && KFORM && JSON.stringify(schoon(KLANT.config)) !== JSON.stringify(KFORM)); }
+const STD_REGEX = "^[A-Za-z][A-Za-z0-9._-]{0,31}$";
+const KVELDEN = [
+  { id: "klant", label: "Klant", hint: "Naam van de klant, enkel ter info.", get: c => c.klant, set: (c, x) => { c.klant = x; } },
+  { id: "profiel", label: "System-info-profiel voor nieuwe switches", mono: true,
+    hint: "Optioneel. Naam van het gedeelde System-info-profiel in new Central waar de hostname in komt, voor switches zonder eigen profiel. Leeg: enkel het IP gaat mee.",
+    get: c => c.velden.hostname.instance, set: (c, x) => { c.velden.hostname.instance = x; } },
+  { id: "vlan", label: "Beheer-VLAN", type: "number", verplicht: true, hint: "Het VLAN met het beheer-IP van de switches.",
+    get: c => c.velden.sys_vlan_ip.standaard_vlan, set: (c, x) => { c.velden.sys_vlan_ip.standaard_vlan = /^\d+$/.test(x) ? Number(x) : x; } },
+  { id: "mgmt", label: "Beheerinterface (OOBM)", mono: true, verplicht: true, hint: "Meestal mgmt.",
+    get: c => c.velden.mgmt_ip.instance, set: (c, x) => { c.velden.mgmt_ip.instance = x; } },
+];
+const KGEAVANCEERD = [
+  { id: "patroon", label: "Aliaspatroon van het beheer-IP", mono: true, hint: "Standaard sys_vlan_ipv4_{vlan}. {vlan} wordt het beheer-VLAN.",
+    get: c => c.velden.sys_vlan_ip.alias_patroon, set: (c, x) => { c.velden.sys_vlan_ip.alias_patroon = x; } },
+  { id: "regex", label: "Hostname-regel (regex)", mono: true, hint: "Standaard: begint met een letter, maximaal 32 tekens.",
+    get: c => c.hostname_regex, set: (c, x) => { c.hostname_regex = x; } },
+];
+function kFouten(c) {
+  const f = {}, leeg = x => x === undefined || x === null || String(x).trim() === "";
+  const v = String(c.velden.sys_vlan_ip.standaard_vlan ?? "");
+  if (!/^\d+$/.test(v) || +v < 1 || +v > 4094) f.vlan = "VLAN-ID tussen 1 en 4094.";
+  if (leeg(c.velden.mgmt_ip.instance)) f.mgmt = "Verplicht.";
+  const p = c.velden.sys_vlan_ip.alias_patroon;
+  if (!leeg(p) && !String(p).includes("{vlan}")) f.patroon = "Moet {vlan} bevatten.";
+  try { new RegExp(c.hostname_regex || STD_REGEX); } catch (e) { f.regex = "Geen geldige regex."; }
+  return f;
+}
+const HARD = ["vlan", "patroon", "regex"];   // de server weigert op te slaan met deze fouten
+
+function renderKlant() {
+  const werk = $("werk-klant");
+  if (!werk) return;
+  if (!KLANT || !KFORM) {
+    werk.replaceChildren(el("div", { class: "card" }, el("p", { class: "muted" }, "Klantconfig laden...")));
+    laadKlant().then(() => { if (KLANT) renderKlant(); });
+    return;
+  }
+  const c = KFORM, refs = {};
+  const status = KLANT.leesfout ? el("div", { class: "banner bad" }, KLANT.leesfout)
+    : !KLANT.bestaat ? el("div", { class: "banner warn" }, "Nog geen klantconfig.json voor deze klant. Vul de velden in en sla op.")
+    : KLANT.problemen.length ? el("div", { class: "banner warn" }, "Opgeslagen, maar nog niet klaar: " + KLANT.problemen.map(p => p.veld + " " + p.tekst).join("; ") + ".")
+    : el("div", { class: "banner ok" }, "Klaar. 'cnx alias' gebruikt deze klantconfig.");
+  const melding = el("p", { class: KMELD && KMELD.fout ? "err" : "hint", hidden: !KMELD }, KMELD ? (KMELD.fout || KMELD.ok) : "");
+  const gewijzigd = el("span", { class: "pill warn" }, "niet opgeslagen");
+  const opslaanKnop = el("button", { class: "btn primary", onclick: async () => {
+    opslaanKnop.disabled = true;
+    try {
+      const r = await post("/api/web/klantconfig", { config: KFORM });
+      if (r.fout) { KMELD = { fout: r.fout }; }
+      else { KLANT = r; KFORM = schoon(r.config); KMELD = { ok: "Opgeslagen in " + r.pad + "." }; }
+    } catch (e) { KMELD = { fout: "Opslaan mislukt: " + e }; }
+    renderKlant();
+  } }, "Opslaan");
+  const ongedaan = el("button", { class: "btn", onclick: () => { KFORM = schoon(KLANT.config); KMELD = null; renderKlant(); } }, "Wijzigingen ongedaan maken");
+  const preview = el("div", { class: "hint mono" });
+  const tester = el("span", { class: "pill neu" }, "");
+  const testInvoer = el("input", { type: "text", placeholder: "bv. BEANT01SW01", "aria-label": "Test een hostname", oninput: () => bijwerken() });
+
+  function bijwerken() {
+    const f = kFouten(c);
+    for (const [id, r] of Object.entries(refs)) { r.textContent = f[id] || ""; r.hidden = !f[id]; }
+    const vlan = c.velden.sys_vlan_ip.standaard_vlan;
+    preview.textContent = "Alias van het beheer-IP: " + String(c.velden.sys_vlan_ip.alias_patroon || "sys_vlan_ipv4_{vlan}").replace("{vlan}", vlan || "?");
+    const h = testInvoer.value;
+    let ok = null; try { ok = h ? new RegExp(c.hostname_regex || STD_REGEX).test(h) : null; } catch (e) { ok = null; }
+    tester.textContent = ok === null ? "" : ok ? "voldoet" : "voldoet niet";
+    tester.className = "pill " + (ok === null ? "neu" : ok ? "ok" : "bad"); tester.hidden = ok === null;
+    const hard = HARD.some(id => f[id]);
+    opslaanKnop.disabled = hard;
+    opslaanKnop.title = hard ? "Los eerst de rode fouten op." : "";
+    const g = kGewijzigd(); gewijzigd.hidden = !g; ongedaan.hidden = !g;
+  }
+  const invoer = d => {
+    const id = "k-" + d.id, fout = el("div", { class: "err", hidden: true });
+    refs[d.id] = fout;
+    const w = d.get(c);
+    return el("div", { class: "field" }, el("label", { for: id }, d.label, d.verplicht ? el("span", { class: "muted" }, " *") : null),
+      el("input", { id, type: d.type || "text", class: d.mono ? "mono" : null, value: w ?? "", min: d.type === "number" ? 1 : null, max: d.type === "number" ? 4094 : null,
+        oninput: e => { d.set(c, e.target.value.trim()); KMELD = null; melding.hidden = true; bijwerken(); } }),
+      d.id === "vlan" ? preview : null, el("div", { class: "hint" }, d.hint), fout);
+  };
+  const laadJson = el("input", { type: "file", accept: ".json", hidden: true, onchange: async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const j = JSON.parse(await f.text());
+      if (!j || typeof j !== "object" || !j.velden) throw new Error("geen klantconfig (velden ontbreekt)");
+      KFORM = schoon(Object.assign(JSON.parse(JSON.stringify(KLANT.config)), j));
+      KMELD = { ok: f.name + " geladen. Nog niet opgeslagen." };
+    } catch (err) { KMELD = { fout: f.name + ": " + err.message }; }
+    renderKlant();
+  } });
+
+  const formKaart = el("div", { class: "card" },
+    el("div", { class: "row" }, el("h2", {}, "Instellingen"), gewijzigd),
+    el("p", { class: "lead" }, "Wat per klant verschilt, bewaard in klantconfig.json. Enkel nodig voor 'cnx alias' op de commandolijn: Switches onboarden en Overrides controleren halen alles uit Central."),
+    el("p", { class: "cmdline pad", title: KLANT.pad }, KLANT.pad),
+    status,
+    KVELDEN.map(invoer),
+    el("details", { open: !!(kFouten(c).patroon || kFouten(c).regex) || null },
+      el("summary", {}, "Geavanceerd"),
+      el("div", { style: "margin-top:12px" }, KGEAVANCEERD.map(invoer),
+        el("div", { class: "field" }, el("span", { class: "lbl" }, "Test een hostname tegen de regel"), el("div", { class: "row" }, testInvoer, tester)),
+        el("div", { class: "field" }, el("span", { class: "lbl" }, "Modified"), el("div", {}, el("span", { class: "mono" }, "Yes"),
+          el("span", { class: "hint" }, "  Vast: Central past enkel rijen met Yes toe."))))),
+    el("div", { class: "row" }, opslaanKnop, ongedaan,
+      KLANT.bestaat ? el("a", { class: "btn", href: "/api/web/klantconfig/bestand?t=" + T }, "Download klantconfig.json") : null,
+      el("button", { class: "btn", onclick: () => laadJson.click() }, "Bestaande klantconfig.json laden"), laadJson),
+    melding);
+
+  werk.replaceChildren(formKaart, voorstelKaart());
+  bijwerken();
+}
+
+function voorstelKaart() {
+  const gekozen = el("div", { class: "gekozen" });
+  const toon = () => { gekozen.parentNode && gekozen.parentNode.classList.toggle("gevuld", !!KBULK);
+    gekozen.replaceChildren(...(!KBULK ? [el("span", { class: "muted" }, "Nog geen bulk-download gekozen")]
+      : [el("span", { class: "mono" }, KBULK.naam), el("span", { class: "muted" }, "geladen")])); };
+  const kies = el("input", { type: "file", accept: ".csv", hidden: true, "aria-label": "Bulk-download uit new Central", onchange: async e => {
+    const f = e.target.files[0]; if (!f) return;
+    const inhoud = await new Promise((ok, nok) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = nok; r.readAsDataURL(f); });
+    KBULK = { naam: f.name, inhoud }; toon();
+  } });
+  const fout = el("p", { class: "err", hidden: true });
+  const knop = el("button", { class: "btn", onclick: async () => {
+    fout.hidden = true;
+    if (!KBULK) { fout.textContent = "Kies eerst een bulk-download."; fout.hidden = false; return; }
+    knop.disabled = true;
+    try {
+      const r = await post("/api/web/klantconfig/voorstel", { bestand: KBULK });
+      if (r.fout) { fout.textContent = r.fout; fout.hidden = false; return; }
+      KVOORSTEL = r.voorstel; renderKlant();
+    } finally { knop.disabled = false; }
+  } }, "Voorstel maken");
+  const kaart = el("div", { class: "card" }, el("h2", {}, "Overnemen uit new Central"),
+    el("p", { class: "lead" }, "Laad een bulk-download van de aliassen (Configuration > Library > Named Objects > Aliases > bulk download). De namen die op de meeste switches staan, worden voorgesteld."),
+    el("div", { class: "field" }, el("div", { class: "bestand" + (KBULK ? " gevuld" : "") }, kies, el("button", { class: "btn", type: "button", onclick: () => kies.click() }, "Bestand kiezen..."), gekozen)),
+    el("div", { class: "row" }, knop), fout);
+  toon();
+  if (KVOORSTEL) {
+    const rijen = [
+      ["profiel", "System-info-profiel", KVOORSTEL.hostname_instance, (c, x) => { c.velden.hostname.instance = x; }],
+      ["vlan", "Beheer-VLAN", KVOORSTEL.standaard_vlan, (c, x) => { c.velden.sys_vlan_ip.standaard_vlan = x; }],
+      ["mgmt", "Beheerinterface", KVOORSTEL.mgmt_instance, (c, x) => { c.velden.mgmt_ip.instance = x; }],
+    ].filter(r => r[2]);
+    if (!rijen.length) kaart.append(el("p", { class: "muted" }, "Niets gevonden: staan er access switches met hostname of beheer-IP in deze download?"));
+    else {
+      const neem = lijst => { for (const [, , v, zet] of lijst) zet(KFORM, v.waarde); KMELD = { ok: "Overgenomen. Nog niet opgeslagen." }; renderKlant(); };
+      kaart.append(el("table", { style: "margin-top:12px" }, el("thead", {}, el("tr", {}, el("th", {}, "Veld"), el("th", {}, "Voorstel"), el("th", {}, "Op"), el("th", {}, ""))),
+        el("tbody", {}, rijen.map(r => el("tr", {}, el("td", {}, r[1]), el("td", { class: "mono" }, String(r[2].waarde)),
+          el("td", { class: "muted" }, r[2].switches + " switches" + (r[2].andere ? " (" + r[2].andere + " andere waarde" + (r[2].andere > 1 ? "n" : "") + ")" : "")),
+          el("td", { class: "r" }, el("button", { class: "btn small", onclick: () => neem([r]) }, "Overnemen")))))),
+        el("p", { class: "row" }, el("button", { class: "btn primary", onclick: () => neem(rijen) }, "Alles overnemen")));
+    }
+  }
+  return kaart;
+}
+window.addEventListener("beforeunload", e => { if (kGewijzigd()) { e.preventDefault(); e.returnValue = ""; } });
+
+// ---------------------------------------------------------------- hulpjes voor Central-gegevens
+const MAX_RIJEN = 1000;
+function datum(x) {
+  if (x === null || x === undefined || x === "") return "";
+  const d = typeof x === "number" ? new Date(x > 1e12 ? x : x * 1000) : new Date(x);
+  if (isNaN(d)) return String(x);
+  const p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+}
+function tekstVan(v) { return v === null || v === undefined ? "" : Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v) : String(v); }
+function statusPill(v) {
+  const s = String(v || "").toLowerCase();
+  if (!s) return null;
+  if (/^(up|online|ok|good|healthy|synchronized|established|active|accept|completed|up to date|positive|primary)$/.test(s)) return "ok";
+  if (/(down|offline|fail|error|critical|poor|reject|negative|out of sync|unhealthy|major)/.test(s)) return "bad";
+  if (/(fair|warn|minor|deferred|progress|running|initiated|pending|available)/.test(s)) return "warn";
+  return "neu";
+}
+function csvDownload(naam, kolommen, items) {
+  const q = x => { const t = String(x ?? ""); return /[",;\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  const regels = [kolommen.map(k => q(k.label)).join(",")].concat(items.map(it => kolommen.map(k => q(k.tekst ? k.tekst(it) : tekstVan(it[k.k]))).join(",")));
+  bewaarBestand(naam, regels.join("\r\n") + "\r\n", "text/csv");
+}
+function bewaarBestand(naam, tekst, soort) {
+  const a = el("a", { href: URL.createObjectURL(new Blob(["﻿" + tekst], { type: soort + ";charset=utf-8" })), download: naam });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+async function cget(pad) {
+  try { return await get(pad); } catch (e) { return { fout: "Geen antwoord van cnx: " + e }; }
+}
+function nietAangemeld(werk) {
+  werk.replaceChildren(el("div", { class: "card" }, el("h2", {}, "Aanmelden nodig"),
+    el("p", { class: "lead" }, "Dit tabblad leest gegevens uit new Central. Meld eerst aan."),
+    el("button", { class: "btn primary", onclick: () => $("aanmeldknop").click() }, "Aanmelden")));
+}
+
+// Tabel voor lijsten uit Central: kolommen kiezen, zoeken, sorteren, filteren op status, exporteren naar CSV.
+// kolommen: [{k, label, tekst?(item), pill?(waarde)->klasse, mono?}]
+function jtabel(o) {
+  const st = o.st, kol = o.kolommen, items = o.items || [];
+  const waarde = (it, k) => k.tekst ? k.tekst(it) : tekstVan(it[k.k]);
+  const sk = o.statusKolom ? kol.find(k => k.k === o.statusKolom) : null;
+  const telling = {};
+  if (sk) for (const it of items) { const w = waarde(it, sk) || "(leeg)"; telling[w] = (telling[w] || 0) + 1; }
+  if (st.filter === undefined) st.filter = sk && o.standaard && items.some(it => o.standaard(waarde(it, sk))) ? "__std__" : "__alles__";
+  const past = it => {
+    if (sk && st.filter === "__std__" && !o.standaard(waarde(it, sk))) return false;
+    if (sk && !st.filter.startsWith("__") && (waarde(it, sk) || "(leeg)") !== st.filter) return false;
+    if (st.zoek) { const z = st.zoek.toLowerCase(); if (!kol.some(k => waarde(it, k).toLowerCase().includes(z))) return false; }
+    return true;
+  };
+  const tbody = el("tbody"), telregel = el("span", { class: "hint" }), chips = el("div", { class: "chips" }), knoppen = [];
+  const chip = (w, label, klasse) => {
+    const b = el("button", { class: "chip", "aria-pressed": String(st.filter === w), onclick: () => { st.filter = w; for (const x of knoppen) x.setAttribute("aria-pressed", String(x === b)); vul(); } },
+      klasse ? el("span", { class: "dot " + klasse }) : null, label);
+    knoppen.push(b); chips.append(b);
+  };
+  if (sk && Object.keys(telling).length > 1) {
+    chip("__alles__", "Alles (" + items.length + ")");
+    if (o.standaard) chip("__std__", (o.standaardLabel || "Aandacht") + " (" + items.filter(it => o.standaard(waarde(it, sk))).length + ")");
+    for (const [w, n] of Object.entries(telling).sort((a, b) => b[1] - a[1])) chip(w, w + " (" + n + ")", (sk.pill || statusPill)(w));
+  }
+  const zoek = el("input", { type: "search", placeholder: "Zoeken...", value: st.zoek || "", "aria-label": "Zoeken in " + (o.naam || "tabel"), oninput: e => { st.zoek = e.target.value; vul(); } });
+  let zicht = items;
+  const thead = el("thead", {}, el("tr", {}, kol.map((k, i) => el("th", {
+    "aria-sort": st.sort && st.sort.i === i ? (st.sort.asc ? "ascending" : "descending") : "none",
+    onclick: e => { st.sort = { i, asc: !(st.sort && st.sort.i === i && st.sort.asc) }; for (const th of e.target.parentNode.children) th.setAttribute("aria-sort", "none"); e.target.setAttribute("aria-sort", st.sort.asc ? "ascending" : "descending"); vul(); } }, k.label))));
+  function vul() {
+    zicht = items.filter(past);
+    if (st.sort) { const k = kol[st.sort.i], asc = st.sort.asc; zicht = [...zicht].sort((a, b) => waarde(a, k).localeCompare(waarde(b, k), "nl", { numeric: true }) * (asc ? 1 : -1)); }
+    tbody.replaceChildren(...zicht.slice(0, MAX_RIJEN).map(it => {
+      const cls = sk ? (sk.pill || statusPill)(waarde(it, sk)) : null;
+      return el("tr", { class: [o.opRij ? "klik" : "", cls === "bad" ? "r-bad" : ""].join(" ").trim() || null, onclick: o.opRij ? () => o.opRij(it) : null },
+        kol.map(k => { const w = waarde(it, k), p = k.pill ? k.pill(w) : null; return el("td", { class: k.mono ? "mono" : null, style: k.wrap ? "white-space:normal;min-width:280px;max-width:460px" : null }, p && w ? el("span", { class: "pill " + p }, w) : w); }));
+    }));
+    telregel.textContent = zicht.length + " van " + items.length + (zicht.length > MAX_RIJEN ? ". Toont de eerste " + MAX_RIJEN + "; exporteer voor alles." : "") + (o.afgekapt ? " (Central gaf niet alles terug)" : "");
+  }
+  vul();
+  return el("div", {}, el("div", { class: "row", style: "margin:4px 0 8px" }, chips, zoek, telregel,
+    el("button", { class: "btn small", onclick: () => csvDownload((o.naam || "lijst") + ".csv", kol, zicht) }, "Exporteer CSV")),
+    el("div", { class: "tabelbox" }, el("table", { class: "data" }, thead, tbody)));
+}
+// ---------------------------------------------------------------- ophalingen: lang lezen uit Central, met voortgang
+const OPH = {};
+async function startOphaling(sleutel, soort, opties, opnieuwTekenen) {
+  OPH[sleutel] = { info: { status: "bezig", stap: "starten", gedaan: 0, totaal: 0 } };
+  opnieuwTekenen();
+  const r = await post("/api/web/ov/ophaal", { soort, opties });
+  if (r.fout) { OPH[sleutel] = { info: { status: "fout", fout: r.fout } }; opnieuwTekenen(); return; }
+  OPH[sleutel].id = r.id;
+  while (true) {
+    await new Promise(x => setTimeout(x, 900));
+    const i = await cget("/api/web/ov/ophaling?id=" + encodeURIComponent(r.id));
+    if (OPH[sleutel].id !== r.id) return;   // intussen opnieuw gestart
+    OPH[sleutel].info = i.fout && !i.status ? { status: "fout", fout: i.fout } : i;
+    opnieuwTekenen();
+    if (OPH[sleutel].info.status !== "bezig") return;
+  }
+}
+function voortgang(o) {
+  if (!o) return null;
+  const i = o.info || {};
+  if (i.status === "fout") return el("div", { class: "banner bad" }, i.fout || "Mislukt.");
+  if (i.status !== "bezig") return null;
+  const pct = i.totaal ? Math.round(i.gedaan / i.totaal * 100) : 0;
+  return el("div", { class: "banner info" }, el("span", {}, "Bezig: " + (i.stap || "") + (i.totaal ? " (" + i.gedaan + "/" + i.totaal + ")" : "")),
+    el("progress", { max: 100, value: pct, style: "flex:1;min-width:120px" }));
+}
+function tegels(paren) {
+  return el("div", { class: "tiles" }, paren.map(([k, v, klasse]) => el("div", { class: "tile" }, el("div", { class: "k" }, k), el("div", { class: "v " + (klasse || "") }, String(v)))));
+}
+
+// ---------------------------------------------------------------- tabblad Onboarden: device group -> importbestand voor Central
+const ONB = { stap: 1, groep: lezen("onb-groep") || "", prefix: lezen("onb-prefix") || "24", keuzes: undefined, rijen: null, laden: false, fout: null,
+  uit: new Set(), ed: {}, zoek: "", res: null, bezig: false, voorbeeld: {} };
+const ONB_FN = ["Access Switch", "Aggregation Switch", "Core Switch", "Mobility Gateway"];
+const ONB_IP = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}(\/([1-9]|[12]\d|3[0-2]))?$/;
+function onbFn(x) { const n = String(x || "").toUpperCase().replace(/[\s_-]+/g, "_"); return !n ? "Access Switch" : /^ACCESS/.test(n) ? "Access Switch" : /^AGG/.test(n) ? "Aggregation Switch" : /^CORE/.test(n) ? "Core Switch" : /^MOB/.test(n) ? "Mobility Gateway" : x; }
+function onbWaarde(r, k) { const e = ONB.ed[r.serial]; return e && e[k] !== undefined ? e[k] : (k === "device_function" ? onbFn(r[k]) : (r[k] || "")); }
+function onbZet(r, k, w) { (ONB.ed[r.serial] = ONB.ed[r.serial] || {})[k] = w; ONB.res = null; }
+function onbGekozen() { return (ONB.rijen || []).filter(r => !ONB.uit.has(r.serial)); }
+function onbRij(r) { const x = Object.assign({}, r); for (const k of ["hostname", "device_function", "sys_vlan_ip", "beheer_vlan", "systeemprofiel"]) x[k] = String(onbWaarde(r, k) || "").trim(); return x; }
+
+// Wat er met een switch in het bestand gebeurt, en wat er fout is. Zelfde regels als de controle op de server.
+function onbCheck(lijst) {
+  let regex; try { regex = new RegExp(STD_REGEX); } catch (e) { regex = /^.*$/; }
+  const ips = {};
+  for (const r of lijst) { const ip = onbWaarde(r, "sys_vlan_ip").split("/")[0].trim(); if (ip) (ips[ip] = ips[ip] || []).push(r.serial); }
+  const uit = {};
+  for (const r of lijst) {
+    const fout = [], letop = [], gaat = [];
+    const ip = onbWaarde(r, "sys_vlan_ip").trim(), vlan = String(onbWaarde(r, "beheer_vlan")).trim(), h = onbWaarde(r, "hostname").trim(), prof = onbWaarde(r, "systeemprofiel").trim();
+    if ((r.stack || "") === "ja") letop.push("VSF-stack: niet in het bestand, manueel instellen");
+    if (ip && !ONB_IP.test(ip)) fout.push("geen geldig IP");
+    else if (ip && ips[ip.split("/")[0]].length > 1) fout.push("IP komt " + ips[ip.split("/")[0]].length + " keer voor");
+    else if (ip && !ip.includes("/")) letop.push("prefix /" + (ONB.prefix || 24) + " aangenomen");
+    if (vlan && !(/^\d+$/.test(vlan) && +vlan >= 1 && +vlan <= 4094)) fout.push("VLAN tussen 1 en 4094");
+    if (ip && !vlan) fout.push("beheer-VLAN ontbreekt");
+    if (ip && ONB_IP.test(ip)) gaat.push("IP");
+    if (h && regex.test(h) && prof) gaat.push("hostname");
+    else if (h && !regex.test(h)) letop.push("hostname ongeldig: gaat niet mee");
+    else if (h && !prof) letop.push("geen System-info-profiel: hostname gaat niet mee");
+    if (!ONB_FN.includes(onbFn(onbWaarde(r, "device_function")))) fout.push("onbekende device function");
+    if (!r.site || !r.device_group) fout.push("site of device group ontbreekt in Central");
+    if (!gaat.length && !fout.length && (r.stack || "") !== "ja") letop.push("geen IP en geen hostname: niets om op te laden");
+    uit[r.serial] = { fout, letop, gaat };
+  }
+  return uit;
+}
+
+async function onbLaadKeuzes() {
+  ONB.keuzes = null; renderOnb();
+  const r = await cget("/api/web/ov/keuzes");
+  ONB.keuzes = r; renderOnb();
+}
+async function onbOphalen() {
+  ONB.laden = true; ONB.fout = null; ONB.rijen = null; ONB.res = null; ONB.uit = new Set(); ONB.ed = {}; renderOnb();
+  opslaan("onb-groep", ONB.groep); opslaan("onb-prefix", ONB.prefix);
+  const r = await cget("/api/web/ov/groepswitches?groep=" + encodeURIComponent(ONB.groep) + "&prefix=" + encodeURIComponent(ONB.prefix || "24"));
+  ONB.laden = false;
+  if (r.fout) ONB.fout = r.fout; else ONB.rijen = r.rijen || [];
+  // Geen alias sys_vlan_ipv4_<vlan> op de switch: stel het beheer-VLAN voor dat Central op Global gebruikt.
+  const voorstel = ONB.keuzes && ONB.keuzes.aanbevolen && ONB.keuzes.aanbevolen.vlan;
+  for (const x of ONB.rijen || []) if (!x.beheer_vlan && voorstel && x.sys_vlan_ip) { x.beheer_vlan = String(voorstel); x.bron_vlan = "voorstel"; }
+  renderOnb();
+}
+function onbStapper() {
+  const stappen = [[1, "Toestellen kiezen"], [2, "Nakijken"], [3, "Bestand"]];
+  return el("div", { class: "row", style: "gap:8px;margin-bottom:16px;flex-wrap:wrap" }, stappen.flatMap(([n, t], i) => [
+    i ? el("span", { class: "muted", "aria-hidden": "true" }, "→") : null,
+    el("button", { class: "btn small" + (ONB.stap === n ? " primary" : ""), "aria-current": ONB.stap === n ? "step" : null,
+      disabled: (n > 1 && !onbGekozen().length) || (n === 3 && !ONB.res) || null, onclick: () => { ONB.stap = n; renderOnb(); } }, n + ". " + t)]));
+}
+function renderOnb() {
+  const werk = $("werk-onboard");
+  if (!werk) return;
+  const sc = werk.scrollTop;
+  const kop = el("div", {}, el("h2", { style: "margin:0 0 4px" }, "Switches en gateways onboarden"),
+    el("p", { class: "lead", style: "margin:0 0 14px" }, "Lees de switches en gateways van een device group uit new Central en maak het bestand dat je in Central importeert (aliassen: beheer-IP en hostname per toestel). Er wordt niets gewijzigd in Central."));
+  let inhoud;
+  if (!STATUS.aangemeld) inhoud = el("div", { class: "banner info" }, "Meld eerst aan bij new Central.", el("button", { class: "btn small primary", onclick: () => $("aanmeldknop").click() }, "Aanmelden"));
+  else if (ONB.stap === 1) inhoud = onbStap1();
+  else if (ONB.stap === 2) inhoud = onbStap2();
+  else inhoud = onbStap3();
+  werk.replaceChildren(el("div", { class: "card" }, kop, STATUS.aangemeld ? onbStapper() : "", inhoud));
+  werk.scrollTop = sc;
+}
+
+function onbStap1() {
+  if (ONB.keuzes === undefined) { onbLaadKeuzes(); return el("p", { class: "muted" }, "Device groups lezen..."); }
+  if (ONB.keuzes === null) return el("p", { class: "muted" }, "Device groups lezen...");
+  if (ONB.keuzes.fout) return el("div", { class: "banner bad" }, "Kon Central niet lezen: " + ONB.keuzes.fout, el("button", { class: "btn small", onclick: onbLaadKeuzes }, "Opnieuw"));
+  const groepen = ONB.keuzes.groepen || [];
+  const wrap = el("div", {},
+    el("div", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:end" },
+      el("div", { class: "field", style: "margin:0" }, el("label", { for: "onb-groep" }, "Device group in new Central"),
+        el("select", { id: "onb-groep", onchange: e => { ONB.groep = e.target.value; ONB.rijen = null; renderOnb(); } },
+          el("option", { value: "" }, "Kies..."), groepen.map(g => el("option", { value: g, selected: g === ONB.groep }, g)))),
+      el("div", { class: "field", style: "margin:0" }, el("label", { for: "onb-prefix" }, "Prefix als Central er geen kent", ib("Staat er op de switch al een alias sys_vlan_ipv4_<vlan>, dan komt het IP met prefix daaruit. Anders neemt de toolkit het IP uit de monitoring en zet deze prefix erbij.")),
+        el("input", { id: "onb-prefix", type: "text", value: ONB.prefix, placeholder: "24", oninput: e => { ONB.prefix = e.target.value.trim().replace(/^\//, ""); } })),
+      el("div", {}, el("button", { class: "btn primary", disabled: !ONB.groep || ONB.laden || null, onclick: onbOphalen }, ONB.laden ? "Toestellen lezen..." : ONB.rijen ? "Opnieuw ophalen" : "Toestellen ophalen"))),
+    ONB.fout ? el("div", { class: "banner bad", style: "margin-top:12px" }, ONB.fout) : "");
+  if (ONB.laden) wrap.append(el("p", { class: "muted", style: "margin-top:12px" }, "Per switch: inventaris, IP, beheer-VLAN, device function en System-info-profiel lezen..."));
+  if (!ONB.rijen) return wrap;
+  const rijen = ONB.rijen, tel = f => { const t = {}; for (const r of rijen) { const v = f(r) || "geen"; t[v] = (t[v] || 0) + 1; } return Object.entries(t).map(([k, n]) => k + " (" + n + ")").join(", "); };
+  wrap.append(el("div", { class: "blok", style: "margin-top:14px" }, el("h3", {}, "Gevonden in Central"),
+    el("div", { style: "display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13.5px" },
+      el("span", { class: "muted" }, "Toestellen"), el("span", {}, tel(r => r.soort === "gateway" ? "gateway" : "switch")),
+      el("span", { class: "muted" }, "Beheer-VLAN"), el("span", {}, tel(r => r.beheer_vlan ? r.beheer_vlan + (r.bron_vlan === "voorstel" ? " (voorstel: beheer-VLAN op Global)" : "") : "")),
+      el("span", { class: "muted" }, "IP uit"), el("span", {}, tel(r => ({ alias: "alias op de switch", monitoring: "monitoring + /" + (ONB.prefix || 24) })[r.bron_ip] || "")),
+      el("span", { class: "muted" }, "Device function"), el("span", {}, tel(r => onbFn(r.device_function))),
+      el("span", { class: "muted" }, "System-info-profiel"), el("span", {}, tel(r => r.systeemprofiel))),
+    el("p", { class: "hint", style: "margin:8px 0 0" }, "Klopt iets niet? Pas het aan in de volgende stap; daar kan je het ook voor alle switches tegelijk zetten.")));
+  const z = ONB.zoek.toLowerCase(), zicht = rijen.filter(r => !z || [r.hostname, r.serial, r.site].some(x => String(x || "").toLowerCase().includes(z)));
+  const gekozen = onbGekozen();
+  const zetUit = (lijst, weg) => { lijst.forEach(r => weg ? ONB.uit.add(r.serial) : ONB.uit.delete(r.serial)); ONB.res = null; renderOnb(); };
+  wrap.append(el("div", { class: "row", style: "margin:14px 0 8px" }, el("strong", {}, gekozen.length + " van " + rijen.length + " toestellen gekozen"), el("span", { class: "sp" }),
+      el("input", { type: "search", placeholder: "Zoek hostname, serienummer, site...", value: ONB.zoek, "aria-label": "Switches zoeken", style: "max-width:260px",
+        oninput: e => { ONB.zoek = e.target.value; renderOnb(); const n = document.querySelector('#werk-onboard input[type=search]'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }),
+      el("button", { class: "btn small", onclick: () => zetUit(rijen, false) }, "Alles"), el("button", { class: "btn small", onclick: () => zetUit(rijen, true) }, "Niets")),
+    el("div", { class: "tabelbox", style: "max-height:420px" }, el("table", {},
+      el("thead", {}, el("tr", {}, el("th", { style: "width:32px" }, el("input", { type: "checkbox", "aria-label": "Alle zichtbare kiezen", checked: zicht.length && zicht.every(r => !ONB.uit.has(r.serial)), onchange: e => zetUit(zicht, !e.target.checked) })),
+        ...["Hostname", "Serienummer", "Site", "Device function", "IP", "VLAN"].map(x => el("th", {}, x)))),
+      el("tbody", {}, zicht.map(r => el("tr", { style: ONB.uit.has(r.serial) ? "opacity:.5" : "" },
+        el("td", {}, el("input", { type: "checkbox", checked: !ONB.uit.has(r.serial), "aria-label": "Kies " + (r.hostname || r.serial), onchange: e => zetUit([r], !e.target.checked) })),
+        el("td", {}, r.hostname || el("span", { class: "muted" }, "geen")), el("td", { class: "mono" }, r.serial), el("td", {}, r.site),
+        el("td", {}, onbFn(r.device_function)), el("td", { class: "mono" }, r.sys_vlan_ip || el("span", { class: "pill warn" }, "geen IP")), el("td", {}, r.beheer_vlan || "")))))),
+    el("div", { class: "row", style: "margin-top:12px" }, el("span", { class: "sp" }),
+      el("button", { class: "btn primary", disabled: !gekozen.length || null, onclick: () => { ONB.stap = 2; renderOnb(); } }, "Volgende: nakijken (" + gekozen.length + ") →")));
+  return wrap;
+}
+
+function onbStap2() {
+  const lijst = onbGekozen(), chk = onbCheck(lijst);
+  const nFout = lijst.filter(r => chk[r.serial].fout.length).length, nLet = lijst.filter(r => chk[r.serial].letop.length).length;
+  const veld = (r, k, breed) => el("input", { type: "text", class: "mono", value: onbWaarde(r, k), style: "width:100%;min-width:" + breed, "aria-label": k + " van " + (r.hostname || r.serial),
+    oninput: e => onbZet(r, k, e.target.value), onchange: () => renderOnb() });
+  const fn = r => el("select", { "aria-label": "device function van " + (r.hostname || r.serial), onchange: e => { onbZet(r, "device_function", e.target.value); renderOnb(); } },
+    ONB_FN.map(f => el("option", { value: f, selected: onbFn(onbWaarde(r, "device_function")) === f }, f)));
+  const profielen = ((ONB.keuzes && ONB.keuzes.systeeminfo) || []).map(x => x.naam);
+  const lijstId = "onb-profielen";
+  const profielVeld = r => { const leeg = !onbWaarde(r, "systeemprofiel").trim();
+    return el("input", { type: "text", class: "mono", list: lijstId, value: onbWaarde(r, "systeemprofiel"), placeholder: "niet gevonden: kies een profiel",
+      title: leeg ? "Central gaf geen System-info-profiel voor dit toestel. Zonder profiel gaat enkel het IP mee, niet de hostname." : null,
+      style: "width:100%;min-width:180px" + (leeg ? ";border-color:var(--warn);background:var(--warnsoft)" : ""), "aria-label": "System-info-profiel van " + (r.hostname || r.serial),
+      oninput: e => onbZet(r, "systeemprofiel", e.target.value), onchange: () => renderOnb() }); };
+  const alle = { vlan: "", fn: "", prof: "" };
+  const voorAlle = el("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-bottom:12px" }, el("span", { class: "hint" }, "Voor alle " + lijst.length + " toestellen:"),
+    el("input", { type: "text", placeholder: "beheer-VLAN", "aria-label": "Beheer-VLAN voor alle switches", style: "width:110px", oninput: e => { alle.vlan = e.target.value.trim(); } }),
+    el("button", { class: "btn small", onclick: () => { if (alle.vlan) { lijst.forEach(r => onbZet(r, "beheer_vlan", alle.vlan)); renderOnb(); } } }, "VLAN zetten"),
+    el("select", { "aria-label": "Device function voor alle switches", onchange: e => { alle.fn = e.target.value; } }, el("option", { value: "" }, "device function..."), ONB_FN.map(f => el("option", { value: f }, f))),
+    el("button", { class: "btn small", onclick: () => { if (alle.fn) { lijst.forEach(r => onbZet(r, "device_function", alle.fn)); renderOnb(); } } }, "Functie zetten"),
+    el("input", { type: "text", list: lijstId, placeholder: "System-info-profiel", "aria-label": "System-info-profiel voor de toestellen zonder profiel", style: "width:190px", oninput: e => { alle.prof = e.target.value.trim(); } }),
+    el("button", { class: "btn small", title: "Enkel voor de toestellen waar nog geen profiel staat", onclick: () => { if (alle.prof) { lijst.filter(r => !onbWaarde(r, "systeemprofiel").trim()).forEach(r => onbZet(r, "systeemprofiel", alle.prof)); renderOnb(); } } }, "Profiel invullen waar leeg"),
+    el("datalist", { id: lijstId }, profielen.map(n => el("option", { value: n }))));
+  const zonderProfiel = lijst.filter(r => !onbWaarde(r, "systeemprofiel").trim() && onbWaarde(r, "hostname").trim()).length;
+  const status = r => { const c = chk[r.serial]; return el("td", { style: "white-space:normal;min-width:150px" },
+    c.fout.length ? el("span", { class: "pill bad" }, c.fout.join("; ")) : el("span", { class: "pill ok" }, c.gaat.length ? c.gaat.join(" + ") : "niets"),
+    c.letop.length ? el("div", { class: "hint" }, c.letop.join("; ")) : ""); };
+  return el("div", {},
+    el("div", { class: "banner " + (nFout ? "bad" : "ok") }, nFout ? nFout + (nFout === 1 ? " toestel" : " toestellen") + " met een fout: pas ze hieronder aan." : "Alles in orde." + (nLet ? " " + nLet + (nLet === 1 ? " toestel" : " toestellen") + " met een opmerking." : "")),
+    el("p", { class: "hint", style: "margin:10px 0" }, "Het IP komt als alias sys_vlan_ipv4_<VLAN>, de hostname in het System-info-profiel van het toestel. Een lege of ongeldige hostname is geen probleem: dan gaat enkel het IP mee."),
+    zonderProfiel ? el("div", { class: "banner warn" }, zonderProfiel + (zonderProfiel === 1 ? " toestel heeft" : " toestellen hebben") + " een hostname maar geen System-info-profiel: Central gaf er geen voor dat toestel. Zonder profiel gaat de hostname niet mee, enkel het IP. Kies het profiel dat in Central bij het toestel staat (zie een bulk-download, kolom Instance Name bij hostname).") : "",
+    voorAlle,
+    el("div", { class: "tabelbox", style: "max-height:520px" }, el("table", {},
+      el("thead", {}, el("tr", {}, ["Toestel", "In het bestand", "Hostname", "Device function", "IP met prefix", "VLAN", "System-info-profiel"].map(x => el("th", {}, x)))),
+      el("tbody", {}, lijst.map(r => el("tr", { style: chk[r.serial].fout.length ? "background:color-mix(in srgb, var(--bad, #c0392b) 7%, transparent)" : "" },
+        el("td", {}, el("div", { class: "mono" }, r.serial), el("div", { class: "hint" }, r.site)), status(r),
+        el("td", {}, veld(r, "hostname", "120px")), el("td", {}, fn(r)), el("td", {}, veld(r, "sys_vlan_ip", "140px")),
+        el("td", {}, veld(r, "beheer_vlan", "56px")), el("td", {}, profielVeld(r))))))),
+    el("div", { class: "row", style: "margin-top:12px" }, el("button", { class: "btn", onclick: () => { ONB.stap = 1; renderOnb(); } }, "← Terug"), el("span", { class: "sp" }),
+      nFout ? el("span", { class: "pill bad" }, nFout + " fouten") : null,
+      el("button", { class: "btn primary", disabled: nFout || ONB.bezig || null, onclick: async () => {
+        ONB.bezig = true; renderOnb();
+        const r = await post("/api/web/onboard/bestand", { groep: ONB.groep, rijen: lijst.map(onbRij) });
+        ONB.bezig = false;
+        ONB.res = r; if (!r.fout) ONB.stap = 3; renderOnb();
+      } }, ONB.bezig ? "Bestand maken..." : "Volgende: bestand maken →")),
+    ONB.res && ONB.res.fout ? el("div", { class: "banner bad", style: "margin-top:10px" }, ONB.res.fout) : "");
+}
+
+function onbStap3() {
+  const r = ONB.res;
+  if (!r) return el("div", { class: "banner info" }, "Maak eerst het bestand in stap 2.");
+  const opm = (r.bevindingen || []).filter(b => b.ernst !== "FOUT");
+  if (r.fouten) return el("div", {}, el("div", { class: "banner bad" }, r.fouten + " fouten: er is geen bestand gemaakt. Pas ze aan in stap 2."),
+    el("ul", {}, (r.bevindingen || []).filter(b => b.ernst === "FOUT").map(b => el("li", {}, (b.serial ? b.serial + ": " : "") + b.veld + " " + b.bevinding))),
+    el("button", { class: "btn", onclick: () => { ONB.stap = 2; renderOnb(); } }, "← Terug naar nakijken"));
+  const wrap = el("div", {});
+  if (!r.bestanden.length) wrap.append(el("div", { class: "banner warn" }, r.melding || "Geen bestand: niets om op te laden."));
+  for (const b of r.bestanden) {
+    const regels = b.inhoud.split("\n"), open = ONB.voorbeeld[b.naam];
+    wrap.append(el("div", { class: "blok" },
+      el("div", { class: "row" }, el("div", {}, el("h3", { class: "mono" }, b.naam), el("span", { class: "hint" }, b.switches + " switches · " + b.rijen + " rijen")), el("span", { class: "sp" }),
+        el("a", { class: "btn primary", href: bestandUrl(b.pad), download: b.naam }, "Download")),
+      el("pre", { class: "log", style: "max-height:" + (open ? "none" : "260px") + ";overflow:auto;margin-top:10px" }, (open ? regels : regels.slice(0, 40)).join("\n")),
+      regels.length > 40 ? el("button", { class: "btn small", onclick: () => { ONB.voorbeeld[b.naam] = !open; renderOnb(); } }, open ? "Minder tonen" : "Alles tonen (" + regels.length + " regels)") : ""));
+  }
+  if (r.bestanden.length) wrap.append(el("div", { class: "blok" }, el("h3", {}, "Importeren in Central"),
+    el("ol", { style: "margin:6px 0 0;padding-left:20px" },
+      el("li", {}, "Ga in new Central naar Configuration > Library > Named Objects > Aliases."),
+      el("li", {}, "Kies Bulk upload en laad het bestand op" + (r.bestanden.length > 1 ? " (elk bestand apart)." : ".")),
+      el("li", {}, "Kijk na de upload een switch na: de alias sys_vlan_ipv4_<VLAN> en de hostname moeten er staan."))));
+  if ((r.stacks || []).length) wrap.append(el("div", { class: "banner warn" }, "Niet in het bestand (VSF-stack, manueel instellen): " + r.stacks.join(", ")));
+  if (opm.length) wrap.append(el("details", { class: "blok" }, el("summary", { style: "cursor:pointer" }, opm.length + " opmerkingen"),
+    el("ul", { style: "margin:8px 0 0;padding-left:20px" }, opm.map(b => el("li", {}, (b.serial ? b.serial + ": " : "") + b.bevinding)))));
+  wrap.append(el("div", { class: "row", style: "margin-top:12px" }, el("button", { class: "btn", onclick: () => { ONB.stap = 2; renderOnb(); } }, "← Terug naar nakijken"), el("span", { class: "sp" }),
+    el("button", { class: "btn", onclick: () => { ONB.stap = 1; ONB.rijen = null; ONB.res = null; ONB.ed = {}; ONB.uit = new Set(); renderOnb(); } }, "Nieuwe device group")));
+  return wrap;
+}
+
+// ---------------------------------------------------------------- tabblad Overrides controleren: lokaal op de switch tegenover geerfd
+const OVR = { items: null, laden: false, fout: null, zoek: "", groep: lezen("ovr-groep") || "", site: lezen("ovr-site") || "", gekozen: null, sel: new Set(),
+  deel: "config", cache: {}, st: {}, functie: "ACCESS_SWITCH" };
+// De statussen van de server, in gewone taal.
+const OVR_LABEL = { "gelijk": "overbodig", "verschilt": "afwijkend", "enkel lokaal": "alleen op deze switch", "per switch": "per switch (normaal)" };
+const OVR_STATUS = {
+  "afwijkend": ["warn", "Lokaal anders dan wat de switch van hoger erft. Bewust zo, of een overblijfsel van de import?"],
+  "overbodig": ["info", "Lokaal precies gelijk aan wat de switch erft. Wissen verandert niets."],
+  "alleen op deze switch": ["bad", "Staat enkel op deze switch, nergens hoger. Wissen haalt het van de switch."],
+  "per switch (normaal)": ["neu", "Hoort per switch te verschillen, zoals hostname of beheer-IP. Hier hoef je niets te doen."],
+};
+function ovrLabel(s) { return OVR_LABEL[s] || s; }
+function ovrPill(x) { return (OVR_STATUS[OVR_LABEL[x] || x] || ["neu"])[0]; }
+async function ovrLaadSwitches() {
+  OVR.laden = true; OVR.fout = null; renderOvr();
+  const r = await cget("/api/web/sw/overrides-lijst");
+  OVR.laden = false;
+  if (r.fout) OVR.fout = r.fout; else OVR.items = r.items || [];
+  renderOvr();
+}
+function ovrDeel(rijen, deel) { deel = deel || OVR.deel; return (rijen || []).filter(r => deel === "alias" ? r.profiel === "Aliassen" : r.profiel !== "Aliassen"); }
+function ovrFouten(fouten) { return (fouten || []).filter(f => (OVR.deel === "alias") === /(^|: )Aliassen:/.test(f)); }
+function ovrScanRes() { const o = OPH.ovrscan; return o && o.info && o.info.status === "klaar" ? o.info.resultaat : null; }
+// Aantal objecten per status (een object met meerdere afwijkende velden telt een keer).
+function ovrTel(rijen) {
+  const t = { "gelijk": new Set(), "verschilt": new Set(), "enkel lokaal": new Set(), "per switch": new Set() };
+  for (const r of rijen || []) if (t[r.status]) t[r.status].add(r.serial + "|" + r.profiel + "|" + r.object);
+  for (const k in t) t[k] = t[k].size;
+  return t;
+}
+function ovrZichtbaar() {
+  const z = OVR.zoek.toLowerCase();
+  return (OVR.items || []).filter(x => (!OVR.groep || x.deviceGroupName === OVR.groep) && (!OVR.site || x.siteName === OVR.site)
+    && (!z || [x.deviceName, x.serialNumber, x.siteName, x.deviceGroupName].some(v => String(v || "").toLowerCase().includes(z))));
+}
+function ovrScan(serials) {
+  OVR.gekozen = null; OVR.st = {}; OVR.laatsteScan = serials; OVR.wis = {};
+  startOphaling("ovrscan", "afwijkingen", { serials, device_function: OVR.functie }, () => { if ($("pane-overrides").classList.contains("open")) renderOvr(); });
+}
+function renderOvr() {
+  const lijst = $("lijst-overrides"), werk = $("werk-overrides");
+  if (!lijst) return;
+  if (!STATUS.aangemeld) { lijst.replaceChildren(); return nietAangemeld(werk); }
+  if (OVR.items === null && !OVR.laden && !OVR.fout) { ovrLaadSwitches(); return; }
+  const items = OVR.items || [], zicht = ovrZichtbaar(), res = ovrScanRes();
+  const perSwitch = {};
+  if (res) for (const r of res.rijen) (perSwitch[r.serial] = perSwitch[r.serial] || []).push(r);
+  const uniek = k => [...new Set(items.map(x => x[k]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "nl", { numeric: true }));
+  const kies = (k, label, waarden, opslag) => el("select", { "aria-label": label, onchange: e => { OVR[k] = e.target.value; opslaan(opslag, OVR[k]); renderOvr(); } },
+    el("option", { value: "" }, "Alle " + label.toLowerCase()), waarden.map(w => el("option", { value: w, selected: w === OVR[k] }, w)));
+  const zoek = el("input", { type: "search", placeholder: "Naam, serienummer...", value: OVR.zoek, "aria-label": "Switches zoeken",
+    oninput: e => { OVR.zoek = e.target.value; renderOvr(); const n = $("lijst-overrides").querySelector("input[type=search]"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); } });
+  const scanBezig = OPH.ovrscan && OPH.ovrscan.info && OPH.ovrscan.info.status === "bezig";
+  const gekozen = [...OVR.sel].filter(s => items.some(x => x.serialNumber === s));
+  const doel = gekozen.length ? gekozen : zicht.map(x => x.serialNumber);
+  lijst.replaceChildren(...[el("div", { class: "tools" }, zoek,
+      el("div", { style: "display:grid;gap:6px" }, kies("groep", "Device groups", uniek("deviceGroupName"), "ovr-groep"), kies("site", "Sites", uniek("siteName"), "ovr-site")),
+      el("div", { class: "row" }, el("span", { class: "hint" }, OVR.laden ? "Laden..." : zicht.length + " van " + items.length + " switches"), el("span", { class: "sp" }),
+        el("button", { class: "btn small", onclick: () => { OVR.cache = {}; ovrLaadSwitches(); } }, "Vernieuwen")),
+      el("button", { class: "btn primary", style: "width:100%", disabled: scanBezig || !doel.length || null, onclick: () => ovrScan(doel) },
+        scanBezig ? "Scannen..." : gekozen.length ? "Scan " + gekozen.length + " aangevinkte" : "Scan " + zicht.length + " getoonde switch" + (zicht.length === 1 ? "" : "es")),
+      gekozen.length ? el("button", { class: "btn small", onclick: () => { OVR.sel.clear(); renderOvr(); } }, "Vinkjes wissen") : null),
+    OVR.fout ? el("div", { class: "banner bad", style: "margin:10px" }, OVR.fout) : null,
+    el("button", { class: "item", "aria-current": String(!OVR.gekozen), onclick: () => { OVR.gekozen = null; renderOvr(); } },
+      el("div", { class: "n" }, "Resultaat van de scan"), el("div", { class: "s" }, res ? res.switches + " switches gescand" : "nog niet gescand")),
+    ...zicht.slice(0, 2000).map(x => { const t = perSwitch[x.serialNumber] ? ovrTel(perSwitch[x.serialNumber]) : null;
+      return el("div", { class: "item swit", "aria-current": String(OVR.gekozen === x.serialNumber) },
+        el("input", { type: "checkbox", checked: OVR.sel.has(x.serialNumber), "aria-label": "Kies " + (x.deviceName || x.serialNumber),
+          onchange: e => { e.target.checked ? OVR.sel.add(x.serialNumber) : OVR.sel.delete(x.serialNumber); renderOvr(); } }),
+        el("button", { style: "all:unset;cursor:pointer;display:block;flex:1", onclick: () => { OVR.gekozen = x.serialNumber; renderOvr(); } },
+          el("div", { class: "n" }, x.deviceName || x.serialNumber), el("div", { class: "s" }, [x.siteName, x.deviceGroupName].filter(Boolean).join(" · ")),
+          t ? el("div", { class: "s" }, t["verschilt"] ? el("span", { class: "pill warn" }, t["verschilt"] + " afwijkend") : "", " ",
+            t["gelijk"] ? el("span", { class: "pill info" }, t["gelijk"] + " overbodig") : "", " ",
+            t["enkel lokaal"] ? el("span", { class: "pill bad" }, t["enkel lokaal"] + " alleen hier") : "",
+            !t["verschilt"] && !t["gelijk"] && !t["enkel lokaal"] ? el("span", { class: "pill ok" }, "in orde") : "") : null),
+        el("span", { class: "dot " + (x.status === "ONLINE" ? "ok" : "bad"), style: "margin-top:6px", title: x.status || "" })); })].filter(Boolean));
+  const sc = werk.scrollTop;
+  werk.replaceChildren(el("div", { class: "card" }, ovrInhoud()));
+  werk.scrollTop = sc;
+}
+function ovrUitleg() {
+  return el("div", { class: "uitleg", style: "margin-top:0" }, Object.entries(OVR_STATUS).map(([k, [cls, t]]) =>
+    el("div", {}, el("strong", {}, el("span", { class: "pill " + cls }, k)), t)));
+}
+function ovrTabel(rijen, st, naam, metSwitch) {
+  return jtabel({ st, naam, items: rijen, statusKolom: "status", standaard: x => x !== "per switch (normaal)", standaardLabel: "Om na te kijken",
+    pill: null, opRij: metSwitch ? r => { OVR.gekozen = r.serial; renderOvr(); } : null,
+    kolommen: [...(metSwitch ? [{ k: "naam", label: "Switch" }] : []),
+      { k: "status", label: "Wat", tekst: r => ovrLabel(r.status), pill: ovrPill }, { k: "profiel", label: "Profiel" }, { k: "object", label: "Object", mono: true },
+      { k: "veld", label: "Veld", mono: true }, { k: "lokaal", label: "Op de switch", mono: true, wrap: true }, { k: "geerfd", label: "Erft van hoger", mono: true, wrap: true },
+      { k: "van", label: "Van" }] });
+}
+function ovrTegels(rijen) {
+  const t = ovrTel(rijen);
+  return tegels([["Afwijkend", t["verschilt"], t["verschilt"] ? "warn" : ""], ["Overbodig", t["gelijk"]], ["Alleen op deze switch", t["enkel lokaal"], t["enkel lokaal"] ? "bad" : ""], ["Per switch (normaal)", t["per switch"]]]);
+}
+function ovrSubnav(alle) {
+  const n = d => { const t = ovrTel(ovrDeel(alle, d)); return t["verschilt"] + t["gelijk"] + t["enkel lokaal"]; };
+  return el("div", { class: "subnav" }, [["config", "Profielen"], ["alias", "Aliassen"]].map(([id, l]) =>
+    el("button", { "aria-current": String(OVR.deel === id), onclick: () => { OVR.deel = id; renderOvr(); } }, l + (alle ? " (" + n(id) + ")" : ""))));
+}
+// Per profiel: welke aanvraag naar de switch-scope ging, wat Central antwoordde en hoeveel objecten.
+function ovrDiag(diag, open, metSwitch) {
+  if (!diag || !diag.length) return "";
+  const leeg = diag.filter(d => !d.aantal).length;
+  return el("div", {}, el("p", { class: "hint", style: "margin:6px 0" }, diag.length + " aanvragen naar de switch, " + (diag.length - leeg) + " met objecten, " + leeg + " leeg. Elke aanvraag is GET /network-config/v1alpha1/<pad>?<parameters> op de scope van de switch; 404 betekent: niets ingesteld."),
+    el("div", { class: "tabelbox", style: "max-height:320px" }, el("table", {},
+      el("thead", {}, el("tr", {}, [...(metSwitch ? ["Switch"] : []), "Profiel", "Pad", "Parameters", "Antwoord", "Objecten", "Velden in antwoord"].map(x => el("th", {}, x)))),
+      el("tbody", {}, diag.slice(0, 3000).map(d => el("tr", {}, ...(metSwitch ? [el("td", {}, d.switch || "")] : []),
+        el("td", {}, d.profiel), el("td", { class: "mono" }, d.pad), el("td", { class: "mono" }, d.params), el("td", {}, d.antwoord || ""),
+        el("td", {}, String(d.aantal || 0)), el("td", { class: "mono" }, d.sleutels || "")))))));
+}
+function ovrTechnisch(fouten, diag, metSwitch, open) {
+  const f = ovrFouten(fouten);
+  if (!f.length && !(diag || []).length) return "";
+  return el("details", { class: "blok", open: open || null }, el("summary", { style: "cursor:pointer" }, el("strong", {}, "Technische details"),
+      el("span", { class: "hint" }, f.length ? " · " + f.length + " profielen niet gelezen" : " · aanvragen naar Central")),
+    f.length ? el("pre", { class: "log", style: "margin-top:8px" }, f.join("\n")) : "", ovrDiag(diag, true, metSwitch));
+}
+function ovrKop() {
+  return el("div", {}, el("h2", { style: "margin:0 0 4px" }, "Overrides controleren"),
+    el("p", { class: "lead", style: "margin:0 0 10px" }, "Wat lokaal op een switch staat, vergeleken met wat hij erft van zijn device group, site, site collection of Global. Lezen wijzigt niets; wissen gebeurt pas na een plan en je bevestiging."),
+    el("details", { style: "margin-bottom:12px" }, el("summary", { style: "cursor:pointer" }, "Wat betekenen afwijkend, overbodig en alleen op deze switch?"), ovrUitleg()));
+}
+function ovrInhoud() {
+  if (!OVR.gekozen) {
+    const o = OPH.ovrscan, res = ovrScanRes();
+    const wrap = el("div", {}, ovrKop(), voortgang(o));
+    if (!res) { wrap.append(el("div", { class: "banner info" }, "Kies links een device group of site en klik op Scan, of klik op een switch om alleen die te bekijken.")); return wrap; }
+    const perSwitch = {};
+    for (const r of res.rijen) (perSwitch[r.serial] = perSwitch[r.serial] || []).push(r);
+    const samen = Object.entries(perSwitch).map(([serial, rs]) => { const t = ovrTel(ovrDeel(rs)), x = (OVR.items || []).find(i => i.serialNumber === serial) || {};
+      return { serial, naam: rs[0].naam, site: rs[0].site, groep: x.deviceGroupName || rs[0].groep || "", afwijkend: t["verschilt"], overbodig: t["gelijk"], alleen: t["enkel lokaal"],
+        oordeel: t["verschilt"] || t["enkel lokaal"] ? "na te kijken" : t["gelijk"] ? "opkuisen" : "in orde" }; });
+    const rijen = ovrDeel(res.rijen);
+    wrap.append(ovrSubnav(res.rijen), ovrTegels(rijen),
+      el("p", { class: "hint" }, res.switches + " switches gescand op " + datum(res.tijd) + ". Klik op een switch voor de details."),
+      samen.length ? jtabel({ st: OVR.st["samen" + OVR.deel] = OVR.st["samen" + OVR.deel] || {}, naam: "overrides-per-switch", items: samen, statusKolom: "oordeel",
+        standaard: x => x !== "in orde", standaardLabel: "Niet in orde", pill: x => x === "na te kijken" ? "warn" : x === "opkuisen" ? "info" : "ok",
+        opRij: r => { OVR.gekozen = r.serial; renderOvr(); },
+        kolommen: [{ k: "naam", label: "Switch" }, { k: "site", label: "Site" }, { k: "groep", label: "Device group" }, { k: "oordeel", label: "Oordeel", pill: x => x === "na te kijken" ? "warn" : x === "opkuisen" ? "info" : "ok" },
+          { k: "afwijkend", label: "Afwijkend" }, { k: "overbodig", label: "Overbodig" }, { k: "alleen", label: "Alleen op de switch" }] })
+        : el("div", { class: "banner ok" }, "Geen lokale " + (OVR.deel === "alias" ? "aliassen" : "configuratie") + " gevonden."),
+      wisPaneel({ kandidaten: rijen, st: (OVR.wis = OVR.wis || {})["scan" + OVR.deel] = (OVR.wis["scan" + OVR.deel] || {}),
+        herteken: () => renderOvr(), naUitvoeren: async () => ovrScan(OVR.laatsteScan) }),
+      rijen.length ? el("details", { class: "blok" }, el("summary", { style: "cursor:pointer" }, el("strong", {}, "Alle objecten van de scan"), el("span", { class: "hint" }, " · " + rijen.length + " rijen, met export naar CSV")),
+        ovrTabel(rijen, OVR.st["scan" + OVR.deel] = OVR.st["scan" + OVR.deel] || {}, "overrides-" + OVR.deel, true)) : "",
+      ovrTechnisch(res.fouten, res.diagnose, true, !res.rijen.length));
+    return wrap;
+  }
+  const s = OVR.gekozen, sleutel = s + "|" + OVR.functie;
+  if (OVR.cache[sleutel] === undefined) {
+    OVR.cache[sleutel] = null;
+    cget("/api/web/sw/afwijkingen?serial=" + encodeURIComponent(s) + "&functie=" + OVR.functie).then(r => { OVR.cache[sleutel] = r; if ($("pane-overrides").classList.contains("open")) renderOvr(); });
+  }
+  const r = OVR.cache[sleutel], x = (OVR.items || []).find(i => i.serialNumber === s) || {};
+  const titel = el("div", { class: "row", style: "margin-bottom:6px;flex-wrap:wrap" },
+    el("button", { class: "btn small", onclick: () => { OVR.gekozen = null; renderOvr(); } }, "← Scan"),
+    el("h2", { style: "margin:0" }, x.deviceName || s), el("span", { class: "muted mono" }, s),
+    r && r.switch ? el("span", { class: "hint" }, [r.switch.site || "geen site", r.switch.groep || "geen device group", r.switch.functie || r.device_function || ""].filter(Boolean).join(" · ")) : null, el("span", { class: "sp" }),
+    el("button", { class: "btn small", onclick: () => { delete OVR.cache[sleutel]; renderOvr(); } }, "Opnieuw lezen"));
+  if (r === null || r === undefined) return el("div", {}, titel, el("p", { class: "muted" }, "Profielen en aliassen lezen..."));
+  if (r.fout) return el("div", {}, titel, el("div", { class: "banner bad" }, r.fout));
+  const rijen = ovrDeel(r.rijen), t = ovrTel(rijen);
+  const samenvatting = t["verschilt"] || t["enkel lokaal"] ? el("div", { class: "banner warn" }, "Deze switch heeft " + [t["verschilt"] ? t["verschilt"] + " afwijkende" : "", t["enkel lokaal"] ? t["enkel lokaal"] + " alleen lokale" : ""].filter(Boolean).join(" en ") + " " + (OVR.deel === "alias" ? "aliassen" : "objecten") + ". Kijk na of dat bewust is.")
+    : t["gelijk"] ? el("div", { class: "banner info" }, t["gelijk"] + " overbodige " + (OVR.deel === "alias" ? "aliassen" : "objecten") + ": die kan je hieronder veilig wissen.")
+    : el("div", { class: "banner ok" }, "In orde: niets lokaal dat afwijkt of overbodig is.");
+  return el("div", {}, titel, ovrSubnav(r.rijen), ovrTegels(rijen), samenvatting,
+    wisPaneel({ kandidaten: rijen, st: (OVR.wis = OVR.wis || {})[sleutel + OVR.deel] = (OVR.wis[sleutel + OVR.deel] || {}),
+      herteken: () => renderOvr(), naUitvoeren: async () => { delete OVR.cache[sleutel]; renderOvr(); } }),
+    rijen.length ? el("div", { style: "margin-top:12px" }, el("h3", { style: "margin:0 0 6px" }, "Alles wat lokaal op de switch staat"), ovrTabel(rijen, OVR.st[sleutel + OVR.deel] = OVR.st[sleutel + OVR.deel] || {}, (x.deviceName || s) + "-overrides-" + OVR.deel, false)) : "",
+    ovrTechnisch(r.fouten, r.diagnose, false, !r.rijen.length),
+    el("details", { style: "margin-top:12px" }, el("summary", { style: "cursor:pointer" }, "Wat betekenen de woorden?"), ovrUitleg()));
+}
+
+// Overrides wissen: kiezen per status, plan (Central opnieuw nagekeken), echt wissen.
+// gelijk = overbodig (verandert niets); verschilt = switch neemt de geerfde waarde over; enkel lokaal = verdwijnt van de switch.
+// ctx = { kandidaten: rijen uit de scan, st, herteken, naUitvoeren }
+const WIS_STATUS = {
+  "gelijk": ["info", "verandert niets", v => "erft dezelfde waarde van " + (v || "hoger")],
+  "verschilt": ["warn", "switch verandert", v => "neemt de waarde van " + (v || "hoger") + " over"],
+  "enkel lokaal": ["bad", "verdwijnt", () => "verdwijnt van de switch (staat nergens hoger)"],
+};
+function wisPaneel(ctx) {
+  const st = ctx.st, plan = st.plan, res = st.werk;
+  st.sel = st.sel || new Map(); st.toon = st.toon || new Set(["gelijk"]);
+  const sleutel = r => r.serial + "|" + r.profiel + "|" + r.object;
+  const nooit = ["Firmwarebeleid", "Systeeminfo (hostname)", "Beheerinterface", "Lokaal beheer"];   // hostname, beheer-IP: nooit wissen
+  const uniek = new Map();
+  for (const r of ctx.kandidaten) {
+    if (nooit.includes(r.profiel) || !WIS_STATUS[r.status]) continue;
+    const k = sleutel(r), x = uniek.get(k) || Object.assign({}, r, { velden: [] });
+    if (r.status === "verschilt") { x.status = "verschilt"; if (r.veld) x.velden.push(r.veld + ": " + r.lokaal + " → " + r.geerfd); }
+    uniek.set(k, x);
+  }
+  const alle = [...uniek.values()];
+  const beschermd = new Set(ctx.kandidaten.filter(r => nooit.includes(r.profiel) && WIS_STATUS[r.status]).map(sleutel)).size;
+  if (!alle.length && !res) return beschermd ? el("p", { class: "hint" }, beschermd + " objecten in profielen die de toolkit nooit wist (hostname, beheerinterface, lokaal beheer, firmware): pas die aan in Central zelf.") : "";
+  const aantal = s => alle.filter(r => r.status === s).length;
+  const lijst = alle.filter(r => st.toon.has(r.status));
+  const isGekozen = r => st.sel.has(sleutel(r)) ? st.sel.get(sleutel(r)) : r.status === "gelijk";
+  const gekozen = lijst.filter(isGekozen), riskant = gekozen.filter(r => r.status !== "gelijk");
+  const switches = new Set(alle.map(r => r.serial)).size;
+  const zet = (rs, aan) => { rs.forEach(r => st.sel.set(sleutel(r), aan)); st.plan = null; ctx.herteken(); };
+  const bezig = () => st.bezig ? el("div", { class: "banner info" }, el("span", {}, st.bezig), st.vg && st.vg.totaal ? el("progress", { max: st.vg.totaal, value: st.vg.gedaan, style: "flex:1;min-width:120px" }) : null) : "";
+  const blok = el("div", { class: "blok" }, el("h3", {}, "Overrides wissen",
+      ib("Wissen haalt het object lokaal van de switch. Overbodig: de switch erft dezelfde waarde, er verandert niets. Afwijkend: de switch neemt de waarde over die hij van hoger erft, de werking verandert. Alleen op deze switch: het object verdwijnt. Hostname, beheerinterface, lokaal beheer en firmwarebeleid worden nooit gewist.")),
+    el("p", { class: "hint", style: "margin:2px 0 10px" }, alle.length + " lokale objecten op " + switches + " switch" + (switches === 1 ? "" : "es") +
+      " kunnen gewist worden. Kies welke statussen je wil zien en vink aan wat weg mag. Eerst zie je een plan; er wordt pas gewist als je op Echt wissen klikt."
+      + (beschermd ? " " + beschermd + " objecten in hostname, beheerinterface, lokaal beheer en firmware staan hier niet: die wist de toolkit nooit." : "")));
+  if (alle.length && !res) {
+    blok.append(el("div", { class: "row", style: "margin-bottom:10px;flex-wrap:wrap" }, el("span", { class: "hint" }, "Toon:"),
+      ...Object.entries(WIS_STATUS).map(([s, [cls, kort]]) => el("label", { class: "row", style: "gap:6px;cursor:pointer" },
+        el("input", { type: "checkbox", "aria-label": "Toon " + ovrLabel(s), checked: st.toon.has(s), disabled: !aantal(s) || null, onchange: e => { e.target.checked ? st.toon.add(s) : st.toon.delete(s); st.plan = null; ctx.herteken(); } }),
+        el("span", { class: "pill " + cls }, ovrLabel(s)), el("span", { class: "hint" }, aantal(s) + " · " + kort)))));
+    if (lijst.length) {
+      const alles = el("input", { type: "checkbox", "aria-label": "Alles zichtbaar kiezen", checked: gekozen.length === lijst.length, onchange: e => zet(lijst, e.target.checked) });
+      blok.append(el("div", { class: "tabelbox", style: "max-height:360px" }, el("table", {},
+        el("thead", {}, el("tr", {}, el("th", { style: "width:32px" }, alles), ...["Switch", "Status", "Profiel", "Object", "Na het wissen"].map(x => el("th", {}, x)))),
+        el("tbody", {}, lijst.slice(0, 2000).map(r => el("tr", {},
+          el("td", {}, el("input", { type: "checkbox", checked: isGekozen(r), "aria-label": "Wissen: " + r.naam + " " + r.profiel + " " + r.object, onchange: e => zet([r], e.target.checked) })),
+          el("td", {}, r.naam), el("td", {}, el("span", { class: "pill " + WIS_STATUS[r.status][0] }, ovrLabel(r.status))), el("td", {}, r.profiel), el("td", { class: "mono" }, r.object),
+          el("td", { style: "white-space:normal" }, WIS_STATUS[r.status][2](r.van),
+            r.velden.length ? el("div", { class: "hint mono" }, r.velden.slice(0, 4).join("; ") + (r.velden.length > 4 ? " (+" + (r.velden.length - 4) + ")" : "")) : "")))))));
+    } else blok.append(el("div", { class: "banner info" }, "Vink hierboven een status aan om de objecten te zien."));
+    blok.append(el("div", { class: "row", style: "margin-top:10px" },
+        el("button", { class: "btn", disabled: !!st.bezig || !gekozen.length || null, onclick: async () => {
+          st.fout = null; st.bezig = "Opnieuw nakijken in Central..."; ctx.herteken();
+          const r = await ophaalEnWacht("wisplan", { items: gekozen.map(x => ({ serial: x.serial, profiel: x.profiel, object: x.object, status: x.status })), device_function: OVR.functie }, i => { st.vg = i; ctx.herteken(); });
+          st.bezig = ""; st.vg = null;
+          if (r.fout) st.fout = r.fout; else st.plan = r.resultaat;
+          ctx.herteken();
+        } }, (plan ? "Plan opnieuw maken" : "Plan maken (wijzigt niets)") + " · " + gekozen.length + " gekozen"),
+        riskant.length ? el("span", { class: "pill warn" }, riskant.length + " veranderen de switch") : null),
+      bezig(), st.fout ? el("div", { class: "banner bad" }, st.fout) : "");
+    if (plan) {
+      if (plan.geweigerd.length) blok.append(el("div", { class: "banner warn", style: "display:block;margin-top:12px" },
+        el("strong", {}, plan.geweigerd.length + " niet in het plan: "), el("ul", { style: "margin:6px 0 0;padding-left:20px" }, plan.geweigerd.slice(0, 20).map(x => el("li", {}, x)))));
+      const pr = plan.acties.filter(a => a.status && a.status !== "gelijk");
+      if (plan.acties.length) blok.append(el("div", { class: "tabelbox", style: "margin-top:12px;max-height:300px" }, el("table", {},
+        el("thead", {}, el("tr", {}, ["Switch", "Status", "Profiel", "Object", "Gevolg"].map(x => el("th", {}, x)))),
+        el("tbody", {}, plan.acties.map(a => el("tr", {}, el("td", {}, a.naam), el("td", {}, el("span", { class: "pill " + (WIS_STATUS[a.status] || ["neu"])[0] }, ovrLabel(a.status || "gelijk"))),
+          el("td", {}, a.profiel), el("td", { class: "mono" }, a.object),
+          el("td", { style: "white-space:normal" }, a.gevolg || "", (a.velden || []).length ? el("div", { class: "hint mono" }, a.velden.slice(0, 4).join("; ")) : "")))))));
+      blok.append(plan.acties.length ? el("div", { class: "banner " + (pr.length ? "bad" : "warn"), style: "margin-top:12px" },
+        el("span", {}, plan.acties.length + " overrides nagekeken en klaar om te wissen." + (pr.length ? " Let op: " + pr.length + " ervan veranderen de werking van de switch." : " De switches erven dezelfde waarde.")),
+        el("button", { class: "btn danger", disabled: !!st.bezig || null, onclick: async () => {
+          if (pr.length) {
+            const w = prompt("Dit wist " + plan.acties.length + " lokale overrides in new Central.\n" + pr.length + " ervan veranderen de switch: ze nemen de waarde van hoger over of verdwijnen.\n\nTyp WISSEN om door te gaan.");
+            if ((w || "").trim().toUpperCase() !== "WISSEN") return;
+          } else if (!confirm("Dit wist " + plan.acties.length + " lokale overrides in new Central.\nDe switches erven daarna dezelfde waarde van hoger.\n\nDoorgaan?")) return;
+          st.bezig = "Wissen in Central..."; ctx.herteken();
+          const r = await ophaalEnWacht("wissen", { plan: plan.id }, i => { st.vg = i; ctx.herteken(); });
+          st.bezig = ""; st.vg = null;
+          if (r.fout) { st.fout = r.fout; ctx.herteken(); return; }
+          st.werk = r.resultaat.resultaten; st.plan = null; st.sel.clear(); ctx.herteken();
+          if (ctx.naUitvoeren) await ctx.naUitvoeren();
+        } }, "Echt wissen (" + plan.acties.length + ")")) : el("div", { class: "banner info", style: "margin-top:12px" }, "Niets meer om te wissen."));
+    }
+  }
+  if (res) {
+    const ok = res.filter(x => x.resultaat === "gewist" || x.resultaat === "bestond niet meer").length;
+    blok.append(el("div", { class: "banner " + (ok === res.length ? "ok" : "warn") }, ok + " van " + res.length + " gewist. Alles staat in cnx-web/overrides-wissen-log.",
+        el("button", { class: "btn small", onclick: () => { st.werk = null; ctx.herteken(); } }, "Sluiten")),
+      el("div", { class: "tabelbox" }, el("table", {}, el("thead", {}, el("tr", {}, ["Switch", "Status", "Profiel", "Object", "Resultaat"].map(x => el("th", {}, x)))),
+        el("tbody", {}, res.map(r => el("tr", {}, el("td", {}, r.naam), el("td", {}, ovrLabel(r.status || "gelijk")), el("td", {}, r.profiel), el("td", { class: "mono" }, r.object),
+          el("td", {}, el("span", { class: "pill " + (r.resultaat === "gewist" || r.resultaat === "bestond niet meer" ? "ok" : "bad") }, r.resultaat))))))));
+  }
+  return blok;
+}
+
+// ---------------------------------------------------------------- gedeelde hulpjes
+// ---------------------------------------------------------------- tabblad AP-migratie: AOS-8-inventaris -> gereedheid voor AOS-10
+const AOS8 = { bestanden: [], klant: lezen("aos8-klant") || "", res: null, bezig: false, fout: null, deel: "clusters", st: {},
+  geladen: null, gekeken: false, kies: new Set(), plan: null, planBezig: false, planFout: null, vg: {} };
+const AOS8_PILL = { "klaar": "ok", "einde nadert": "warn", "vervangen": "bad", "valt weg": "neu", "na te kijken": "info" };
+const aos8Pill = w => AOS8_PILL[w] || "neu";
+async function aos8Inlezen() {
+  AOS8.fout = null;
+  if (!AOS8.bestanden.length) { AOS8.fout = "Kies eerst een of meer bestanden."; renderAos8(); return; }
+  AOS8.bezig = true; renderAos8();
+  try {
+    const r = await post("/api/web/aos8/gereedheid", { bestanden: AOS8.bestanden, klant: AOS8.klant });
+    if (r.fout) AOS8.fout = r.fout; else { AOS8.res = r; AOS8.st = {}; AOS8.geladen = null; AOS8.plan = null; await aos8LaadVoortgang(); }
+  } catch (e) { AOS8.fout = "Geen antwoord van cnx: " + e; }
+  AOS8.bezig = false; renderAos8();
+}
+function aos8Rapport() {
+  const r = AOS8.res; if (!r) return;
+  const naam = "AOS10-gereedheid" + (r.klant ? "-" + r.klant.replace(/[^A-Za-z0-9_-]+/g, "_") : "") + "-" + r.tijd.slice(0, 10) + ".html";
+  bewaarBestand(naam, r.rapport, "text/html");
+}
+async function aos8LaadVoortgang() {
+  const v = await cget("/api/web/aos8/voortgang?klant=" + encodeURIComponent(AOS8.klant));
+  AOS8.vg = v.voortgang || {};
+  try { AOS8.kies = new Set(JSON.parse(lezen("aos8-kies-" + AOS8.klant) || "[]")); } catch (e) { AOS8.kies = new Set(); }
+}
+async function aos8LaadLaatste() {
+  AOS8.gekeken = true;
+  if (!AOS8.klant.trim()) return;
+  const r = await cget("/api/web/aos8/laatste?klant=" + encodeURIComponent(AOS8.klant));
+  if (r.fout || !r.samenvatting) return;
+  AOS8.res = r; AOS8.geladen = r.tijd; AOS8.st = {};
+  await aos8LaadVoortgang();
+  renderAos8();
+}
+function renderAos8() {
+  const werk = $("werk-aos8");
+  if (!werk) return;
+  if (!AOS8.res && !AOS8.gekeken) aos8LaadLaatste();
+  const sc = werk.scrollTop;
+  const gekozen = el("div", { class: "gekozen" }, AOS8.bestanden.length ? AOS8.bestanden.map(b => el("span", { class: "mono" }, b.naam)) : el("span", { class: "muted" }, "Nog geen bestand gekozen"));
+  const kies = el("input", { type: "file", multiple: true, accept: ".xlsx,.csv,.txt,.log", hidden: true, "aria-label": "AOS-8-inventaris", onchange: async e => {
+    const lijst = [];
+    for (const f of e.target.files) {
+      const inhoud = await new Promise((ok, nok) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = nok; r.readAsDataURL(f); });
+      lijst.push({ naam: f.name, inhoud });
+    }
+    AOS8.bestanden = lijst; AOS8.res = null; AOS8.fout = null; renderAos8();
+  } });
+  const invoer = el("div", { class: "card" }, el("h2", {}, "AP-migratie: AOS-8 naar AOS-10"),
+    el("p", { class: "lead" }, "Lees de inventaris van de mobility conductor in en zie welke APs en controllers klaar zijn voor AOS-10, welke clusters je in stappen kan migreren en wat je eerst opkuist. Er wordt niets gewijzigd, ook niet in Central; aanmelden is niet nodig."),
+    el("div", { class: "field" }, el("label", { for: "aos8-klant" }, "Klant (voor het rapport)"),
+      el("input", { id: "aos8-klant", type: "text", value: AOS8.klant, placeholder: "optioneel", oninput: e => { AOS8.klant = e.target.value; opslaan("aos8-klant", AOS8.klant); },
+        onchange: () => { if (!AOS8.bestanden.length) { AOS8.res = null; AOS8.plan = null; AOS8.gekeken = false; renderAos8(); } } }),
+      el("span", { class: "hint" }, "De inventaris en de afgevinkte stappen worden per klant bewaard in de werkmap.")),
+    el("div", { class: "field" }, el("div", { class: "lbl" }, "Inventaris"),
+      el("div", { class: "bestand" + (AOS8.bestanden.length ? " gevuld" : "") }, kies, el("button", { class: "btn", type: "button", onclick: () => kies.click() }, "Bestanden kiezen..."), gekozen),
+      el("details", {}, el("summary", { class: "hint" }, "Wat exporteer ik?"),
+        el("p", { class: "hint", style: "margin:4px 0" }, "Op de mobility conductor de uitvoer van deze twee commando's, elk als tekstbestand (of samen in een bestand):"),
+        el("div", { class: "cmdline" }, "show ap database long"), el("div", { class: "cmdline" }, "show switches"),
+        el("p", { class: "hint", style: "margin:4px 0" }, "Een Excel- of CSV-bestand met dezelfde kolommen kan ook (AP Type, Serial #, Switch IP, Standby IP; voor controllers Name, Model, Type, Version). Zonder controllerlijst worden de controllers uit de AP-lijst afgeleid, maar zonder model."))),
+    el("div", { class: "row" }, el("button", { class: "btn primary", disabled: AOS8.bezig || null, onclick: aos8Inlezen }, AOS8.bezig ? "Inlezen..." : AOS8.res ? "Opnieuw inlezen" : "Inlezen")),
+    AOS8.fout ? el("div", { class: "banner bad", style: "margin-top:12px" }, AOS8.fout) : "");
+  const delen = [invoer];
+  if (AOS8.res) {
+    if (AOS8.geladen) delen.push(el("div", { class: "banner info", style: "max-width:1180px;margin:0 auto 16px" }, "Laatste inventaris van " + (AOS8.res.klant || "deze klant") + " geladen, ingelezen op " + AOS8.geladen.slice(0, 16).replace("T", " ") + "."));
+    delen.push(aos8Resultaat(AOS8.res), aos8PlanKaart(AOS8.res));
+  }
+  werk.replaceChildren(...delen);
+  werk.scrollTop = sc;
+}
+function aos8Resultaat(r) {
+  const s = r.samenvatting;
+  const meld = [];
+  for (const m of r.meldingen || []) meld.push(el("div", { class: "banner info" }, m));
+  const modellen = st => r.modellen.filter(m => m.soort === "AP" && m.aos10 === st).map(m => m.model.replace("AP-", "") + " (" + m.aantal + ")").join(", ");
+  if (s.nee) meld.push(el("div", { class: "banner bad" }, s.nee + " APs ondersteunen AOS-10 niet en moeten eerst vervangen worden: " + modellen("nee") + "."));
+  if (s.einde) meld.push(el("div", { class: "banner warn" }, s.einde + " APs kunnen naar AOS-10, maar hun support stopt binnenkort: " + modellen("einde") + ". Neem ze mee in het budget."));
+  if (s.onbekend) meld.push(el("div", { class: "banner info" }, s.onbekend + " APs met een model dat niet in de lijst staat: " + modellen("onbekend") + ". Nakijken."));
+  if (s.ctrl_nakijken) meld.push(el("div", { class: "banner warn" }, s.ctrl_nakijken + " controllers met een model dat niet als AOS-10-gateway bekend is."));
+  const delen = [
+    { id: "clusters", label: "Clusters", n: r.clusters.length },
+    { id: "modellen", label: "Modellen", n: r.modellen.length },
+    { id: "controllers", label: "Controllers", n: r.controllers.length },
+    { id: "groepen", label: "AP-groepen", n: r.groepen.length },
+    { id: "opkuis", label: "Op te kuisen", n: r.opkuis.length },
+    { id: "aps", label: "Alle APs", n: r.aps.length },
+  ];
+  const nav = el("div", { class: "chips", style: "margin:16px 0 4px" }, delen.map(d => el("button", { class: "chip", "aria-pressed": String(AOS8.deel === d.id), onclick: () => { AOS8.deel = d.id; renderAos8(); } }, d.label + " (" + d.n + ")")));
+  const st = AOS8.st[AOS8.deel] = AOS8.st[AOS8.deel] || {};
+  const ja = b => b ? "ja" : "nee";
+  const T8 = {
+    clusters: { items: r.clusters.map(c => Object.assign({}, c, { stand: c.klaar ? "klaar om te starten" : c.aps ? "geblokkeerd" : "geen APs" })), statusKolom: "stand",
+      uitleg: "Controllers die elkaars stand-by zijn (Standby IP van de APs), vormen een cluster. Met twee of meer migreer je in stappen zonder dat de getunnelde SSID's wegvallen.",
+      kolommen: [{ k: "stand", label: "Stand", pill: w => w === "klaar om te starten" ? "ok" : w === "geblokkeerd" ? "bad" : "neu" }, { k: "naam", label: "Controllers", mono: true }, { k: "modellen_ctrl", label: "Model" },
+        { k: "aps", label: "APs" }, { k: "ok", label: "Klaar" }, { k: "einde", label: "Einde" }, { k: "nee", label: "Vervangen" }, { k: "ap_modellen", label: "AP-modellen" },
+        { k: "redundant", label: "Redundant", tekst: c => ja(c.redundant) }, { k: "aanpak", label: "Aanpak", wrap: true }, { k: "blokkade", label: "Blokkade" }] },
+    modellen: { items: r.modellen, statusKolom: "aos10_label", kolommen: [{ k: "soort", label: "Soort" }, { k: "model", label: "Model", mono: true }, { k: "aantal", label: "Aantal" }, { k: "up", label: "Up" },
+      { k: "aos10_label", label: "AOS-10", pill: aos8Pill }, { k: "opmerking", label: "Opmerking", wrap: true }],
+      uitleg: "Supportstatus uit de lijst van " + r.bron.bijgewerkt + ". " + r.bron.tekst },
+    controllers: { items: r.controllers, statusKolom: "aos10_label", kolommen: [{ k: "naam", label: "Naam", mono: true }, { k: "ip", label: "IP", mono: true }, { k: "model", label: "Model" },
+      { k: "type", label: "Rol" }, { k: "versie", label: "Versie", mono: true }, { k: "status", label: "Status", pill: statusPill }, { k: "aps", label: "APs" },
+      { k: "aos10_label", label: "AOS-10", pill: aos8Pill }, { k: "cluster", label: "Cluster", mono: true }] },
+    groepen: { items: r.groepen, kolommen: [{ k: "groep", label: "AP-groep", mono: true }, { k: "aps", label: "APs" }, { k: "controllers", label: "Controllers", mono: true },
+      { k: "modellen", label: "Modellen" }, { k: "vervangen", label: "Vervangen" }, { k: "einde", label: "Einde" }, { k: "down", label: "Down" }],
+      uitleg: "Elke AP-groep wordt later een site of device group in Central. Dit is de basis voor die mapping." },
+    opkuis: { items: r.opkuis, statusKolom: "soort", kolommen: [{ k: "soort", label: "Wat", pill: () => "warn" }, { k: "naam", label: "Naam", mono: true }, { k: "detail", label: "Detail" }],
+      uitleg: "Best voor de migratie in orde brengen: APs in de groep default, zonder naam of down, en controllers die down zijn of geen APs hebben." },
+    aps: { items: r.aps.map(a => Object.assign({}, a, { up_tekst: a.up ? "up" : a.status })), statusKolom: "aos10_label",
+      kolommen: [{ k: "naam", label: "Naam", mono: true }, { k: "groep", label: "AP-groep", mono: true }, { k: "model", label: "Model" }, { k: "aos10_label", label: "AOS-10", pill: aos8Pill },
+        { k: "up_tekst", label: "Status", pill: statusPill }, { k: "controller", label: "Controller", mono: true }, { k: "standby", label: "Stand-by", mono: true },
+        { k: "serial", label: "Serienummer", mono: true }, { k: "mac", label: "MAC", mono: true }, { k: "ip", label: "IP", mono: true }] },
+  }[AOS8.deel];
+  return el("div", { class: "card" }, el("div", { class: "row" }, el("h2", { style: "margin:0" }, "Gereedheid voor AOS-10" + (r.klant ? " · " + r.klant : "")), el("span", { class: "sp" }),
+      el("button", { class: "btn primary", onclick: aos8Rapport }, "Rapport downloaden (HTML)")),
+    tegels([["APs", s.aps], ["APs up", s.aps_up], ["Klaar", s.ok, "ok"], ["Einde nadert", s.einde, s.einde ? "warn" : ""], ["Vervangen", s.nee, s.nee ? "bad" : ""],
+      ["Controllers", s.controllers], ["Conductors (vallen weg)", s.conductors], ["Clusters redundant", s.redundant], ["Clusters met een controller", s.enkel]]),
+    meld, nav, T8.uitleg ? el("p", { class: "hint", style: "margin:6px 0" }, T8.uitleg) : "",
+    jtabel({ st, naam: "aos8-" + AOS8.deel, items: T8.items, kolommen: T8.kolommen, statusKolom: T8.statusKolom }));
+}
+
+// Migratieplan: clusters kiezen, stappenplan met afvinken (bewaard per klant), download voor de technieker.
+function aos8Gedaan(cluster) { return Object.keys(AOS8.vg[cluster] || {}).length; }
+async function aos8Plan() {
+  AOS8.planFout = null; AOS8.planBezig = true; renderAos8();
+  const r = await post("/api/web/aos8/plan", { klant: AOS8.klant, clusters: [...AOS8.kies] }).catch(e => ({ fout: "Geen antwoord van cnx: " + e }));
+  AOS8.planBezig = false;
+  if (r.fout) AOS8.planFout = r.fout; else AOS8.plan = r;
+  renderAos8();
+}
+async function aos8Vink(cluster, stap, gedaan) {
+  const r = await post("/api/web/aos8/voortgang", { klant: AOS8.klant, cluster, stap, gedaan }).catch(e => ({ fout: String(e) }));
+  if (r.fout) AOS8.planFout = "Niet bewaard: " + r.fout; else AOS8.vg = r.voortgang;
+  renderAos8();
+}
+async function aos8PlanDownload() {
+  const r = await post("/api/web/aos8/plan", { klant: AOS8.klant, clusters: AOS8.plan.clusters.map(c => c.naam) });
+  if (r.fout) { AOS8.planFout = r.fout; renderAos8(); return; }
+  bewaarBestand("Migratieplan" + (AOS8.klant ? "-" + AOS8.klant.replace(/[^A-Za-z0-9_-]+/g, "_") : "") + "-" + r.tijd.slice(0, 10) + ".html", r.html, "text/html");
+}
+function aos8PlanKaart(r) {
+  const met = r.clusters.filter(c => c.aps);
+  const zetKies = (naam, aan) => { aan ? AOS8.kies.add(naam) : AOS8.kies.delete(naam); opslaan("aos8-kies-" + AOS8.klant, JSON.stringify([...AOS8.kies])); renderAos8(); };
+  const kaart = el("div", { class: "card" }, el("h2", {}, "Migratieplan"),
+    el("p", { class: "lead" }, "Vink de clusters aan die je in deze golf migreert en maak het stappenplan. Vink stappen af terwijl je werkt; dat wordt per klant bewaard. Download het plan voor de technieker of de klant (af te drukken als PDF)."),
+    el("div", { class: "tabelbox", style: "max-height:300px" }, el("table", {},
+      el("thead", {}, el("tr", {}, el("th", { style: "width:32px" }), ...["Cluster", "Stand", "APs", "Vervangen", "Redundant", "Afgevinkt"].map(x => el("th", {}, x)))),
+      el("tbody", {}, met.map(c => el("tr", {},
+        el("td", {}, el("input", { type: "checkbox", checked: AOS8.kies.has(c.naam), "aria-label": "Kies " + c.naam, onchange: e => zetKies(c.naam, e.target.checked) })),
+        el("td", { class: "mono" }, c.naam), el("td", {}, el("span", { class: "pill " + (c.klaar ? "ok" : "bad") }, c.klaar ? "klaar om te starten" : "geblokkeerd")),
+        el("td", {}, String(c.aps)), el("td", {}, String(c.nee)), el("td", {}, c.redundant ? "ja" : "nee"),
+        el("td", {}, aos8Gedaan(c.naam) ? aos8Gedaan(c.naam) + (aos8Gedaan(c.naam) === 1 ? " stap" : " stappen") : el("span", { class: "muted" }, "-"))))))),
+    el("div", { class: "row", style: "margin-top:12px" },
+      el("button", { class: "btn primary", disabled: !AOS8.kies.size || AOS8.planBezig || null, onclick: aos8Plan }, AOS8.planBezig ? "Plan maken..." : "Stappenplan maken (" + AOS8.kies.size + ")"),
+      AOS8.plan ? el("button", { class: "btn", onclick: aos8PlanDownload }, "Download stappenplan (HTML)") : "",
+      el("span", { class: "hint" }, "Het klantbrede deel is eenmalig en geldt voor alle clusters.")),
+    AOS8.planFout ? el("div", { class: "banner bad", style: "margin-top:12px" }, AOS8.planFout) : "");
+  if (AOS8.plan) {
+    const p = AOS8.plan;
+    kaart.append(el("p", { class: "hint", style: "margin-top:14px" }, "Stappen met ", el("span", { class: "pill info" }, "nakijken"), " bevatten commando's die per AOS-8-versie kunnen verschillen: kijk ze na in de migratiegids van HPE."));
+    kaart.append(aos8Fasen("Klantbreed (eenmalig)", "_klant", p.klantbreed, ""));
+    for (const c of p.clusters)
+      kaart.append(aos8Fasen("Cluster " + c.naam, c.naam, c.fasen, c.aps + " APs · " + (c.redundant ? "in stappen" : "een controller: onderhoudsvenster") + (c.blokkade ? " · " + c.blokkade : ""), c.terugval));
+  }
+  return kaart;
+}
+function aos8Fasen(titel, sleutel, fasen, sub, terugval) {
+  const alle = fasen.flatMap(f => f.stappen), klaar = alle.filter(s => (AOS8.vg[sleutel] || {})[s.id]).length;
+  const box = el("details", { open: true, style: "margin-top:18px;border-top:1px solid var(--line);padding-top:12px" },
+    el("summary", {}, el("span", { style: "font-size:15px" }, titel), " ", el("span", { class: "pill " + (klaar === alle.length ? "ok" : klaar ? "warn" : "neu") }, klaar + "/" + alle.length + " gedaan")),
+    sub ? el("p", { class: "hint", style: "margin:2px 0 6px" }, sub) : "",
+    el("progress", { max: alle.length, value: klaar, style: "width:100%" }));
+  for (const f of fasen) {
+    box.append(el("h3", { style: "margin:14px 0 6px" }, f.fase));
+    for (const s of f.stappen) {
+      const gedaan = (AOS8.vg[sleutel] || {})[s.id];
+      box.append(el("div", { style: "display:grid;grid-template-columns:24px 1fr;gap:2px 8px;padding:8px 0;border-bottom:1px solid var(--line)" + (gedaan ? ";opacity:.6" : "") },
+        el("input", { type: "checkbox", checked: !!gedaan, "aria-label": s.titel, style: "margin-top:4px;width:16px;height:16px", onchange: e => aos8Vink(sleutel, s.id, e.target.checked) }),
+        el("div", {},
+          el("div", { class: "row", style: "gap:8px" }, el("strong", {}, s.titel), s.nakijken ? el("span", { class: "pill info" }, "nakijken") : "",
+            gedaan ? el("span", { class: "hint" }, "gedaan " + gedaan.replace("T", " ")) : ""),
+          el("div", { style: "color:var(--ink2);font-size:13px" }, s.tekst),
+          s.cmd.length ? el("div", { class: "cmdline", style: "white-space:pre-wrap" }, s.cmd.join("\n")) : "",
+          s.data.length ? (s.data.length > 6 ? el("details", {}, el("summary", { class: "hint" }, s.data.length + " regels"), el("div", { class: "log", style: "max-height:220px" }, s.data.join("\n")))
+            : el("div", { class: "log", style: "min-height:0;margin:6px 0" }, s.data.join("\n"))) : "",
+          s.let_op ? el("div", { style: "color:var(--warn);font-size:12.5px;font-weight:600" }, "Let op: " + s.let_op) : "")));
+    }
+  }
+  if (terugval) box.append(el("h3", { style: "margin:14px 0 6px" }, "Terugval"), el("p", { style: "color:var(--ink2);font-size:13px" }, terugval));
+  return box;
+}
+
+function ib(tekst) { return el("span", { class: "ib", tabindex: 0, role: "note", "aria-label": tekst, "data-tip": tekst }, "i"); }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function bestandUrl(pad) { return "/api/web/bestand?pad=" + encodeURIComponent(pad) + "&t=" + T; }
+// Lange ophaling starten en wachten tot ze klaar is (gebruikt door het wissen van overrides).
+async function ophaalEnWacht(soort, opties, opVoortgang) {
+  const r = await post("/api/web/ov/ophaal", { soort, opties });
+  if (r.fout) return { fout: r.fout };
+  while (true) {
+    await sleep(900);
+    const i = await cget("/api/web/ov/ophaling?id=" + encodeURIComponent(r.id));
+    if (opVoortgang) opVoortgang(i);
+    if (i.status === "klaar") return { resultaat: i.resultaat };
+    if (i.status !== "bezig") return { fout: i.fout || "Mislukt." };
+  }
+}
+
+// ---------------------------------------------------------------- start
+(async () => {
+  bouwTabs();
+  await Promise.all([laadStatus(), laadKlant()]);
+  openTab((location.hash || "").slice(1) || "onboard");
+})();
+</script></body></html>

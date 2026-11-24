@@ -1,0 +1,3 @@
+serial,hostname,site_collection,site,device_group,golf,sys_vlan_ip,beheer_vlan,mgmt_ip,systeemprofiel,opmerking
+VOORBEELD01,SITE01-SW01,Belgium,SITE01,ACCESS,golf1,10.10.120.11/24,120,,,voorbeeld: nieuwe switch (leeg profiel = klantconfig)
+VOORBEELD02,SITE01-SW02,Belgium,SITE01,ACCESS,golf1,10.10.120.12/24,120,,sys-system-info-profile,voorbeeld: switch uit Classic

@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cnx-api"
+dynamic = ["version"]
+description = "Hulpmiddelen om AOS-CX access switches naar HPE Aruba Networking Central (new Central) te brengen"
+readme = "LEESMIJ.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = ["requests>=2.31"]
+
+[project.optional-dependencies]
+dev = ["pytest", "pyinstaller>=6.6", "markdown>=3.5"]
+
+[project.scripts]
+cnx = "cnx_api.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "cnx_api.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+cnx_api = ["data/*"]
