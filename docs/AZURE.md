@@ -154,5 +154,6 @@ az group delete --name rg-cnx-toolkit --yes
 | "Te veel gebruikers tegelijk" (503) | Het maximum aantal sessies is bereikt, of je opende de pagina meer dan 20 keer in een minuut. Wacht even |
 | "Je sessie is verlopen. Herlaad de pagina." | De container sliep of werd bijgewerkt, of je was 30 minuten (10 zonder aanmelding) niet actief |
 | "Geef de API-URL van new Central" bij aanmelden | Enkel `https://...arubanetworks.com` mag. Een ander domein: zet `CNX_CENTRAL_DOMEINEN` op de app |
+| "The selected region is currently not accepting new customers" | Die regio neemt nu geen nieuwe abonnementen aan. Opnieuw met een andere regio: `-Regio northeurope` (of `swedencentral`, `francecentral`, `germanywestcentral`) |
 | De eerste keer laden duurt lang | De container start (inslapen). Na enkele seconden werkt het |
 | Het script stopt met "De Azure CLI ontbreekt" | Installeer de Azure CLI (zie Vooraf) en open een nieuw venster |

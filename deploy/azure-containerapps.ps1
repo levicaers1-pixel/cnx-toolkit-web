@@ -35,8 +35,17 @@ function Invoke-Az {
         return "<proef>"
     }
     $ErrorActionPreference = "Continue"      # Windows PowerShell 5.1 maakt van elke stderr-regel van az anders een fout
-    $uit = & az @Argumenten --only-show-errors
-    if ($LASTEXITCODE -ne 0) { throw "Mislukt: az $($Argumenten -join ' ')" }
+    $alles = & az @Argumenten --only-show-errors 2>&1
+    $fout = ($alles | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] } | ForEach-Object { $_.ToString() }) -join "`n"
+    $uit = $alles | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }
+    if ($LASTEXITCODE -ne 0) {
+        $tip = ""
+        if ($fout -match "not accepting new customers|locationineligible|LocationNotAvailable|not available in the location|SkuNotAvailable") {
+            $tip = "`n`nTip: de regio '$Regio' neemt nu geen nieuwe klanten aan. Probeer een andere Europese regio, bv.:" +
+                   "`n  -Regio northeurope   (of swedencentral, francecentral, germanywestcentral)"
+        }
+        throw "Mislukt: az $($Argumenten -join ' ')`n$fout$tip"
+    }
     return $uit
 }
 
@@ -73,8 +82,15 @@ Write-Stap "Uitbreiding containerapp en resource provider"
 Invoke-Az extension add --name containerapp --upgrade | Out-Null
 Invoke-Az provider register --namespace Microsoft.App --wait | Out-Null
 
-Write-Stap "Resourcegroep $ResourceGroup ($Regio)"
-Invoke-Az group create --name $ResourceGroup --location $Regio --output none | Out-Null
+Write-Stap "Resourcegroep $ResourceGroup"
+if (Test-Az group show --name $ResourceGroup) {
+    # Een resourcegroep is enkel een map: de app mag in een andere regio staan dan de groep zelf.
+    Write-Host "Bestaat al."
+} else {
+    Invoke-Az group create --name $ResourceGroup --location $Regio --output none | Out-Null
+}
+
+Write-Host "Regio voor de app: $Regio"
 
 Write-Stap "Container Apps-omgeving $Omgeving"
 if (Test-Az containerapp env show --name $Omgeving --resource-group $ResourceGroup) {
