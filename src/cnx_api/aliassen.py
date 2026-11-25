@@ -31,6 +31,7 @@ import argparse, csv, io, ipaddress, json, os, re, sys
 from collections import OrderedDict, defaultdict
 
 from . import __version__, resource
+from .taal import _
 
 
 def standaard_config():
@@ -170,25 +171,25 @@ def controleer_config(cfg):
             x = x.get(k) if isinstance(x, dict) else None
         return x
 
-    for pad, label in ((("hostname", "instance"), "System-info-profiel (velden.hostname.instance)"),
-                       (("mgmt_ip", "instance"), "Beheerinterface (velden.mgmt_ip.instance)")):
+    for pad, label in ((("hostname", "instance"), _("System-info-profiel (velden.hostname.instance)")),
+                       (("mgmt_ip", "instance"), _("Beheerinterface (velden.mgmt_ip.instance)"))):
         x = tekst(pad)
         if not isinstance(x, str) or not x.strip() or "VUL-IN" in x:
-            uit.append((label, "nog niet ingevuld", "ontbreekt"))
+            uit.append((label, _("nog niet ingevuld"), "ontbreekt"))
     vlan = tekst(("sys_vlan_ip", "standaard_vlan"))
     if isinstance(vlan, bool) or not (isinstance(vlan, int) or (isinstance(vlan, str) and vlan.isdigit())) or not 1 <= int(vlan) <= 4094:
-        uit.append(("Beheer-VLAN (velden.sys_vlan_ip.standaard_vlan)", f"'{vlan}': VLAN-ID tussen 1 en 4094 verwacht", "fout"))
+        uit.append((_("Beheer-VLAN (velden.sys_vlan_ip.standaard_vlan)"), _("'{waarde}': VLAN-ID tussen 1 en 4094 verwacht", waarde=vlan), "fout"))
     patroon = tekst(("sys_vlan_ip", "alias_patroon"))
     if patroon is not None and (not isinstance(patroon, str) or "{vlan}" not in patroon):
-        uit.append(("Aliaspatroon (velden.sys_vlan_ip.alias_patroon)", f"'{patroon}': moet {{vlan}} bevatten", "fout"))
+        uit.append((_("Aliaspatroon (velden.sys_vlan_ip.alias_patroon)"), _("'{waarde}': moet {{vlan}} bevatten", waarde=patroon), "fout"))
     try:
         re.compile(cfg.get("hostname_regex") or STANDAARD_REGEX)
     except (re.error, TypeError) as e:
-        uit.append(("Hostname-regel (hostname_regex)", f"geen geldige regex: {e}", "fout"))
+        uit.append((_("Hostname-regel (hostname_regex)"), _("geen geldige regex: {fout}", fout=e), "fout"))
     if cfg.get("modified", "Yes") != "Yes":
-        uit.append(("Modified", f"'{cfg.get('modified')}': moet Yes zijn, Central past enkel rijen met Yes toe", "fout"))
-    if "VUL-IN" in json.dumps(v) and not any(s == "ontbreekt" for _, _, s in uit):
-        uit.append(("velden", "bevat nog VUL-IN", "ontbreekt"))
+        uit.append(("Modified", _("'{waarde}': moet Yes zijn, Central past enkel rijen met Yes toe", waarde=cfg.get("modified")), "fout"))
+    if "VUL-IN" in json.dumps(v) and not any(x[2] == "ontbreekt" for x in uit):
+        uit.append(("velden", _("bevat nog VUL-IN"), "ontbreekt"))
     return uit
 
 
@@ -212,8 +213,9 @@ def voorstel_uit_bulk(pad):
 
 def controleer(toestellen, cfg, namen):
     b = Bevindingen()
-    for veld, tekst, _ in controleer_config(cfg):
-        if veld.startswith(("System-info-profiel", "Beheerinterface")) or (veld == "velden" and "VUL-IN" in tekst):
+    for veld, tekst, _soort in controleer_config(cfg):
+        if veld.startswith((_("System-info-profiel (velden.hostname.instance)"), _("Beheerinterface (velden.mgmt_ip.instance)"))) \
+                or (veld == "velden" and "VUL-IN" in tekst):
             continue            # enkel nodig voor switches met een hostname of beheer-IP: per switch hieronder
         b.fout("", "", "klantconfig", f"{veld}: {tekst}")
     try:
@@ -227,72 +229,73 @@ def controleer(toestellen, cfg, namen):
         s, r = t.get("serial", ""), t["_regel"]
         fc = functie_code(t.get("device_function"))
         if fc is None:
-            b.fout(r, s, "device_function", f"'{t['device_function']}': onbekend. Gebruik Access Switch, Aggregation Switch, Core Switch of Mobility Gateway")
+            b.fout(r, s, "device_function", _("'{waarde}': onbekend. Gebruik Access Switch, Aggregation Switch, Core Switch of Mobility Gateway", waarde=t["device_function"]))
         elif fc != "ACCESS_SWITCH":
-            b.let_op(r, s, "device_function", f"{FUNCTIE_LABELS[fc]}: de rijen in het aliasbestand krijgen Device Function {FUNCTIE_LABELS[fc]}")
+            b.let_op(r, s, "device_function", _("{functie}: de rijen in het aliasbestand krijgen Device Function {functie}", functie=FUNCTIE_LABELS[fc]))
         if is_stack(t):
-            b.let_op(r, s, "stack", "VSF-stack: de bulk-upload ondersteunt geen stacks. Komt in manueel-stacks.csv")
+            b.let_op(r, s, "stack", _("VSF-stack: de bulk-upload ondersteunt geen stacks. Komt in manueel-stacks.csv"))
         if not s and is_stack(t):
             pass
         elif not s:
-            b.fout(r, "", "serial", "leeg")
+            b.fout(r, "", "serial", _("leeg"))
         else:
             if not re.match(r"^[A-Z0-9]{8,14}$", s):
-                b.let_op(r, s, "serial", "ongewoon formaat, nakijken")
+                b.let_op(r, s, "serial", _("ongewoon formaat, nakijken"))
             serials[s].append(r)
 
         for veld in ("site", "device_group"):
             if not t.get(veld):
-                b.fout(r, s, veld, "leeg: nodig om het toestel in de upload te plaatsen")
+                b.fout(r, s, veld, _("leeg: nodig om het toestel in de upload te plaatsen"))
         if namen:
             for veld in ("site_collection", "site", "device_group"):
                 v = t.get(veld)
                 if v and namen.get(veld) and v not in namen[veld]:
-                    b.fout(r, s, veld, f"'{v}' bestaat niet in new Central (namen.csv)")
+                    b.fout(r, s, veld, _("'{waarde}' bestaat niet in new Central (namen.csv)", waarde=v))
 
         # De hostname staat de upload nooit in de weg: zonder geldige hostname gaat enkel het IP mee.
         h = t.get("hostname", "")
         if not h:
-            b.let_op(r, s, "hostname", "leeg: geen hostname in het aliasbestand, enkel het IP")
+            b.let_op(r, s, "hostname", _("leeg: geen hostname in het aliasbestand, enkel het IP"))
         elif not regex.match(h):
-            b.let_op(r, s, "hostname", f"'{h}' voldoet niet aan {regex.pattern}: niet in het aliasbestand, enkel het IP")
+            b.let_op(r, s, "hostname", _("'{waarde}' voldoet niet aan {regel}: niet in het aliasbestand, enkel het IP", waarde=h, regel=regex.pattern))
         elif not hostname_profiel(t, cfg):
-            b.let_op(r, s, "hostname", "geen System-info-profiel in de klantconfig: hostname niet in het aliasbestand, enkel het IP")
+            b.let_op(r, s, "hostname", _("geen System-info-profiel in de klantconfig: hostname niet in het aliasbestand, enkel het IP"))
         else:
             gezien[("hostname", h.lower())].append(s)
         if t.get("mgmt_ip") and not _instantie(cfg, "mgmt_ip"):
-            b.fout(r, s, "mgmt_ip", "geen beheerinterface in de klantconfig (velden.mgmt_ip.instance): vul die in stap 1 in, of laat mgmt_ip leeg")
+            b.fout(r, s, "mgmt_ip", _("geen beheerinterface in de klantconfig (velden.mgmt_ip.instance): vul die in stap 1 in, of laat mgmt_ip leeg"))
 
         for veld, dhcp in (("sys_vlan_ip", True), ("mgmt_ip", False)):
             v = t.get(veld, "")
             if not v or (dhcp and v.upper() == "DHCP"):
                 continue
             if "/" not in v:
-                b.let_op(r, s, veld, f"'{v}' zonder prefix: /{prefix_van(cfg)} aangenomen")
+                b.let_op(r, s, veld, _("'{waarde}' zonder prefix: /{prefix} aangenomen", waarde=v, prefix=prefix_van(cfg)))
                 v = met_prefix(v, cfg)
             x = ip_met_prefix(v)
             if not x:
-                b.fout(r, s, veld, f"'{v}': geen geldig IP-adres (10.1.1.10/24)" + (" of DHCP" if dhcp else ""))
+                b.fout(r, s, veld, _("'{waarde}': geen geldig IP-adres (10.1.1.10/24) of DHCP", waarde=v) if dhcp
+                       else _("'{waarde}': geen geldig IP-adres (10.1.1.10/24)", waarde=v))
                 continue
             if x.network.prefixlen < 31 and x.ip in (x.network.network_address, x.network.broadcast_address):
-                b.fout(r, s, veld, f"'{v}' is het netwerk- of broadcastadres")
+                b.fout(r, s, veld, _("'{waarde}' is het netwerk- of broadcastadres", waarde=v))
             gezien[("ip", str(x.ip))].append(s)
         bv = t.get("beheer_vlan", "")
         if bv and (not bv.isdigit() or not 1 <= int(bv) <= 4094):
-            b.fout(r, s, "beheer_vlan", f"'{bv}': VLAN-ID tussen 1 en 4094 verwacht")
+            b.fout(r, s, "beheer_vlan", _("'{waarde}': VLAN-ID tussen 1 en 4094 verwacht", waarde=bv))
         if not t.get("sys_vlan_ip") and not t.get("mgmt_ip"):
-            b.let_op(r, s, "", "geen system VLAN IP en geen beheer-IP: enkel de hostname wordt gezet" if hostname_mee(t, cfg)
-                     else "geen IP en geen hostname: deze switch komt niet in het aliasbestand")
+            b.let_op(r, s, "", _("geen system VLAN IP en geen beheer-IP: enkel de hostname wordt gezet") if hostname_mee(t, cfg)
+                     else _("geen IP en geen hostname: deze switch komt niet in het aliasbestand"))
 
     for s, regels in serials.items():
         if len(regels) > 1:
-            b.fout(", ".join(map(str, regels)), s, "serial", f"staat {len(regels)} keer in de lijst")
+            b.fout(", ".join(map(str, regels)), s, "serial", _("staat {n} keer in de lijst", n=len(regels)))
     for (soort, waarde), lijst in gezien.items():
         if len(lijst) > 1:
             if soort == "hostname":
-                b.let_op("", ", ".join(sorted(set(lijst))), soort, f"'{waarde}' komt {len(lijst)} keer voor")
+                b.let_op("", ", ".join(sorted(set(lijst))), soort, _("'{waarde}' komt {n} keer voor", waarde=waarde, n=len(lijst)))
             else:
-                b.fout("", ", ".join(sorted(set(lijst))), soort, f"'{waarde}' komt {len(lijst)} keer voor")
+                b.fout("", ", ".join(sorted(set(lijst))), soort, _("'{waarde}' komt {n} keer voor", waarde=waarde, n=len(lijst)))
     return b
 
 
@@ -361,7 +364,7 @@ def bulk_tekst(rijen):
             wr.writerow([])
         eerste = False
         f.write(sec + "\n")
-        for i, ((_, kol), items) in enumerate(tabellen.items()):
+        for i, ((_naam, kol), items) in enumerate(tabellen.items()):
             if i:
                 wr.writerow([])
             kop = KOP_EIGEN if sec.startswith("#ALIAS_") else KOP_VOORGEDEF
@@ -438,7 +441,7 @@ def cmd_genereer(args):
             delen.append(huidig)
         for i, deel in enumerate(delen, start=1):
             naam = f"{veilig(golf)}__access-switch" + (f"__deel{i}" if len(delen) > 1 else "") + ".csv"
-            alle = [r for _, rijen in deel for r in rijen]
+            alle = [r for _blad, rijen in deel for r in rijen]
             schrijf_bulk(os.path.join(args.out, naam), alle)
             rapport.append(f"| {naam} | {golf} | {len(deel)} | {len(alle)} |")
             print(f"  {naam:45} {len(deel):5} switches {len(alle):6} rijen")

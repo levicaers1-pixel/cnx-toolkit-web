@@ -2,11 +2,19 @@
 
 Versienummers volgen MAJOR.MINOR.PATCH.
 
-## Nog niet uitgebracht
+## 0.2.0 (2026-11-25)
 
 - GitHub Actions op een vaste commit-SHA (met het versienummer erbij), het basisimage op een vaste digest, en
   `.github/dependabot.yml`: Dependabot stelt elke week updates voor (actions, basisimage, pip).
 - Repository: private vulnerability reporting, kwetsbaarheidsmeldingen en Dependabot-beveiligingsupdates staan aan.
+- De webapp in het Engels: een knop NL/EN rechtsboven (standaard de taal van de browser, onthouden in een cookie).
+  Ook meldingen en bevindingen van de server, het AOS-10-rapport, het migratieplan, de pilotpagina en de handleiding
+  komen in de gekozen taal. De commandolijn blijft Nederlands.
+- Handleiding nagekeken en bijgewerkt: verwijzingen naar de weggehaalde commando's `cnx invoer` en `cnx overrides`
+  eruit, de gehoste versie, pilotcode en taalkeuze erbij, dezelfde woorden als in het scherm (afwijkend, overbodig,
+  alleen op deze switch), en links in de handleiding in de app werken. Nieuw: `MANUAL.md` (Engels).
+- Aanmeldvenster: de uitleg klopt nu ook in servermodus (de gegevens blijven in het geheugen van de toolkit, voor deze
+  sessie).
 
 ## 0.1.4 (2026-11-25)
 

@@ -17,6 +17,8 @@ from urllib.parse import parse_qs, quote, urlparse
 
 from . import __version__, resource
 from . import alias_api as cx
+from . import taal
+from .taal import _
 from . import aliassen
 from . import aos8
 from . import migratieplan
@@ -49,13 +51,13 @@ def onboard_bestand(groep, rijen):
     Geen klantconfig nodig: VLAN, profiel en device function staan per switch. De browser krijgt de inhoud; met opslag
     komt er ook een kopie in cnx-web/onboarding."""
     if not isinstance(rijen, list) or not rijen:
-        raise Fout("kies minstens een switch")
+        raise Fout(_("kies minstens een switch"))
     if len(rijen) > 5000:
-        raise Fout("te veel switches")
+        raise Fout(_("te veel switches"))
     schoon = []
     for i, r in enumerate(rijen, start=2):
         if not isinstance(r, dict):
-            raise Fout("ongeldige rij")
+            raise Fout(_("ongeldige rij"))
         x = {}
         for k in aliassen.TOESTEL_KOLOMMEN:
             w = r.get(k, "")
@@ -65,7 +67,7 @@ def onboard_bestand(groep, rijen):
                 x[k] = re.sub(r"\s+", " ", w)[:1000]
                 continue
             if len(w) > 200 or any(c in w for c in (chr(13), chr(10))):
-                raise Fout(f"ongeldige waarde in {k}")
+                raise Fout(_("ongeldige waarde in {veld}", veld=k))
             x[k] = w
         x["_regel"] = i
         schoon.append(x)
@@ -80,12 +82,12 @@ def onboard_bestand(groep, rijen):
         return {"fouten": len(b.fouten), "bevindingen": bevindingen, "bestanden": []}
     if not any(x["beheer_vlan"] for x in schoon if x.get("sys_vlan_ip")) and any(x.get("sys_vlan_ip") for x in schoon):
         bevindingen.append({"ernst": "LET OP", "regel": "", "serial": "", "veld": "beheer_vlan",
-                            "bevinding": f"geen beheer-VLAN gevonden: alias sys_vlan_ipv4_{cfg['velden']['sys_vlan_ip']['standaard_vlan']}"})
+                            "bevinding": _("geen beheer-VLAN gevonden: alias sys_vlan_ipv4_{vlan}", vlan=cfg["velden"]["sys_vlan_ip"]["standaard_vlan"])})
     stacks = [x for x in schoon if aliassen.is_stack(x)]
     per_switch = [aliassen.rijen_voor_toestel(x, cfg) for x in schoon if not aliassen.is_stack(x)]
     per_switch = [r for r in per_switch if r]
     if not per_switch:
-        return {"fouten": 0, "bevindingen": bevindingen, "bestanden": [], "melding": "niets om op te laden: geen IP en geen hostname"}
+        return {"fouten": 0, "bevindingen": bevindingen, "bestanden": [], "melding": _("niets om op te laden: geen IP en geen hostname")}
     delen, huidig, n = [], [], 0
     for r in per_switch:                     # een switch nooit over twee bestanden verdelen
         if huidig and n + len(r) > ONBOARD_MAX_RIJEN:
@@ -134,7 +136,7 @@ def klantconfig_info():
             raise ValueError("geen JSON-object")
     except (OSError, ValueError) as e:
         return {"pad": pad, "bestaat": bestaat, "config": _lees_json(resource("klantconfig.json")), "problemen": [],
-                "leesfout": f"klantconfig.json is niet te lezen ({e}). Opslaan maakt een nieuwe; de oude blijft als .bak."}
+                "leesfout": _("klantconfig.json is niet te lezen ({fout}). Opslaan maakt een nieuwe; de oude blijft als .bak.", fout=e)}
     return {"pad": pad, "bestaat": bestaat, "config": cfg,
             "problemen": [{"veld": v, "tekst": t, "soort": s} for v, t, s in aliassen.controleer_config(cfg)]}
 
@@ -171,7 +173,7 @@ def klantconfig_opslaan(nieuw):
     deel(velden, "mgmt_ip")["instance"] = tekst(nk("mgmt_ip").get("instance"))
     fouten = [f"{v}: {t}" for v, t, s in aliassen.controleer_config(basis) if s == "fout"]
     if fouten:
-        raise Fout("Niet opgeslagen. " + " ".join(fouten))
+        raise Fout(_("Niet opgeslagen.") + " " + " ".join(fouten))
     if os.path.isfile(pad):
         shutil.copyfile(pad, pad + ".bak")
     os.makedirs(os.path.dirname(pad), exist_ok=True)
@@ -184,11 +186,11 @@ def klantconfig_opslaan(nieuw):
 def klantconfig_voorstel(w):
     """Waarden voorstellen uit een opgeladen bulk-download. Schrijft niets weg."""
     if not (isinstance(w, dict) and "inhoud" in w):
-        raise Fout("kies een bulk-download")
+        raise Fout(_("kies een bulk-download"))
     try:
         inhoud = base64.b64decode(w["inhoud"], validate=True)
     except (ValueError, TypeError):
-        raise Fout("bestand niet te lezen")
+        raise Fout(_("bestand niet te lezen"))
     os.makedirs(WERKMAP, exist_ok=True)
     tmp = os.path.join(WERKMAP, f".voorstel-{threading.get_ident()}.csv")
     try:
@@ -296,7 +298,7 @@ def pilot_controle(bezoeker, code):
 def pilot_pagina(csrf, melding=""):
     """De toegangspagina tijdens de pilot. Geen gegevens van Central, geen scripts."""
     m = f'<p class="fout" role="alert">{html.escape(melding)}</p>' if melding else ""
-    return f"""<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    return f"""<!DOCTYPE html><html lang="{taal.huidig()}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CNX Toolkit</title><style>
 :root{{--paper:#f6f5f1;--panel:#fff;--ink:#1f1d1a;--muted:#6b675f;--line:#e2dfd7;--accent:#5b3fd6;--bad:#b3261e}}
 @media (prefers-color-scheme:dark){{:root{{--paper:#171614;--panel:#211f1c;--ink:#eeeae2;--muted:#a39e93;--line:#38352f;--accent:#a593ff;--bad:#ff8a80}}}}
@@ -306,10 +308,10 @@ h1{{font-size:20px;margin:0 0 6px}}p{{margin:0 0 16px;color:var(--muted)}}label{
 input{{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--ink);font:inherit}}
 button{{margin-top:14px;padding:10px 18px;border:0;border-radius:9px;background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer}}
 .fout{{color:var(--bad);font-weight:600}}small{{display:block;margin-top:18px;color:var(--muted);font-size:12px}}
-</style></head><body><main><h1>CNX Toolkit</h1><p>Deze toolkit is in een besloten pilot. Geef de pilotcode die je kreeg.</p>{m}
-<form method="post" action="/pilot"><input type="hidden" name="t" value="{html.escape(csrf)}"><label for="code">Pilotcode</label>
-<input id="code" name="code" type="password" autocomplete="off" required autofocus maxlength="200"><button type="submit">Verder</button></form>
-<small>Gratis open-source toolkit, niet gemaakt of ondersteund door HPE. De server bewaart niets.</small></main></body></html>"""
+</style></head><body><main><h1>CNX Toolkit</h1><p>{html.escape(_("Deze toolkit is in een besloten pilot. Geef de pilotcode die je kreeg."))}</p>{m}
+<form method="post" action="/pilot"><input type="hidden" name="t" value="{html.escape(csrf)}"><label for="code">{html.escape(_("Pilotcode"))}</label>
+<input id="code" name="code" type="password" autocomplete="off" required autofocus maxlength="200"><button type="submit">{html.escape(_("Verder"))}</button></form>
+<small>{html.escape(_("Gratis open-source toolkit, niet gemaakt of ondersteund door HPE. De server bewaart niets."))}</small></main></body></html>"""
 
 
 def _te_veel_nieuw(bezoeker, nu):
@@ -352,6 +354,20 @@ def sessie_van(cookie, mag_maken=False, bezoeker=None):
         return sessie, sessie.id
 
 
+def _cookie(kop, naam):
+    """De waarde van een cookie uit de Cookie-kop, of None."""
+    try:
+        c = http.cookies.SimpleCookie(kop or "")
+        return c[naam].value if naam in c else None
+    except http.cookies.CookieError:
+        return None
+
+
+def web_en():
+    """De Engelse teksten van de webpagina, veilig om in een <script> te zetten."""
+    return json.dumps(json.load(open(resource("en-web.json"), encoding="utf-8")), ensure_ascii=True).replace("</", "<\\/")
+
+
 def nieuwe_sessie_id(sessie):
     """Na aanmelden een nieuw sessie-id (tegen session fixation). Geeft het nieuwe id."""
     with _SESSIE_SLOT:
@@ -361,11 +377,13 @@ def nieuwe_sessie_id(sessie):
     return sessie.id
 
 
-VOETTEKST = ('<footer style="padding:6px 16px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);'
-             'background:var(--panel)">Gratis open-source toolkit, niet gemaakt of ondersteund door HPE. '
-             'De server bewaart niets: je Central-gegevens staan enkel in het geheugen van je sessie en verdwijnen bij '
-             'afmelden of na 30 minuten. Gebruik op eigen risico, test eerst met een proefrun. '
-             '<a href="https://github.com/levicaers1-pixel/cnx-toolkit-web" target="_blank" rel="noopener">Broncode</a></footer>')
+def voettekst():
+    return ('<footer style="padding:6px 16px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);background:var(--panel)">'
+            + html.escape(_("Gratis open-source toolkit, niet gemaakt of ondersteund door HPE. De server bewaart niets: je Central-gegevens "
+                            "staan enkel in het geheugen van je sessie en verdwijnen bij afmelden of na 30 minuten. Gebruik op eigen "
+                            "risico, test eerst met een proefrun."))
+            + ' <a href="https://github.com/levicaers1-pixel/cnx-toolkit-web" target="_blank" rel="noopener">'
+            + html.escape(_("Broncode")) + "</a></footer>")
 
 
 def central_url_ok(base):
@@ -400,6 +418,7 @@ class Handler(BaseHTTPRequestHandler):
             self._vol = True
         # Zonder sessie een lege verbinding, nooit de standaardverbinding of die van een vorige aanvraag op dezelfde draad.
         cx._HUIDIG.set(self.sessie.verbinding if self.sessie else cx.Verbinding())
+        taal.zet(taal.kies(_cookie(self.headers.get("Cookie"), "cnx_taal"), self.headers.get("Accept-Language")))
         return True
 
     def _bezoeker(self):
@@ -464,16 +483,16 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return True
         if not self._host_ok():
-            self._json({"fout": "geen toegang"}, 403)
+            self._json({"fout": _("geen toegang")}, 403)
             return True
         if getattr(self, "_vol", False):
-            self._json({"fout": "Te veel gebruikers tegelijk. Probeer later opnieuw."}, 503)
+            self._json({"fout": _("Te veel gebruikers tegelijk. Probeer later opnieuw.")}, 503)
             return True
         if self.sessie is None and pad not in ("/", "/hulp"):
-            self._json({"fout": "Je sessie is verlopen. Herlaad de pagina."}, 401)
+            self._json({"fout": _("Je sessie is verlopen. Herlaad de pagina.")}, 401)
             return True
         if pilot_nodig() and self.sessie is not None and not self.sessie.pilot_ok and pad not in ("/", "/pilot"):
-            self._json({"fout": "Geef eerst de pilotcode: herlaad de pagina."}, 401)
+            self._json({"fout": _("Geef eerst de pilotcode: herlaad de pagina.")}, 401)
             return True
         return False
 
@@ -496,8 +515,8 @@ class Handler(BaseHTTPRequestHandler):
             self.sessie.pilot_ok = True
             self._nieuwe_sessie = nieuwe_sessie_id(self.sessie)
             return self._naar("/")
-        melding = ("Te veel foute pogingen. Probeer het binnen een kwartier opnieuw." if uitslag == "geblokkeerd"
-                   else "Die code klopt niet.")
+        melding = (_("Te veel foute pogingen. Probeer het binnen een kwartier opnieuw.") if uitslag == "geblokkeerd"
+                   else _("Die code klopt niet."))
         return self._html(pilot_pagina(self.sessie.csrf, melding), 429 if uitslag == "geblokkeerd" else 403)
 
     def do_HEAD(self):
@@ -516,7 +535,7 @@ class Handler(BaseHTTPRequestHandler):
     def _aanmelden(self, body):
         base = str(body.get("base") or "")
         if SERVER and not central_url_ok(base):
-            return {"ok": False, "melding": "Geef de API-URL van new Central, bv. https://de1.api.central.arubanetworks.com. Een ander domein moet de beheerder eerst toelaten (CNX_CENTRAL_DOMEINEN)."}
+            return {"ok": False, "melding": _("Geef de API-URL van new Central, bv. https://de1.api.central.arubanetworks.com. Een ander domein moet de beheerder eerst toelaten (CNX_CENTRAL_DOMEINEN).")}
         ok, msg = cx.aanmelden(base, str(body.get("id") or ""), str(body.get("secret") or ""))
         if ok and PER_SESSIE:
             self._nieuwe_sessie = nieuwe_sessie_id(self.sessie)
@@ -541,7 +560,7 @@ class Handler(BaseHTTPRequestHandler):
         """Een onverwachte fout: lokaal met de details, in servermodus enkel een algemene melding (het type in de log)."""
         if SERVER:
             sys.stderr.write(f"onverwachte fout: {type(e).__name__}\n")
-            return "Onverwachte fout in de toolkit. Probeer het opnieuw of meld het."
+            return _("Onverwachte fout in de toolkit. Probeer het opnieuw of meld het.")
         return f"{type(e).__name__}: {e}"
 
     def _bestand(self, data, naam, soort="application/octet-stream"):
@@ -555,11 +574,11 @@ class Handler(BaseHTTPRequestHandler):
     def _monitor(self, doe):
         """Aanvraag naar Central voor de tabbladen Switches en Overzicht: aanmelden nodig, fouten als JSON."""
         if "Authorization" not in cx.S.headers:
-            return self._json({"fout": "Eerst aanmelden bij new Central (rechtsboven)."}, 401)
+            return self._json({"fout": _("Eerst aanmelden bij new Central (rechtsboven).")}, 401)
         try:
             return self._json(doe())
         except monitor.ApiFout as e:
-            tekst = e.melding if e.status == 400 and isinstance(e, monitor.Invoer) else f"Central gaf {e.status}: {e.melding}"
+            tekst = e.melding if e.status == 400 and isinstance(e, monitor.Invoer) else _("Central gaf {status}: {melding}", status=e.status, melding=e.melding)
             return self._json({"fout": tekst, "status": e.status}, 400 if isinstance(e, monitor.Invoer) else 502)
         except Exception as e:  # noqa: BLE001
             return self._json({"fout": self._onverwacht(e)}, 500)
@@ -575,18 +594,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._html(pilot_pagina(self.sessie.csrf))
         if u.path == "/":
             tekst = (pagina("web.html").replace("__TOKEN__", self.sessie.csrf).replace("__VERSIE__", __version__)
-                    .replace("__OPSLAG__", "true" if OPSLAG else "false"))
+                    .replace("__OPSLAG__", "true" if OPSLAG else "false").replace("__EN__", web_en())
+                    .replace('<html lang="nl">', f'<html lang="{taal.huidig()}">', 1))
             if SERVER:
-                tekst = tekst.replace('<main id="panes"></main>', '<main id="panes"></main>' + VOETTEKST, 1)
+                tekst = tekst.replace('<main id="panes"></main>', '<main id="panes"></main>' + voettekst(), 1)
             return self._html(tekst)
         if u.path == "/hulp":
-            return self._html(pagina("LEESMIJ.html"))
+            return self._html(pagina("MANUAL.html" if taal.huidig() == "en" else "LEESMIJ.html"))
         if not self._ok(q):
-            return self._json({"fout": "geen toegang"}, 403)
+            return self._json({"fout": _("geen toegang")}, 403)
         if u.path == "/api/status":
             return self._json(self._status())
         if not u.path.startswith("/api/web/"):
-            return self._json({"fout": "onbekend"}, 404)
+            return self._json({"fout": _("onbekend")}, 404)
         if u.path.startswith(("/api/web/sw/", "/api/web/ov/")):
             arg = lambda k, d="": q.get(k, [d])[0]  # noqa: E731
             if u.path == "/api/web/sw/overrides-lijst":
@@ -599,18 +619,18 @@ class Handler(BaseHTTPRequestHandler):
                 return self._monitor(configapi.keuzes)
             if u.path == "/api/web/ov/ophaling":
                 o = self.sessie.ophalingen.get(arg("id"))
-                return self._json(o.info() if o else {"fout": "niet gevonden"}, 200 if o else 404)
-            return self._json({"fout": "onbekend"}, 404)
+                return self._json(o.info() if o else {"fout": _("niet gevonden")}, 200 if o else 404)
+            return self._json({"fout": _("onbekend")}, 404)
         if not OPSLAG and u.path in ("/api/web/klantconfig", "/api/web/klantconfig/bestand"):
-            return self._json({"fout": "niet beschikbaar zonder opslag"}, 404)
+            return self._json({"fout": _("niet beschikbaar zonder opslag")}, 404)
         if u.path in ("/api/web/klantconfig", "/api/web/klantconfig/bestand"):
             if u.path == "/api/web/klantconfig":
                 return self._json(klantconfig_info())
             if not os.path.isfile(klantconfig_pad()):
-                return self._json({"fout": "nog geen klantconfig.json opgeslagen"}, 404)
+                return self._json({"fout": _("nog geen klantconfig.json opgeslagen")}, 404)
             with open(klantconfig_pad(), "rb") as f:
                 return self._bestand(f.read(), "klantconfig.json", "application/json")
-        return self._json({"fout": "onbekend"}, 404)
+        return self._json({"fout": _("onbekend")}, 404)
 
     def _aos8(self, pad, body):
         """AP-migratie: inventaris lezen, plan en rapport maken. De browser stuurt alles mee; de server bewaart niets."""
@@ -620,7 +640,7 @@ class Handler(BaseHTTPRequestHandler):
             except aos8.Fout as e:
                 return self._json({"fout": str(e)}, 400)
             except (ET.ParseError, KeyError, ValueError, AttributeError) as e:
-                return self._json({"fout": f"bestand niet te lezen ({type(e).__name__}: {e})"}, 400)
+                return self._json({"fout": _("bestand niet te lezen ({fout})", fout=f"{type(e).__name__}: {e}")}, 400)
         if pad in ("/api/web/aos8/plan", "/api/web/aos8/rapport"):
             # De inventaris en de voortgang komen van de browser; de server bewaart niets.
             try:
@@ -631,8 +651,8 @@ class Handler(BaseHTTPRequestHandler):
                 plan["html"] = migratieplan.plan_html(plan, migratieplan.voortgang_uit(body.get("voortgang")))
                 return self._json(plan)
             except (ValueError, KeyError, TypeError, AttributeError) as e:
-                return self._json({"fout": str(e) or "ongeldige inventaris"}, 400)
-        return self._json({"fout": "onbekend"}, 404)
+                return self._json({"fout": str(e) or _("ongeldige inventaris")}, 400)
+        return self._json({"fout": _("onbekend")}, 404)
 
     def do_POST(self):
         u = urlparse(self.path)
@@ -645,7 +665,7 @@ class Handler(BaseHTTPRequestHandler):
         grens = (MAX_BODY_AOS8 if u.path.startswith("/api/web/aos8/") else MAX_BODY_SERVER) if SERVER else MAX_BODY
         if n < 0:
             self.close_connection = True
-            return self._json({"fout": "ongeldige aanvraag"}, 400)
+            return self._json({"fout": _("ongeldige aanvraag")}, 400)
         if n > grens:
             if n <= WEGGOOI_GRENS:                # lezen en weggooien, zodat de browser de melding netjes krijgt
                 rest = n
@@ -657,7 +677,7 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self.close_connection = True
             if not self._voor_alles(u.path):
-                self._json({"fout": f"bestanden te groot (maximum {grens // (1024 * 1024)} MB per taak)"}, 413)
+                self._json({"fout": _("bestanden te groot (maximum {mb} MB per taak)", mb=grens // (1024 * 1024))}, 413)
             return
         ruw = self.rfile.read(n) if n else b""
         if self._voor_alles(u.path):
@@ -665,17 +685,17 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/pilot":
             return self._pilot(ruw)
         if not self._ok({}):
-            return self._json({"fout": "geen toegang"}, 403)
+            return self._json({"fout": _("geen toegang")}, 403)
         try:
             body = json.loads(ruw or b"{}")
             if not isinstance(body, dict):
                 raise ValueError
         except ValueError:
-            return self._json({"fout": "ongeldige aanvraag"}, 400)
+            return self._json({"fout": _("ongeldige aanvraag")}, 400)
         if u.path == "/api/aanmelden":
             return self._json(self._aanmelden(body))
         if not u.path.startswith("/api/web/"):
-            return self._json({"fout": "onbekend"}, 404)
+            return self._json({"fout": _("onbekend")}, 404)
         if u.path == "/api/web/onboard/bestand":
             try:
                 return self._json(onboard_bestand(body.get("groep"), body.get("rijen")))
@@ -683,7 +703,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"fout": str(e)}, 400)
         if u.path.startswith("/api/web/aos8/"):
             if not ZWAAR.acquire(timeout=15):
-                return self._json({"fout": "De server is even druk met andere inventarissen. Probeer het zo opnieuw."}, 503)
+                return self._json({"fout": _("De server is even druk met andere inventarissen. Probeer het zo opnieuw.")}, 503)
             try:
                 return self._aos8(u.path, body)
             finally:
@@ -691,7 +711,7 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/web/ov/ophaal":
             return self._monitor(lambda: {"id": start_ophaling(self.sessie, body.get("soort", ""), body.get("opties") or {}).id})
         if not OPSLAG and u.path.startswith("/api/web/klantconfig"):
-            return self._json({"fout": "niet beschikbaar zonder opslag"}, 404)
+            return self._json({"fout": _("niet beschikbaar zonder opslag")}, 404)
         if u.path in ("/api/web/klantconfig", "/api/web/klantconfig/voorstel"):
             try:
                 if u.path.endswith("voorstel"):
@@ -704,7 +724,7 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/web/afmelden":
             self.sessie.wis()                    # token, secret, cache, ophalingen en wisplannen
             return self._json({"ok": True})
-        return self._json({"fout": "onbekend"}, 404)
+        return self._json({"fout": _("onbekend")}, 404)
 
 
 # ---------------------------------------------------------------- switches: logboek van de acties
@@ -751,7 +771,7 @@ def start_ophaling(sessie, soort, opties):
     elif soort == "wissen":
         gevonden = sessie.wisplannen.pop(str(opties.get("plan") or ""), None)
         if gevonden is None:
-            raise monitor.Invoer("Dit plan is verlopen of al uitgevoerd. Maak een nieuw plan.")
+            raise monitor.Invoer(_("Dit plan is verlopen of al uitgevoerd. Maak een nieuw plan."))
         acties, df = gevonden
 
         def doe(v):
@@ -763,24 +783,27 @@ def start_ophaling(sessie, soort, opties):
         serials = [str(x) for x in (opties.get("serials") or []) if isinstance(x, (str, int))][:2000] or None
         doe = lambda v: configapi.afwijkingen_scan(serials, opties.get("device_function") or "ACCESS_SWITCH", v)  # noqa: E731
     else:
-        raise monitor.Invoer("onbekende ophaling")
+        raise monitor.Invoer(_("onbekende ophaling"))
     if sum(x.status == "bezig" for x in sessie.ophalingen.values()) >= MAX_TAKEN:
-        raise monitor.Invoer(f"Er lopen al {MAX_TAKEN} taken. Wacht tot er een klaar is.")
+        raise monitor.Invoer(_("Er lopen al {n} taken. Wacht tot er een klaar is.", n=MAX_TAKEN))
     klaar = [k for k, x in sessie.ophalingen.items() if x.status != "bezig"]
     for k in klaar[:max(0, len(sessie.ophalingen) - 20)]:      # oude resultaten niet eindeloos bijhouden
         sessie.ophalingen.pop(k, None)
     o = Ophaling(soort)
     sessie.ophalingen[o.id] = o
 
+    gekozen = taal.huidig()
+
     def draai_ophaling():
+        taal.zet(gekozen)                       # meldingen van de taak in de taal van wie ze startte
         try:
             with cx.gebruik(sessie.verbinding):
                 o.resultaat = doe(o.voortgang)
             o.status = "klaar"
         except monitor.ApiFout as e:
-            o.fout, o.status = (e.melding if isinstance(e, monitor.Invoer) else f"Central gaf {e.status}: {e.melding}"), "fout"
+            o.fout, o.status = (e.melding if isinstance(e, monitor.Invoer) else _("Central gaf {status}: {melding}", status=e.status, melding=e.melding)), "fout"
         except Exception as e:  # noqa: BLE001
-            o.fout, o.status = (("Onverwachte fout in de toolkit. Probeer het opnieuw of meld het."
+            o.fout, o.status = ((_("Onverwachte fout in de toolkit. Probeer het opnieuw of meld het.")
                                  if SERVER else f"{type(e).__name__}: {e}"), "fout")
             if SERVER:
                 sys.stderr.write(f"onverwachte fout in een ophaling: {type(e).__name__}\n")

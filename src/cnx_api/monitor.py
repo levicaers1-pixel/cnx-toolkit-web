@@ -7,6 +7,7 @@ import re
 from urllib.parse import quote
 
 from . import alias_api as cx
+from .taal import _
 
 MON = "/network-monitoring/v1"
 MAX_PAGINAS = 50
@@ -51,7 +52,7 @@ def _items(j):
 def alles_next(pad, params):
     """Pagina's met een next-cursor (in de praktijk een paginanummer) aflopen."""
     params, items, j = dict(params), [], {}
-    for _ in range(MAX_PAGINAS):
+    for _pagina in range(MAX_PAGINAS):
         j = haal(pad, params) or {}
         items += _items(j)
         nxt = j.get("next") if isinstance(j, dict) else None
@@ -66,7 +67,7 @@ def alles_offset(pad, params):
     params, items, j = dict(params), [], {}
     params.setdefault("limit", 1000)
     off = 0
-    for _ in range(MAX_PAGINAS):
+    for _pagina in range(MAX_PAGINAS):
         params["offset"] = off
         j = haal(pad, params) or {}
         nieuw = _items(j)
@@ -81,14 +82,14 @@ def alles_offset(pad, params):
 def serial(s):
     s = str(s or "").strip()
     if not SERIAL.match(s):
-        raise Invoer("ongeldig serienummer of stack-ID")
+        raise Invoer(_("ongeldig serienummer of stack-ID"))
     return quote(s, safe="")
 
 
 def filter_tekst(f):
     f = str(f or "").strip()
     if len(f) > 256 or "\n" in f:
-        raise Invoer("filter te lang of ongeldig")
+        raise Invoer(_("filter te lang of ongeldig"))
     return f
 
 
@@ -107,7 +108,7 @@ LIJSTEN = {
 
 def lijst(soort, filter_=""):
     if soort not in LIJSTEN:
-        raise Invoer("onbekende lijst")
+        raise Invoer(_("onbekende lijst"))
     pad, functie, params = LIJSTEN[soort]
     params = dict(params)
     f = filter_tekst(filter_)

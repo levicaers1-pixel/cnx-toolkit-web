@@ -39,6 +39,8 @@ zet de DNS-servers beter in een gewoon DNS-profiel op Global.
 import argparse, contextlib, contextvars, copy, csv, datetime, json, os, sys, threading, time
 from urllib.parse import quote
 
+from .taal import _
+
 try:
     import requests
 except ImportError:
@@ -108,7 +110,7 @@ def _token(v, cid, secret):
     r = requests.post(TOKEN_URL, timeout=30, data={"grant_type": "client_credentials",
                                                    "client_id": cid, "client_secret": secret})
     if r.status_code >= 300:
-        return f"Aanmelden mislukt ({r.status_code}): {r.text[:300]}"
+        return _("Aanmelden mislukt ({status}): {tekst}", status=r.status_code, tekst=r.text[:300])
     v.s.headers.update({"Authorization": f"Bearer {r.json()['access_token']}", "Content-Type": "application/json"})
     return None
 
@@ -122,7 +124,7 @@ def aanmelden(base, cid, secret):
     v.gegevens.clear()
     v.gegevens.update(id=cid, secret=secret)
     v.cache.clear()
-    return True, "aangemeld"
+    return True, _("aangemeld")
 
 
 def afmelden():

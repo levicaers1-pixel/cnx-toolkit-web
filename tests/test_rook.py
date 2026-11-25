@@ -135,7 +135,8 @@ def test_naar_library_valt_nooit_zonder_waarde(tmp_path, monkeypatch):
 
 def test_data_aanwezig():
     from cnx_api import resource
-    for naam in ("web.html", "LEESMIJ.html", "alias-config.json", "klantconfig.json", "toestellen-sjabloon.csv", "aos10-modellen.json"):
+    for naam in ("web.html", "LEESMIJ.html", "MANUAL.html", "en-web.json", "en-server.json", "alias-config.json", "klantconfig.json",
+                 "toestellen-sjabloon.csv", "aos10-modellen.json"):
         assert os.path.exists(resource(naam)), naam
     for weg in ("invoer.html",):
         assert not os.path.exists(resource(weg)), weg

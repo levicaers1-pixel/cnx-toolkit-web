@@ -1,0 +1,355 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.2.0</title><style>
+:root{color-scheme:light;--paper:#f4f6f9;--panel:#fff;--panel2:#f8fafc;--ink:#122033;--ink2:#2b3a4f;--muted:#5f6c7f;--line:#e2e7ee;--accent:#2457d6;--soft:#eaf0fd}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;--paper:#0e131a;--panel:#161d27;--panel2:#1a2230;--ink:#e7ecf3;--ink2:#c9d2df;--muted:#93a0b4;--line:#253042;--accent:#7aa2ff;--soft:#1c2943}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.6 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:920px;margin:28px auto 60px;padding:28px 36px 36px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(18,32,51,.04),0 2px 6px rgba(18,32,51,.05)}
+.kop{display:flex;align-items:center;gap:12px;padding-bottom:18px;margin-bottom:8px;border-bottom:1px solid var(--line)}
+.logo{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(135deg,#2457d6,#5b8cff);color:#fff;font-weight:700;font-size:11px;letter-spacing:.04em}
+.versie{color:var(--muted);font-size:12.5px}
+h1,h2,h3{line-height:1.25;letter-spacing:-.01em;font-weight:650}
+h1{font-size:28px;margin:22px 0 8px}h2{font-size:20px;margin:34px 0 10px;padding-top:6px}h3{font-size:16px;margin:24px 0 8px}
+p,li{color:var(--ink2)}a{color:var(--accent)}
+table{border-collapse:separate;border-spacing:0;width:100%;margin:14px 0 18px;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+th,td{padding:8px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}tr:last-child td{border-bottom:0}
+th{background:var(--panel2);font-size:11.5px;color:var(--muted);font-weight:650;text-transform:uppercase;letter-spacing:.05em}
+td:first-child code{white-space:nowrap}
+code{font-family:"Cascadia Mono",Consolas,monospace;font-size:.88em;background:var(--soft);color:var(--ink);padding:1px 5px;border-radius:5px}
+pre{background:var(--panel2);border:1px solid var(--line);padding:14px 16px;border-radius:10px;overflow:auto}pre code{background:none;padding:0}
+@media (max-width:700px){main{margin:0;border-radius:0;padding:20px 16px}}
+</style></head>
+<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Manual</strong><div class="versie">CNX Toolkit, version 0.2.0</div></div></div>
+<h1 id="cnx-toolkit">CNX Toolkit</h1>
+<p>Tools to bring network devices into HPE Aruba Networking Central (new Central) and keep them tidy there: onboard
+AOS-CX switches and Mobility Gateways, clean up local overrides, and plan the move from AOS-8 to AOS-10 for access
+points. Free open-source software, not made or supported by HPE.</p>
+<p><em>Nederlands: zie <a href="https://github.com/levicaers1-pixel/cnx-toolkit-web/blob/main/LEESMIJ.md" target="_blank" rel="noopener">LEESMIJ.md</a>, of kies NL bovenaan in de app.</em></p>
+<h2 id="three-ways-to-use-the-toolkit">Three ways to use the toolkit</h2>
+<table>
+<thead>
+<tr>
+<th>Way</th>
+<th>For whom</th>
+<th>How</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hosted web app</td>
+<td>Anyone who does not want to install anything</td>
+<td>Open the address you received. See <a href="#hosted-version">Hosted version</a></td>
+</tr>
+<tr>
+<td><code>cnx.exe</code> on Windows</td>
+<td>Anyone working locally, also on the command line</td>
+<td>Unzip and double-click <code>cnx.exe</code>. See <a href="#installing">Installing</a></td>
+</tr>
+<tr>
+<td>Container</td>
+<td>Anyone hosting it themselves</td>
+<td><code>docker run</code> with the image from GHCR. See <a href="https://github.com/levicaers1-pixel/cnx-toolkit-web/blob/main/docs/AZURE.md" target="_blank" rel="noopener">docs/AZURE.md</a> and the README</td>
+</tr>
+</tbody>
+</table>
+<p>The web app is the same everywhere. At the top right you choose the language (<strong>NL</strong> or <strong>EN</strong>); your browser
+remembers the choice.</p>
+<h2 id="web-app">Web app</h2>
+<table>
+<thead>
+<tr>
+<th>Tab</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Onboarding</td>
+<td>Choose a device group in new Central, select switches and gateways, review IP and hostname, and download the import file (aliases). See <a href="#onboarding">Onboarding</a></td>
+</tr>
+<tr>
+<td>Check overrides</td>
+<td>What is set locally on a switch compared with what it inherits, for profiles and aliases, and removing overrides. See <a href="#check-overrides">Check overrides</a></td>
+</tr>
+<tr>
+<td>AP migration</td>
+<td>Read in an AOS-8 inventory of the mobility conductor and see what is ready for AOS-10, with a report and a migration plan per cluster. See <a href="#ap-migration">AP migration</a></td>
+</tr>
+<tr>
+<td>Settings</td>
+<td>Only in the local app: fill in <code>klantconfig.json</code> for <code>cnx alias</code> on the command line</td>
+</tr>
+<tr>
+<td>Manual</td>
+<td>This manual</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Signing in.</strong> Click Sign in at the top right and enter the API URL of your new Central (e.g.
+<code>https://de1.api.central.arubanetworks.com</code>), a client ID and a secret. They stay only in the toolkit's memory, for your
+session, and are never stored. A Central token expires after a while; the toolkit then signs in again by itself. AP
+migration does not need a sign-in.</p>
+<h3 id="onboarding">Onboarding</h3>
+<p>For switches and Mobility Gateways. Three screens, no customer config needed:</p>
+<ol>
+<li><strong>Choose devices.</strong> Choose the device group and click Fetch devices. Per switch the toolkit reads from Central:
+   hostname, site, site collection, device function, the System-info profile and the management IP. If the switch
+   already has an alias <code>sys_vlan_ipv4_&lt;vlan&gt;</code> (switches from Classic), the IP, prefix and VLAN come from it;
+   otherwise the IP comes from monitoring with the prefix you enter, and the management VLAN set on Global. Select the
+   devices you want.</li>
+<li><strong>Gateways</strong> in the same device group are included, with Device Function <em>Mobility Gateway</em> in the import file.
+     Their management IP comes only from the alias <code>sys_vlan_ipv4_&lt;vlan&gt;</code> on the gateway: the IP in monitoring is
+     usually the uplink's (e.g. DHCP on VLAN 4094) and is not used. If there is no alias yet, fill in the management
+     IP (e.g. the controller's IP in AOS-8). Other aliases on the gateway are left alone.</li>
+<li><strong>Review.</strong> A table with hostname, device function, IP, VLAN and System-info profile per device, all editable,
+   also for all devices at once. Errors (invalid or duplicate IP, invalid VLAN) turn red straight away; as long as
+   there are errors you cannot continue. An empty or invalid hostname is not an error: then only the IP is included.
+   An empty System-info profile stands out; choose the profile the device has in Central.</li>
+<li><strong>File.</strong> A preview of the import file as Central receives it, with a Download button. Upload it through
+   Configuration &gt; Library &gt; Named Objects &gt; Aliases &gt; Bulk upload, then check a device. The local app also keeps a copy
+   in <code>cnx-web/onboarding</code>.</li>
+</ol>
+<h3 id="check-overrides">Check overrides</h3>
+<ul>
+<li><strong>On the left</strong> you filter the switches by device group and site, and scan the shown (or selected) switches. After
+  the scan each switch shows how many objects are different, redundant or only on that switch.</li>
+<li><strong>On the right</strong>, after a scan, you see a table per switch with a verdict (in order, clean up, to review); click a
+  switch for the details: counters, a short summary, removal, and everything set locally.</li>
+<li>Two tabs: <strong>Profiles</strong> and <strong>Aliases</strong>. Everything can be exported to CSV.</li>
+<li>The requests to Central and any profiles that could not be read are collapsed under Technical details.</li>
+</ul>
+<p>The toolkit reads everything set locally on the switch (VLANs, SVIs, system, DNS, NTP, logging, SNMP, port and
+interface profiles, management, AAA, STP, LLDP, VSF, firmware policy and aliases) and compares it field by field with
+what the switch inherits from the nearest higher scope that has the object: device group, then site, site collection,
+Global.</p>
+<table>
+<thead>
+<tr>
+<th>Word</th>
+<th>Meaning</th>
+<th>After removal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>different</td>
+<td>Locally different from what it inherits; you see both values per field</td>
+<td>The switch takes over the value it inherits from above: its behaviour changes</td>
+</tr>
+<tr>
+<td>redundant</td>
+<td>Locally equal to what it inherits</td>
+<td>The switch inherits the same value: nothing changes</td>
+</tr>
+<tr>
+<td>only on this switch</td>
+<td>Set nowhere above</td>
+<td>The object disappears from the switch</td>
+</tr>
+<tr>
+<td>per switch (normal)</td>
+<td>Meant to differ per switch (hostname, management IP)</td>
+<td>Never removed</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Removing overrides</strong> always takes two steps. Tick what may go and click Make a plan: the toolkit checks again in
+Central that each object still has the same status (anything that changed in the meantime drops out) and shows the
+effect per object. Only <strong>Really remove</strong> removes anything. If objects in the plan change the switch, you type DELETE
+to confirm. Central refuses to remove an object that is still in use (e.g. a VLAN on a port); the result shows it as
+"in use, not removed". After removal the toolkit checks that the object is gone. System info, management interface,
+local management and firmware policy are never removed. With <strong>Download log</strong> you keep a record of what happened; the
+local app also writes it to <code>cnx-web/overrides-wissen-log-&lt;time&gt;.json</code>.</p>
+<h3 id="ap-migration">AP migration</h3>
+<p>For the move from AOS-8 (mobility conductor and controllers) to AOS-10 in new Central. It only reads files: nothing is
+changed and you do not need to sign in.</p>
+<ol>
+<li>On the mobility conductor, take the output of <code>show ap database long</code> and <code>show switches</code>, each as a text file (or
+   together in one file). An Excel (.xlsx) or CSV file with the same columns works too.</li>
+<li>Choose the files in the AP migration tab and click Read.</li>
+<li>You get:</li>
+<li><strong>Models</strong>: per AP and controller model whether it supports AOS-10: <em>ready</em>, <em>end approaching</em> (can move, but
+     support ends soon), <em>replace</em>, <em>goes away</em> (the conductor) or <em>to review</em> (unknown model).</li>
+<li><strong>Clusters</strong>: controllers that are each other's standby (from the APs' Standby IP). With two or more you migrate
+     step by step without losing the tunneled SSIDs; with one controller you need a maintenance window or a temporary
+     gateway. A cluster with APs that must be replaced is shown as blocked.</li>
+<li><strong>AP groups</strong>: the basis for the mapping to sites and device groups in Central.</li>
+<li><strong>To clean up</strong>: APs in the group default, without a name (MAC as name), down or with a duplicate name, and
+     controllers that are down or have no APs.</li>
+<li><strong>Download report (HTML)</strong>: the same data as a report for the customer, printable as PDF.</li>
+<li><strong>Migration plan</strong>: tick the clusters you migrate in one wave and click Make step plan. You get a customer-wide part
+   (once: GreenLake and subscriptions, AOS-10 version, structure and wireless configuration in Central, RADIUS
+   clients, reachability, lab test) and per cluster the phases Prepare, First gateway (or Convert the gateway for a
+   cluster with one controller), Convert APs (one step per AP group), Second gateway and Finish, with a fallback plan
+   and the list of APs.</li>
+<li>Tick off steps as you work. The inventory and the ticked steps are kept per customer in this browser, never on
+     the server; type the customer name and the toolkit loads them again.</li>
+<li><strong>Export</strong> creates a migration file (<code>.json</code>) with the inventory, the ticked steps and the chosen clusters. With
+     <strong>Load migration file...</strong> you continue on another PC or hand the plan over.</li>
+<li><strong>Download step plan (HTML)</strong> gives the plan with the ticked steps, for the engineer or the customer.</li>
+<li>Steps marked <em>check</em> contain commands that can differ per AOS-8 version (converting controllers and APs): check
+     them in HPE's migration guide before you run them.</li>
+<li>The report and the plan come in the language you chose at the top right.</li>
+</ol>
+<p>The support status per model is in <code>aos10-modellen.json</code> in the toolkit, with the date of the list. Check it for the
+AOS-10 version you use on HPE's Supported Access Point Platforms and Supported Gateway Platforms pages.</p>
+<h2 id="hosted-version">Hosted version</h2>
+<p>The web app can also run on a server, for several users (<code>cnx web --server</code>, or the container image).</p>
+<ul>
+<li>Each browser gets its own session and signs in to its own Central. The server stores nothing: no database, nothing
+  on disk. After 30 minutes without activity, or on sign-out, the session and the secret are gone.</li>
+<li>During a pilot the administrator can set a <strong>pilot code</strong>: the app then asks for that code first.</li>
+<li>The Settings tab does not exist in the hosted version; import files and logs come as downloads.</li>
+<li>Hosting on Azure (free within the monthly grant): see <a href="https://github.com/levicaers1-pixel/cnx-toolkit-web/blob/main/docs/AZURE.md" target="_blank" rel="noopener">docs/AZURE.md</a> (Dutch). Technical details of
+  the server mode: <a href="https://github.com/levicaers1-pixel/cnx-toolkit-web/blob/main/docs/WEBAPP.md" target="_blank" rel="noopener">docs/WEBAPP.md</a> (Dutch).</li>
+</ul>
+<h2 id="installing">Installing</h2>
+<p>For the local app on Windows (10 or 11, no Python needed):</p>
+<ol>
+<li>Unzip into a folder, for example <code>C:\Tools\CNX Toolkit</code>.</li>
+<li>Double-click <code>cnx.exe</code>: your browser opens the web app at <code>http://127.0.0.1:8766</code>. Close the black window to stop.</li>
+<li>If Windows shows "Windows protected your PC" on the first start: click "More info" and then "Run anyway". That
+   happens with every unsigned <code>.exe</code>.</li>
+</ol>
+<p>Check: open PowerShell in that folder and type <code>.\cnx.exe --version</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cnx</code></td>
+<td>The web app (also when you double-click <code>cnx.exe</code>)</td>
+</tr>
+<tr>
+<td><code>cnx web</code></td>
+<td>The same, with options: <code>--poort</code> (port), <code>--map</code> (working folder), <code>--geen-browser</code> (no browser), <code>--zonder-opslag</code> (nothing on disk), <code>--server</code> (server mode, with <code>--host-naam</code> and <code>--adres</code>)</td>
+</tr>
+<tr>
+<td><code>cnx menu</code></td>
+<td>A menu in the window</td>
+</tr>
+<tr>
+<td><code>cnx alias ...</code></td>
+<td>Create and check upload files on the command line, for large lists. Also: convert a switch list from Classic, compare after the upload, analyse imported values</td>
+</tr>
+<tr>
+<td><code>cnx api ...</code></td>
+<td>Through the new Central API: create and assign aliases, clean up local values, push VLANs from Global to aggregation and core</td>
+</tr>
+<tr>
+<td><code>cnx sjablonen</code></td>
+<td>Put <code>klantconfig.json</code> and <code>toestellen-sjabloon.csv</code> in the current folder</td>
+</tr>
+<tr>
+<td><code>cnx hulp</code></td>
+<td>Open this manual</td>
+</tr>
+</tbody>
+</table>
+<p>The command-line tools (<code>cnx alias</code>, <code>cnx api</code>) and their messages are in Dutch.</p>
+<h2 id="requirements">Requirements</h2>
+<ul>
+<li>An API client in HPE GreenLake (Manage Workspace, Personal API clients) with access to new Central, for Onboarding,
+  Check overrides and <code>cnx api</code>. Preferably use a separate client for this tool, with only the rights it needs, and
+  revoke it after the migration.</li>
+<li>AP migration and <code>cnx alias</code> work without the API.</li>
+</ul>
+<h2 id="command-line">Command line</h2>
+<h3 id="customer-config">Customer config</h3>
+<p><code>cnx alias</code> uses <code>klantconfig.json</code> from the folder where you start it. Create one with <code>.\cnx.exe sjablonen</code> and fill
+it in, or use the Settings tab of the local app (with validation, and a proposal from a bulk download). Everything
+with <code>VUL-IN</code> must go:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>klant</code></td>
+<td>Customer name, for information only</td>
+</tr>
+<tr>
+<td><code>velden.hostname.instance</code></td>
+<td>Name of the shared System-info profile in new Central that holds the hostname of new switches. Optional: empty means only the IP is included (except for switches with their own system profile)</td>
+</tr>
+<tr>
+<td><code>velden.sys_vlan_ip.standaard_vlan</code></td>
+<td>Management VLAN. Central names the management IP alias <code>sys_vlan_ipv4_&lt;vlan&gt;</code></td>
+</tr>
+<tr>
+<td><code>velden.mgmt_ip.instance</code></td>
+<td>Name of the management interface (OOBM), usually <code>mgmt</code></td>
+</tr>
+<tr>
+<td><code>modified</code></td>
+<td>Leave it at <code>Yes</code>: Central only applies rows with <code>Yes</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="api-credentials">API credentials</h3>
+<p>Per PowerShell window:</p>
+<pre><code class="language-powershell">$env:CNX_BASE_URL      = &quot;https://de1.api.central.arubanetworks.com&quot;
+$env:CNX_CLIENT_ID     = &quot;...&quot;
+$env:CNX_CLIENT_SECRET = &quot;...&quot;
+</code></pre>
+<p>Use the API URL of your own cluster. The tool never writes the credentials anywhere.</p>
+<h3 id="1-device-values-per-wave-hostname-management-ip">1. Device values per wave (hostname, management IP)</h3>
+<p>Central's bulk upload only works for switches that are already in new Central, with a site, device group and device
+function. So set the values after moving or onboarding a wave. With a screen: the Onboarding tab. On the command line,
+e.g. with a switch list from Classic (Devices, Switches, export):</p>
+<pre><code class="language-powershell">.\cnx.exe alias uit-classic-lijst --lijst export_switch_list.csv --prefix 24 --site-collection Belgium --out toestellen.csv
+.\cnx.exe alias controleer --toestellen toestellen.csv
+.\cnx.exe alias genereer --toestellen toestellen.csv --out uploads
+</code></pre>
+<p>Upload each file in <code>uploads</code> in new Central: Configuration, Library, Named Objects, Aliases, bulk upload. Check:
+fetch a bulk download and compare.</p>
+<pre><code class="language-powershell">.\cnx.exe alias vergelijk --toestellen toestellen.csv --download bulk_alias_download_....csv
+</code></pre>
+<h3 id="2-imported-vlan-descriptions-to-the-library">2. Imported VLAN descriptions to the library</h3>
+<p>A switch that moves from Classic gets its VLAN descriptions as local aliases. Because of that, a change on Global does
+not apply to that switch.</p>
+<pre><code class="language-powershell">.\cnx.exe alias globaliseer --download bulk_alias_download_....csv --out globaal
+.\cnx.exe api aanmaken --waarden globaal\2-global-waarden.csv --library --apply
+.\cnx.exe api toewijzen --waarden globaal\2-global-waarden.csv --apply
+.\cnx.exe api opkuisen --lijst globaal\3-opkuis-per-switch.csv --serial &lt;SERIAL&gt; --apply
+</code></pre>
+<p>First without <code>--apply</code> (dry run), and first with one switch. Every alias the toolkit creates through the API gets the
+description "Alias aangemaakt via CNX API Tool". The bulk upload files have no column for the description, so aliases
+from an upload through the UI do not get it.</p>
+<h3 id="3-vlans-from-global-also-to-aggregation-and-core">3. VLANs from Global also to aggregation and core</h3>
+<pre><code class="language-powershell">.\cnx.exe api vlans-doorzetten
+.\cnx.exe api vlans-doorzetten --apply
+</code></pre>
+<p>Check in the dry run which VLANs and which switches are affected. Keep the log: you use it to roll back
+(<code>vlans-terugdraaien --log ...</code>).</p>
+<h2 id="safety">Safety</h2>
+<ul>
+<li>Everything that changes something in Central starts with a dry run or a plan. Only <code>--apply</code> on the command line or
+  <strong>Really remove</strong> in the web app writes.</li>
+<li>Every change leaves a log (<code>.json</code>, with the tool's version number): as a download, and in the local app also in the
+  working folder.</li>
+<li>After a change the tool reads back and reports differences.</li>
+<li>Central refuses to remove an alias or VLAN that something refers to. The tool reports that as "in use".</li>
+<li>How the hosted version handles data: see <a href="https://github.com/levicaers1-pixel/cnx-toolkit-web/blob/main/SECURITY.md" target="_blank" rel="noopener">SECURITY.md</a>.</li>
+</ul>
+<h2 id="limitations">Limitations</h2>
+<ul>
+<li>AOS-CX switches and Mobility Gateways (onboarding and overrides); access points only as analysis and plan for the
+  move from AOS-8 to AOS-10.</li>
+<li>Central's bulk upload only updates existing aliases: it cannot create or remove them, and VSF stacks are not
+  supported. Stacks go into <code>manueel-stacks.csv</code>.</li>
+<li>The new Central configuration API is v1alpha1: paths and fields can change. Test a new version of Central with a dry
+  run first.</li>
+<li>The commands in the migration plan (steps marked <em>check</em>) have not yet been verified against HPE's migration guide.</li>
+<li>Use at your own risk. See LICENSE (Apache-2.0).</li>
+</ul>
+<h2 id="support">Support</h2>
+<p>Report a problem on <a href="https://github.com/levicaers1-pixel/cnx-toolkit-web/issues" target="_blank" rel="noopener">GitHub</a>, without customer data.
+Mention the version number (<code>cnx --version</code>, or top left in the web app) and attach the log of the run. Report a
+security problem privately (see <a href="https://github.com/levicaers1-pixel/cnx-toolkit-web/blob/main/SECURITY.md" target="_blank" rel="noopener">SECURITY.md</a>).</p></main></body></html>

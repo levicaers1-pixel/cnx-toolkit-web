@@ -1,6 +1,6 @@
 """Bouwhulp: LEESMIJ.html genereren, Windows-versie-info schrijven, release-zip maken.
 
-  python build/maak.py leesmij      data/LEESMIJ.html uit LEESMIJ.md (nodig voor 'cnx hulp')
+  python build/maak.py leesmij      data/LEESMIJ.html en data/MANUAL.html uit LEESMIJ.md en MANUAL.md (tabblad Handleiding, 'cnx hulp')
   python build/maak.py versie       build/versie.txt voor de eigenschappen van cnx.exe
   python build/maak.py zip          dist/CNX-Toolkit-<versie>.zip met cnx.exe, documentatie en sjablonen
 """
@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.join(ROOT, "src"))
 from cnx_api import __version__  # noqa: E402
 
 DATA = os.path.join(ROOT, "src", "cnx_api", "data")
+GITHUB = "https://github.com/levicaers1-pixel/cnx-toolkit-web"
 
 
 # Zelfde vormgeving als de webapp (cnx web), met donkere modus volgens het systeem.
@@ -39,17 +40,27 @@ pre{background:var(--panel2);border:1px solid var(--line);padding:14px 16px;bord
 """
 
 
-def leesmij():
+def _handleiding(bron, doel, taal, titel, versie_woord):
     import markdown
-    with open(os.path.join(ROOT, "LEESMIJ.md"), encoding="utf-8") as f:
-        body = markdown.markdown(f.read(), extensions=["tables", "fenced_code"])
-    html = ("<!DOCTYPE html><html lang=\"nl\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+    with open(os.path.join(ROOT, bron), encoding="utf-8") as f:
+        body = markdown.markdown(f.read(), extensions=["tables", "fenced_code", "toc"])   # toc: ankers op de koppen
+    # Links naar andere bestanden in de repository (README, docs/...) werken niet in de app: naar GitHub, in een nieuw tabblad.
+    body = re.sub(r'href="((?:docs/)?[A-Za-z0-9_.-]+\.md)(#[^"]*)?"',
+                  lambda m: f'href="{GITHUB}/blob/main/{m.group(1)}{m.group(2) or ""}" target="_blank" rel="noopener"', body)
+    body = re.sub(r'href="(https?://[^"]+)"(?! target)', lambda m: f'href="{m.group(1)}" target="_blank" rel="noopener"', body)
+    html = (f"<!DOCTYPE html><html lang=\"{taal}\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
             f"<title>CNX Toolkit {__version__}</title><style>{LEESMIJ_STIJL}</style></head>\n<body><main>"
-            f"<div class=\"kop\"><span class=\"logo\" aria-hidden=\"true\">CNX</span><div><strong>Handleiding</strong>"
-            f"<div class=\"versie\">CNX Toolkit, versie {__version__}</div></div></div>\n{body}</main></body></html>")
-    with open(os.path.join(DATA, "LEESMIJ.html"), "w", encoding="utf-8") as f:
+            f"<div class=\"kop\"><span class=\"logo\" aria-hidden=\"true\">CNX</span><div><strong>{titel}</strong>"
+            f"<div class=\"versie\">CNX Toolkit, {versie_woord} {__version__}</div></div></div>\n{body}</main></body></html>")
+    with open(os.path.join(DATA, doel), "w", encoding="utf-8") as f:
         f.write(html)
-    print("data/LEESMIJ.html geschreven")
+    print(f"data/{doel} geschreven")
+
+
+def leesmij():
+    """De handleiding in beide talen: LEESMIJ.md (Nederlands) en MANUAL.md (Engels)."""
+    _handleiding("LEESMIJ.md", "LEESMIJ.html", "nl", "Handleiding", "versie")
+    _handleiding("MANUAL.md", "MANUAL.html", "en", "Manual", "version")
 
 
 def versie():
@@ -77,7 +88,7 @@ def maak_zip():
     map_ = f"CNX Toolkit {__version__}"
     with zipfile.ZipFile(doel, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(exe, f"{map_}/{os.path.basename(exe)}")
-        for naam in ("LEESMIJ.md", "LICENSE", "NOTICE", "CHANGELOG.md"):
+        for naam in ("LEESMIJ.md", "MANUAL.md", "LICENSE", "NOTICE", "CHANGELOG.md"):
             z.write(os.path.join(ROOT, naam), f"{map_}/{naam}")
         z.write(os.path.join(DATA, "LEESMIJ.html"), f"{map_}/LEESMIJ.html")
         z.write(os.path.join(ROOT, "docs", "TECHNISCH.md"), f"{map_}/docs/TECHNISCH.md")

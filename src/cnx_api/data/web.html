@@ -184,7 +184,7 @@ dialog .field{max-width:none}
 
 <dialog id="dlg">
   <h2>Aanmelden bij new Central</h2>
-  <p class="hint">De gegevens blijven enkel in het geheugen van dit programma op deze computer.</p>
+  <p class="hint">Client ID en secret blijven enkel in het geheugen van de toolkit, voor deze sessie, en worden nergens bewaard.</p>
   <div class="field"><label for="d-base">Base URL van de API</label><input id="d-base" type="text" placeholder="https://de1.api.central.arubanetworks.com"></div>
   <div class="field"><label for="d-id">Client ID</label><input id="d-id" type="text" autocomplete="off"></div>
   <div class="field"><label for="d-secret">Client secret</label><input id="d-secret" type="password" autocomplete="off"></div>
@@ -196,15 +196,52 @@ dialog .field{max-width:none}
 const T = "__TOKEN__";
 const OPSLAG = __OPSLAG__;   // false: de server bewaart niets (servermodus); bestanden enkel als download
 const $ = id => document.getElementById(id);
+
+// ---------------------------------------------------------------- taal (NL/EN)
+// De keuze staat in de cookie cnx_taal (zo kiest ook de server de taal van zijn meldingen); zonder cookie de taal van
+// de browser. EN = Nederlandse tekst -> Engelse tekst. vt() vertaalt een tekst: eerst de hele tekst, anders de
+// stukken die erin staan (zo worden ook samengestelde zinnen als "5 toestellen gekozen" vertaald).
+const EN = __EN__;
+const TAAL = (() => {
+  const c = (document.cookie.match(/(?:^|;\s*)cnx_taal=(nl|en)/) || [])[1];
+  return c || ((navigator.language || "").toLowerCase().startsWith("nl") ? "nl" : "en");
+})();
+function zetTaal(t) {
+  document.cookie = "cnx_taal=" + t + "; Path=/; Max-Age=31536000; SameSite=Strict" + (location.protocol === "https:" ? "; Secure" : "");
+}
+zetTaal(TAAL);
+const EN_STUKKEN = Object.keys(EN).filter(k => k !== k.trim() || /\s/.test(k)).sort((a, b) => b.length - a.length);
+const EN_RE = EN_STUKKEN.length ? new RegExp(EN_STUKKEN.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g") : null;
+const heeft = k => Object.prototype.hasOwnProperty.call(EN, k);
+function vt(s) {
+  if (TAAL !== "en" || typeof s !== "string" || !s) return s;
+  if (heeft(s)) return EN[s];
+  const kern = s.trim();
+  if (kern && kern !== s && heeft(kern)) return s.replace(kern, EN[kern]);
+  return EN_RE ? s.replace(EN_RE, m => EN[m]) : s;
+}
+// Een zin met invulplaatsen {0}, {1}...: eerst de zin vertalen, dan de waarden invullen (die worden niet vertaald).
+function t(s, ...waarden) {
+  let r = TAAL === "en" && heeft(s) ? EN[s] : s;
+  waarden.forEach((w, i) => { r = r.split("{" + i + "}").join(String(w)); });
+  return r;
+}
+const VERTAAL_ATTR = new Set(["title", "placeholder", "aria-label", "data-tip", "alt"]);
+function vertaalStatisch(root) {
+  if (TAAL !== "en") return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = w.nextNode(); n; n = w.nextNode()) if (n.nodeValue.trim()) n.nodeValue = vt(n.nodeValue);
+  for (const e of root.querySelectorAll("*")) for (const a of VERTAAL_ATTR) if (e.hasAttribute(a)) e.setAttribute(a, vt(e.getAttribute(a)));
+}
 function el(tag, attrs, ...kids) {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
     if (v === null || v === undefined || v === false) continue;
     if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
     else if (k === "checked" || k === "value" || k === "disabled" || k === "selected") e[k] = v;
-    else e.setAttribute(k, v === true ? "" : v);
+    else e.setAttribute(k, v === true ? "" : (VERTAAL_ATTR.has(k) ? vt(String(v)) : v));
   }
-  for (const c of kids.flat()) if (c !== null && c !== undefined && c !== false) e.append(c.nodeType ? c : String(c));
+  for (const c of kids.flat()) if (c !== null && c !== undefined && c !== false) e.append(c.nodeType ? c : vt(String(c)));
   return e;
 }
 async function get(p) { const r = await fetch(p + (p.includes("?") ? "&" : "?") + "t=" + T); return r.json(); }
@@ -250,9 +287,9 @@ function openTab(id) {
 // ---------------------------------------------------------------- aanmelden
 async function laadStatus() {
   try { STATUS = await get("/api/status"); } catch (e) { STATUS = { aangemeld: false }; }
-  $("stat").textContent = STATUS.aangemeld ? "aangemeld · " + (STATUS.base || "").replace(/^https?:\/\//, "") : "niet aangemeld";
+  $("stat").textContent = vt(STATUS.aangemeld ? "aangemeld · " + (STATUS.base || "").replace(/^https?:\/\//, "") : "niet aangemeld");
   $("stat").className = "pill " + (STATUS.aangemeld ? "ok" : "neu");
-  $("aanmeldknop").textContent = STATUS.aangemeld ? "Afmelden" : "Aanmelden";
+  $("aanmeldknop").textContent = vt(STATUS.aangemeld ? "Afmelden" : "Aanmelden");
 }
 $("aanmeldknop").onclick = async () => {
   if (STATUS.aangemeld) { await post("/api/web/afmelden", {}); await laadStatus(); renderAlles(); return; }
@@ -263,11 +300,11 @@ $("aanmeldknop").onclick = async () => {
 $("d-annuleer").onclick = () => $("dlg").close();
 $("d-ok").onclick = async () => {
   const base = $("d-base").value.trim(), id = $("d-id").value.trim(), secret = $("d-secret").value;
-  if (!base || !id || !secret) { $("d-fout").textContent = "Vul alle drie de velden in."; $("d-fout").hidden = false; return; }
+  if (!base || !id || !secret) { $("d-fout").textContent = vt("Vul alle drie de velden in."); $("d-fout").hidden = false; return; }
   $("d-ok").disabled = true;
   try {
     const r = await post("/api/aanmelden", { base, id, secret });
-    if (!r.ok) { $("d-fout").textContent = r.melding || r.fout || "Aanmelden mislukt."; $("d-fout").hidden = false; return; }
+    if (!r.ok) { $("d-fout").textContent = vt(r.melding || r.fout || "Aanmelden mislukt."); $("d-fout").hidden = false; return; }
     opslaan("base", base); $("d-secret").value = ""; $("dlg").close();
     await laadStatus(); renderAlles();
   } finally { $("d-ok").disabled = false; }
@@ -357,16 +394,16 @@ function renderKlant() {
 
   function bijwerken() {
     const f = kFouten(c);
-    for (const [id, r] of Object.entries(refs)) { r.textContent = f[id] || ""; r.hidden = !f[id]; }
+    for (const [id, r] of Object.entries(refs)) { r.textContent = vt(f[id] || ""); r.hidden = !f[id]; }
     const vlan = c.velden.sys_vlan_ip.standaard_vlan;
-    preview.textContent = "Alias van het beheer-IP: " + String(c.velden.sys_vlan_ip.alias_patroon || "sys_vlan_ipv4_{vlan}").replace("{vlan}", vlan || "?");
+    preview.textContent = vt("Alias van het beheer-IP: ") + String(c.velden.sys_vlan_ip.alias_patroon || "sys_vlan_ipv4_{vlan}").replace("{vlan}", vlan || "?");
     const h = testInvoer.value;
     let ok = null; try { ok = h ? new RegExp(c.hostname_regex || STD_REGEX).test(h) : null; } catch (e) { ok = null; }
-    tester.textContent = ok === null ? "" : ok ? "voldoet" : "voldoet niet";
+    tester.textContent = vt(ok === null ? "" : ok ? "voldoet" : "voldoet niet");
     tester.className = "pill " + (ok === null ? "neu" : ok ? "ok" : "bad"); tester.hidden = ok === null;
     const hard = HARD.some(id => f[id]);
     opslaanKnop.disabled = hard;
-    opslaanKnop.title = hard ? "Los eerst de rode fouten op." : "";
+    opslaanKnop.title = vt(hard ? "Los eerst de rode fouten op." : "");
     const g = kGewijzigd(); gewijzigd.hidden = !g; ongedaan.hidden = !g;
   }
   const invoer = d => {
@@ -423,7 +460,7 @@ function voorstelKaart() {
   const fout = el("p", { class: "err", hidden: true });
   const knop = el("button", { class: "btn", onclick: async () => {
     fout.hidden = true;
-    if (!KBULK) { fout.textContent = "Kies eerst een bulk-download."; fout.hidden = false; return; }
+    if (!KBULK) { fout.textContent = vt("Kies eerst een bulk-download."); fout.hidden = false; return; }
     knop.disabled = true;
     try {
       const r = await post("/api/web/klantconfig/voorstel", { bestand: KBULK });
@@ -533,7 +570,7 @@ function jtabel(o) {
       return el("tr", { class: [o.opRij ? "klik" : "", cls === "bad" ? "r-bad" : ""].join(" ").trim() || null, onclick: o.opRij ? () => o.opRij(it) : null },
         kol.map(k => { const w = waarde(it, k), p = k.pill ? k.pill(w) : null; return el("td", { class: k.mono ? "mono" : null, style: k.wrap ? "white-space:normal;min-width:280px;max-width:460px" : null }, p && w ? el("span", { class: "pill " + p }, w) : w); }));
     }));
-    telregel.textContent = zicht.length + " van " + items.length + (zicht.length > MAX_RIJEN ? ". Toont de eerste " + MAX_RIJEN + "; exporteer voor alles." : "") + (o.afgekapt ? " (Central gaf niet alles terug)" : "");
+    telregel.textContent = vt(zicht.length + " van " + items.length + (zicht.length > MAX_RIJEN ? ". Toont de eerste " + MAX_RIJEN + "; exporteer voor alles." : "") + (o.afgekapt ? " (Central gaf niet alles terug)" : ""));
   }
   vul();
   return el("div", {}, el("div", { class: "row", style: "margin:4px 0 8px" }, chips, zoek, telregel,
@@ -949,8 +986,8 @@ function ovrInhoud() {
 // gelijk = overbodig (verandert niets); verschilt = switch neemt de geerfde waarde over; enkel lokaal = verdwijnt van de switch.
 // ctx = { kandidaten: rijen uit de scan, st, herteken, naUitvoeren }
 const WIS_STATUS = {
-  "gelijk": ["info", "verandert niets", v => "erft dezelfde waarde van " + (v || "hoger")],
-  "verschilt": ["warn", "switch verandert", v => "neemt de waarde van " + (v || "hoger") + " over"],
+  "gelijk": ["info", "verandert niets", v => t("erft dezelfde waarde van {0}", v || t("hoger"))],
+  "verschilt": ["warn", "switch verandert", v => t("neemt de waarde van {0} over", v || t("hoger"))],
   "enkel lokaal": ["bad", "verdwijnt", () => "verdwijnt van de switch (staat nergens hoger)"],
 };
 function wisPaneel(ctx) {
@@ -1018,9 +1055,9 @@ function wisPaneel(ctx) {
         el("span", {}, plan.acties.length + " overrides nagekeken en klaar om te wissen." + (pr.length ? " Let op: " + pr.length + " ervan veranderen de werking van de switch." : " De switches erven dezelfde waarde.")),
         el("button", { class: "btn danger", disabled: !!st.bezig || null, onclick: async () => {
           if (pr.length) {
-            const w = prompt("Dit wist " + plan.acties.length + " lokale overrides in new Central.\n" + pr.length + " ervan veranderen de switch: ze nemen de waarde van hoger over of verdwijnen.\n\nTyp WISSEN om door te gaan.");
-            if ((w || "").trim().toUpperCase() !== "WISSEN") return;
-          } else if (!confirm("Dit wist " + plan.acties.length + " lokale overrides in new Central.\nDe switches erven daarna dezelfde waarde van hoger.\n\nDoorgaan?")) return;
+            const w = prompt(vt("Dit wist " + plan.acties.length + " lokale overrides in new Central.\n" + pr.length + " ervan veranderen de switch: ze nemen de waarde van hoger over of verdwijnen.\n\nTyp WISSEN om door te gaan."));
+            if ((w || "").trim().toUpperCase() !== vt("WISSEN")) return;
+          } else if (!confirm(vt("Dit wist " + plan.acties.length + " lokale overrides in new Central.\nDe switches erven daarna dezelfde waarde van hoger.\n\nDoorgaan?"))) return;
           st.bezig = "Wissen in Central..."; ctx.herteken();
           const r = await ophaalEnWacht("wissen", { plan: plan.id }, i => { st.vg = i; ctx.herteken(); });
           st.bezig = ""; st.vg = null;
@@ -1148,6 +1185,7 @@ function renderAos8() {
     AOS8.fout ? el("div", { class: "banner bad", style: "margin-top:12px" }, AOS8.fout) : "");
   const delen = [invoer];
   if (AOS8.res) {
+    if (AOS8.res.taal && AOS8.res.taal !== TAAL) delen.push(el("div", { class: "banner info", style: "max-width:1180px;margin:0 auto 16px" }, "Deze inventaris werd in een andere taal ingelezen. Lees ze opnieuw in om ook de teksten bij de clusters en modellen in deze taal te krijgen."));
     if (AOS8.geladen) delen.push(el("div", { class: "banner info", style: "max-width:1180px;margin:0 auto 16px" }, "Inventaris van " + (AOS8.res.klant || "deze klant") + " geladen, ingelezen op " + AOS8.geladen.slice(0, 16).replace("T", " ") + "."));
     delen.push(aos8Resultaat(AOS8.res), aos8PlanKaart(AOS8.res));
   }
@@ -1293,6 +1331,12 @@ async function ophaalEnWacht(soort, opties, opVoortgang) {
 
 // ---------------------------------------------------------------- start
 (async () => {
+  vertaalStatisch(document.querySelector("header"));
+  vertaalStatisch($("dlg"));
+  document.title = vt(document.title);
+  document.querySelector(".kopacties").prepend(el("button", { class: "btn small", id: "taalknop", lang: TAAL === "en" ? "nl" : "en",
+    title: TAAL === "en" ? "Nederlands" : "English", onclick: () => { zetTaal(TAAL === "en" ? "nl" : "en"); location.reload(); } },
+    TAAL === "en" ? "NL" : "EN"));
   bouwTabs();
   await Promise.all([laadStatus(), laadKlant()]);
   openTab((location.hash || "").slice(1) || "onboard");

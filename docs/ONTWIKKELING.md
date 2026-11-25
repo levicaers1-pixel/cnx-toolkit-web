@@ -56,3 +56,19 @@ De workflow ondertekent dan automatisch.
 - Geen klantgegevens in de code. Alles wat per klant verschilt, gaat in `klantconfig.json`.
 - Geheimen nooit wegschrijven.
 - Nieuwe vaststellingen over Central: in `docs/TECHNISCH.md`.
+
+## Vertaling (NL/EN)
+
+- **Webpagina** (`data/web.html`): elke tekst gaat door `vt()` (in `el()`, en waar tekst rechtstreeks gezet wordt). De
+  Engelse versie staat in `data/en-web.json`, met de Nederlandse tekst als sleutel. Ook stukken van samengestelde zinnen
+  ("5 toestellen gekozen") worden vertaald. Een zin met invulplaatsen: `t("neemt de waarde van {0} over", waarde)`.
+- **Server**: `from .taal import _` en `_("Nederlandse tekst met {naam}", naam=...)`; de Engelse versie staat in
+  `data/en-server.json`. De taal komt per aanvraag uit de cookie `cnx_taal` (anders Accept-Language), ook in
+  achtergrondtaken. De commandolijn blijft Nederlands.
+- Korte statuswaarden waar de pagina mee vergelijkt ("klaar", "gewist", "gelijk"), blijven Nederlands in de gegevens;
+  de pagina vertaalt ze enkel bij het tonen.
+- `tests/test_i18n.py` faalt bij een tekst zonder Engelse versie. Overzicht van wat ontbreekt:
+  `python tests/i18n_web.py` en `python tests/i18n_server.py`.
+- Handleiding: `LEESMIJ.md` (Nederlands) en `MANUAL.md` (Engels); `python build/maak.py leesmij` maakt de HTML voor het
+  tabblad Handleiding.
+

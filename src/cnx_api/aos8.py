@@ -15,6 +15,7 @@ import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 
 from . import resource
+from .taal import _, huidig
 
 
 class Fout(Exception):
@@ -51,18 +52,18 @@ def _onderdeel(z, naam, teller):
     info = z.getinfo(naam)
     teller[0] += info.file_size
     if info.file_size > MAX_UITGEPAKT or teller[0] > MAX_UITGEPAKT:
-        raise Fout("Excel-bestand te groot uitgepakt (maximum 20 MB)")
+        raise Fout(_("Excel-bestand te groot uitgepakt (maximum 20 MB)"))
     with z.open(info) as f:
         data = f.read(MAX_UITGEPAKT + 1)
     if len(data) > MAX_UITGEPAKT or b"<!DOCTYPE" in data[:4096].upper():
-        raise Fout("Excel-bestand niet aanvaard (te groot of met een DOCTYPE)")
+        raise Fout(_("Excel-bestand niet aanvaard (te groot of met een DOCTYPE)"))
     return data
 
 
 def _elementen(data, tag):
     """Elk afgesloten element met deze tag, waarna het gewist wordt: geheugen per element, niet per blad."""
     volledig = f"{{{NS['m']}}}{tag}"
-    for _, el in ET.iterparse(io.BytesIO(data), events=("end",)):
+    for _gebeurtenis, el in ET.iterparse(io.BytesIO(data), events=("end",)):
         if el.tag == volledig:
             yield el
             el.clear()
@@ -73,13 +74,13 @@ def lees_xlsx(data):
     try:
         z = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile:
-        raise Fout("geen geldig Excel-bestand (.xlsx)")
+        raise Fout(_("geen geldig Excel-bestand (.xlsx)"))
     with z:
         if len(z.infolist()) > MAX_ONDERDELEN:
-            raise Fout("Excel-bestand met te veel onderdelen")
+            raise Fout(_("Excel-bestand met te veel onderdelen"))
         namen = set(z.namelist())
         if "xl/_rels/workbook.xml.rels" not in namen or "xl/workbook.xml" not in namen:
-            raise Fout("geen geldig Excel-bestand (.xlsx)")
+            raise Fout(_("geen geldig Excel-bestand (.xlsx)"))
         teller, cellen = [0], 0
         gedeeld = []
         if "xl/sharedStrings.xml" in namen:
@@ -96,7 +97,7 @@ def lees_xlsx(data):
             rijen = []
             for row in _elementen(_onderdeel(z, pad, teller), "row"):
                 if len(rijen) >= MAX_RIJEN:
-                    raise Fout(f"Excel-blad met meer dan {MAX_RIJEN} rijen")
+                    raise Fout(_("Excel-blad met meer dan {n} rijen", n=MAX_RIJEN))
                 rij = {}
                 for c in row.findall("m:c", NS):
                     t, v = c.get("t"), c.find("m:v", NS)
@@ -113,7 +114,7 @@ def lees_xlsx(data):
                         rij[k] = w
                 cellen += (max(rij) + 1) if rij else 0
                 if cellen > MAX_CELLEN:
-                    raise Fout("Excel-bestand met te veel cellen")
+                    raise Fout(_("Excel-bestand met te veel cellen"))
                 rijen.append([rij.get(i, "") for i in range(max(rij) + 1)] if rij else [])
             bladen[s.get("name")] = rijen
         return bladen
@@ -152,7 +153,7 @@ def _tabellen(bestand):
     try:
         data = base64.b64decode(bestand.get("inhoud") or "", validate=False)
     except (ValueError, TypeError):
-        raise Fout(f"{naam}: kon het bestand niet lezen")
+        raise Fout(_("{naam}: kon het bestand niet lezen", naam=naam))
     if data[:2] == b"PK" or naam.lower().endswith(".xlsx"):
         return list(lees_xlsx(data).values())
     tekst = data.decode("utf-8-sig", errors="replace")
@@ -197,9 +198,9 @@ def _herken(rijen):
 def lees_bestanden(bestanden):
     """(aps, controllers, meldingen) uit de opgeladen bestanden."""
     if not isinstance(bestanden, list) or not bestanden:
-        raise Fout("kies minstens een bestand")
+        raise Fout(_("kies minstens een bestand"))
     if len(bestanden) > MAX_BESTANDEN:
-        raise Fout(f"hoogstens {MAX_BESTANDEN} bestanden tegelijk")
+        raise Fout(_("hoogstens {n} bestanden tegelijk", n=MAX_BESTANDEN))
     aps, ctrls, meldingen = {}, {}, []
     for b in bestanden:
         if not isinstance(b, dict):
@@ -215,11 +216,11 @@ def lees_bestanden(bestanden):
                     ctrls[r.get("naam") or r.get("ip")] = r
             gevonden = gevonden or bool(soort)
         if not gevonden:
-            meldingen.append(f"{b.get('naam')}: geen AP- of controllerlijst herkend")
+            meldingen.append(_("{naam}: geen AP- of controllerlijst herkend", naam=b.get("naam")))
     if not aps:
-        raise Fout("geen AP-lijst gevonden. Verwacht de kolommen van 'show ap database long' (Name, Group, AP Type, Serial #, ...)")
+        raise Fout(_("geen AP-lijst gevonden. Verwacht de kolommen van 'show ap database long' (Name, Group, AP Type, Serial #, ...)"))
     if not ctrls:
-        meldingen.append("geen controllerlijst gevonden ('show switches'): controllers enkel uit de AP-lijst")
+        meldingen.append(_("geen controllerlijst gevonden ('show switches'): controllers enkel uit de AP-lijst"))
     return list(aps.values()), list(ctrls.values()), meldingen
 
 
@@ -249,8 +250,8 @@ def ctrl_model(x):
 def beoordeel(model, regels):
     for r in regels:
         if re.search(r["patroon"], model, re.I):
-            return r["status"], r.get("opmerking", "")
-    return "onbekend", "niet in de lijst met AOS-10-modellen: nakijken"
+            return r["status"], _(r.get("opmerking", "")) if r.get("opmerking") else ""
+    return "onbekend", _("niet in de lijst met AOS-10-modellen: nakijken")
 
 
 def _is_up(s):
@@ -276,7 +277,7 @@ def gereedheid(aps, ctrls):
     for a in aps:
         m = ap_model(a.get("model"))
         st, opm = beoordeel(m, tabel["ap"])
-        c = a.get("controller") or ip_naam.get(_ip(a.get("switch_ip"))) or _ip(a.get("switch_ip")) or "(onbekend)"
+        c = a.get("controller") or ip_naam.get(_ip(a.get("switch_ip"))) or _ip(a.get("switch_ip")) or _("(onbekend)")
         sb = ip_naam.get(_ip(a.get("standby_ip"))) or _ip(a.get("standby_ip"))
         ap_rijen.append({"naam": a.get("naam", ""), "groep": a.get("groep", ""), "model": m, "serial": a.get("serial", ""),
                          "mac": a.get("mac", ""), "ip": a.get("ip", ""), "up": _is_up(a.get("status")),
@@ -304,9 +305,9 @@ def gereedheid(aps, ctrls):
     for n, c in ctrl.items():
         m = ctrl_model(c.get("model"))
         typ = str(c.get("type") or "").lower()
-        st, opm = beoordeel(m, tabel["controller"]) if m else ("onbekend", "model onbekend (geen controllerlijst)")
+        st, opm = beoordeel(m, tabel["controller"]) if m else ("onbekend", _("model onbekend (geen controllerlijst)"))
         if typ in ("conductor", "standby", "master") and st == "onbekend":
-            st, opm = "weg", "mobility conductor: valt weg"
+            st, opm = "weg", _("mobility conductor: valt weg")
         eigen = per_ctrl.get(n, [])
         ctrl_rijen.append({"naam": n, "ip": c.get("ip", ""), "model": m, "type": c.get("type", ""), "versie": c.get("versie", ""),
                            "status": (c.get("status") or "").lower(), "aps": len(eigen), "aps_up": sum(1 for a in eigen if a["up"]),
@@ -326,16 +327,16 @@ def gereedheid(aps, ctrls):
         actief = [c for c in cs if c["aps"]]
         n_ctrl = len(cs)
         if not lijst:
-            aanpak = "geen APs"
+            aanpak = _("geen APs")
         elif n_ctrl >= 2:
-            aanpak = "in stappen: een controller omzetten, APs verhuizen, dan de volgende"
+            aanpak = _("in stappen: een controller omzetten, APs verhuizen, dan de volgende")
         else:
-            aanpak = "een controller: onderhoudsvenster of tijdelijke gateway"
+            aanpak = _("een controller: onderhoudsvenster of tijdelijke gateway")
         blok = []
         if t["nee"]:
-            blok.append(f"eerst {t['nee']} APs vervangen")
+            blok.append(_("eerst {n} APs vervangen", n=t["nee"]))
         if any(c["aos10"] in ("nee", "onbekend") for c in cs):
-            blok.append("controllermodel nakijken")
+            blok.append(_("controllermodel nakijken"))
         clusters.append({"naam": " + ".join(namen), "controllers": n_ctrl, "actief": len(actief),
                          "modellen_ctrl": ", ".join(sorted({c["model"] or "?" for c in cs})),
                          "aps": len(lijst), "ok": t["ok"], "einde": t["einde"], "nee": t["nee"], "onbekend": t["onbekend"],
@@ -347,7 +348,7 @@ def gereedheid(aps, ctrls):
     # AP-groepen
     pg = defaultdict(list)
     for a in ap_rijen:
-        pg[a["groep"] or "(leeg)"].append(a)
+        pg[a["groep"] or _("(leeg)")].append(a)
     groepen = [{"groep": g, "aps": len(l), "controllers": ", ".join(sorted({a["controller"] for a in l})),
                 "modellen": _model_tekst(Counter(a["model"] for a in l)), "vervangen": sum(1 for a in l if a["aos10"] == "nee"),
                 "einde": sum(1 for a in l if a["aos10"] == "einde"), "down": sum(1 for a in l if not a["up"])}
@@ -372,19 +373,19 @@ def gereedheid(aps, ctrls):
     mac = re.compile(r"^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$", re.I)
     for a in ap_rijen:
         if a["groep"].lower() == "default":
-            opkuis.append({"soort": "AP in groep default", "naam": a["naam"], "detail": f"{a['model']}, {a['controller']}"})
+            opkuis.append({"soort": _("AP in groep default"), "naam": a["naam"], "detail": f"{a['model']}, {a['controller']}"})
         if mac.match(a["naam"]):
-            opkuis.append({"soort": "AP zonder naam (MAC)", "naam": a["naam"], "detail": f"{a['groep']}, {a['controller']}"})
+            opkuis.append({"soort": _("AP zonder naam (MAC)"), "naam": a["naam"], "detail": f"{a['groep']}, {a['controller']}"})
         if not a["up"]:
-            opkuis.append({"soort": "AP down", "naam": a["naam"], "detail": f"{a['groep']}, {a['model']}, {a['controller']}"})
+            opkuis.append({"soort": _("AP down"), "naam": a["naam"], "detail": f"{a['groep']}, {a['model']}, {a['controller']}"})
     for naam, n in Counter(a["naam"] for a in ap_rijen if a["naam"]).items():
         if n > 1:
-            opkuis.append({"soort": "dubbele AP-naam", "naam": naam, "detail": f"{n} APs"})
+            opkuis.append({"soort": _("dubbele AP-naam"), "naam": naam, "detail": f"{n} APs"})
     for c in ctrl_rijen:
         if c["status"] and c["status"] != "up":
-            opkuis.append({"soort": "controller down", "naam": c["naam"], "detail": f"{c['model']} {c['ip']}"})
+            opkuis.append({"soort": _("controller down"), "naam": c["naam"], "detail": f"{c['model']} {c['ip']}"})
         if c["aps"] == 0 and c["aos10"] != "weg":
-            opkuis.append({"soort": "controller zonder APs", "naam": c["naam"], "detail": "stand-by, of niet in gebruik?"})
+            opkuis.append({"soort": _("controller zonder APs"), "naam": c["naam"], "detail": _("stand-by, of niet in gebruik?")})
 
     t = Counter(a["aos10"] for a in ap_rijen)
     samen = {"aps": len(ap_rijen), "aps_up": sum(1 for a in ap_rijen if a["up"]), "ok": t["ok"], "einde": t["einde"],
@@ -406,6 +407,7 @@ def analyseer(bestanden, klant=""):
     res["meldingen"] = meldingen
     res["klant"] = str(klant or "").strip()[:80]
     res["tijd"] = datetime.datetime.now().isoformat(timespec="seconds")
+    res["taal"] = huidig()                 # de zinnen (aanpak, opmerkingen) staan in deze taal
     res["rapport"] = rapport_html(res)
     return res
 
@@ -422,32 +424,37 @@ def rapport_html(r):
                 + "".join("<tr>" + "".join(f"<td>{c}</td>" for c in rij) + "</tr>" for rij in rijen) + "</tbody></table>")
 
     def st(x, label):
-        return f'<span class="p" style="color:{pill.get(x, "#5f6c7f")};border-color:{pill.get(x, "#5f6c7f")}">{e(label)}</span>'
-    titel = "AOS-10 gereedheid" + (f" · {r.get('klant')}" if r.get("klant") else "")
-    tegels = [("APs", s["aps"]), ("APs up", s["aps_up"]), ("Klaar voor AOS-10", s["ok"]), ("Einde support nadert", s["einde"]),
-              ("Te vervangen", s["nee"]), ("Na te kijken", s["onbekend"]), ("Controllers → gateway", s["controllers"]),
-              ("Clusters met redundantie", s["redundant"]), ("Sites met een controller", s["enkel"])]
-    delen = [f"<h1>{e(titel)}</h1><p class='m'>Gemaakt op {e(r.get('tijd', '')[:16].replace('T', ' '))} uit de AOS-8-inventaris. "
-             f"{e(s['groepen'])} AP-groepen, {e(s['conductors'])} mobility conductors.</p>",
+        return f'<span class="p" style="color:{pill.get(x, "#5f6c7f")};border-color:{pill.get(x, "#5f6c7f")}">{e(_(label))}</span>'
+
+    def kop(*namen):
+        return [_(n) for n in namen]
+    titel = _("AOS-10 gereedheid") + (f" · {r.get('klant')}" if r.get("klant") else "")
+    tegels = [("APs", s["aps"]), ("APs up", s["aps_up"]), (_("Klaar voor AOS-10"), s["ok"]), (_("Einde support nadert"), s["einde"]),
+              (_("Te vervangen"), s["nee"]), (_("Na te kijken"), s["onbekend"]), (_("Controllers → gateway"), s["controllers"]),
+              (_("Clusters met redundantie"), s["redundant"]), (_("Sites met een controller"), s["enkel"])]
+    delen = [f"<h1>{e(titel)}</h1><p class='m'>"
+             + e(_("Gemaakt op {tijd} uit de AOS-8-inventaris. {groepen} AP-groepen, {conductors} mobility conductors.",
+                   tijd=r.get("tijd", "")[:16].replace("T", " "), groepen=s["groepen"], conductors=s["conductors"])) + "</p>",
              "<div class='t'>" + "".join(f"<div><b>{e(v)}</b><span>{e(k)}</span></div>" for k, v in tegels) + "</div>",
-             "<h2>Modellen</h2>", tabel(["Soort", "Model", "Aantal", "AOS-10", "Opmerking"],
+             f"<h2>{e(_('Modellen'))}</h2>", tabel(kop("Soort", "Model", "Aantal", "AOS-10", "Opmerking"),
                                         [[e(m["soort"]), e(m["model"]), e(m["aantal"]), st(m["aos10"], m["aos10_label"]), e(m["opmerking"])] for m in r["modellen"]]),
-             "<h2>Clusters en aanpak</h2><p class='m'>Controllers die elkaars stand-by zijn, vormen een cluster. Met twee of meer kan je in stappen "
-             "migreren zonder dat de getunnelde SSID's wegvallen.</p>",
-             tabel(["Controllers", "Model", "APs", "Klaar", "Einde", "Vervangen", "AP-modellen", "Aanpak", "Blokkade"],
+             f"<h2>{e(_('Clusters en aanpak'))}</h2><p class='m'>"
+             + e(_("Controllers die elkaars stand-by zijn, vormen een cluster. Met twee of meer kan je in stappen migreren zonder dat de getunnelde SSID's wegvallen.")) + "</p>",
+             tabel(kop("Controllers", "Model", "APs", "Klaar", "Einde", "Vervangen", "AP-modellen", "Aanpak", "Blokkade"),
                    [[e(c["naam"]), e(c["modellen_ctrl"]), e(c["aps"]), e(c["ok"]), e(c["einde"]), e(c["nee"]), e(c["ap_modellen"]),
                      e(c["aanpak"]), e(c["blokkade"]) or "–"] for c in r["clusters"]]),
-             "<h2>Controllers</h2>", tabel(["Naam", "Model", "Rol", "Versie", "Status", "APs", "AOS-10"],
+             "<h2>Controllers</h2>", tabel(kop("Naam", "Model", "Rol", "Versie", "Status", "APs", "AOS-10"),
                                            [[e(c["naam"]), e(c["model"]), e(c["type"]), e(c["versie"]), e(c["status"]), e(c["aps"]),
                                              st(c["aos10"], c["aos10_label"])] for c in r["controllers"]])]
     if r["opkuis"]:
         per = Counter(o["soort"] for o in r["opkuis"])
-        delen += ["<h2>Op te kuisen voor de migratie</h2>", tabel(["Wat", "Aantal"], [[e(k), e(v)] for k, v in per.most_common()]),
-                  tabel(["Wat", "Naam", "Detail"], [[e(o["soort"]), e(o["naam"]), e(o["detail"])] for o in r["opkuis"][:500]])]
-    delen.append(f"<h2>AP-groepen</h2>" + tabel(["AP-groep", "APs", "Controllers", "Modellen", "Vervangen", "Einde", "Down"],
+        delen += [f"<h2>{e(_('Op te kuisen voor de migratie'))}</h2>", tabel(kop("Wat", "Aantal"), [[e(k), e(v)] for k, v in per.most_common()]),
+                  tabel(kop("Wat", "Naam", "Detail"), [[e(o["soort"]), e(o["naam"]), e(o["detail"])] for o in r["opkuis"][:500]])]
+    delen.append(f"<h2>{e(_('AP-groepen'))}</h2>" + tabel(kop("AP-groep", "APs", "Controllers", "Modellen", "Vervangen", "Einde", "Down"),
                                                  [[e(g["groep"]), e(g["aps"]), e(g["controllers"]), e(g["modellen"]), e(g["vervangen"]),
                                                    e(g["einde"]), e(g["down"])] for g in r["groepen"]]))
-    delen.append(f"<p class='m'>Supportstatus per model: {e(r['bron']['tekst'])} (lijst van {e(r['bron']['bijgewerkt'])}).</p>")
+    delen.append("<p class='m'>" + e(_("Supportstatus per model: {tekst} (lijst van {datum}).",
+                                       tekst=_(r["bron"]["tekst"]) if r["bron"]["tekst"] else "", datum=r["bron"]["bijgewerkt"])) + "</p>")
     css = ("body{font:13px/1.5 'Segoe UI',system-ui,sans-serif;color:#122033;margin:32px auto;max-width:1180px;padding:0 16px}"
            "h1{font-size:22px;margin:0}h2{font-size:16px;margin:28px 0 8px}.m{color:#5f6c7f}"
            "table{border-collapse:collapse;width:100%;margin:6px 0 14px}th,td{border-bottom:1px solid #e2e7ee;padding:5px 8px;text-align:left;vertical-align:top}"
@@ -456,5 +463,5 @@ def rapport_html(r):
            ".t div{border:1px solid #e2e7ee;border-radius:10px;padding:10px 12px}.t b{display:block;font-size:22px}.t span{color:#5f6c7f;font-size:12px}"
            ".p{border:1px solid;border-radius:999px;padding:0 8px;font-size:11.5px;font-weight:600;white-space:nowrap}"
            "@media print{body{margin:0}h2{break-after:avoid}tr{break-inside:avoid}}")
-    return (f"<!DOCTYPE html><html lang='nl'><head><meta charset='utf-8'><title>{e(titel)}</title><style>{css}</style></head>"
+    return (f"<!DOCTYPE html><html lang='{huidig()}'><head><meta charset='utf-8'><title>{e(titel)}</title><style>{css}</style></head>"
             f"<body>{''.join(delen)}</body></html>")

@@ -13,6 +13,7 @@ from . import alias_api as cx
 from . import monitor
 from .aliassen import FUNCTIE_LABELS
 from .monitor import ApiFout, Invoer, haal
+from .taal import _
 
 CFG = "/network-config/v1alpha1"
 SCOPE = "/network-config/v1"
@@ -32,7 +33,7 @@ def _haal_of_leeg(pad, params=None):
 
 def _offset_lijst(pad, params=None, limit=100):
     items, off = [], 0
-    for _ in range(500):
+    for _poging in range(500):
         j = haal(pad, dict(params or {}, limit=limit, offset=off)) or {}
         nieuw = (j.get("items") or j.get("devices") or []) if isinstance(j, dict) else []
         items += nieuw
@@ -229,7 +230,7 @@ def _objecten(pad, lijst, sleutel, scope_id, df, cache, profiel=""):
             j = _haal_of_leeg(f"{CFG}/{pad}", params)
             items = _lijst_uit(j, lijst)
             cache[k] = {_id(x, sleutel, i): x for i, x in enumerate(items)}
-            diag.update(antwoord="404 (niets ingesteld)" if j is None else "200", aantal=len(items))
+            diag.update(antwoord=_("404 (niets ingesteld)") if j is None else "200", aantal=len(items))
             if j is not None and not items:
                 diag["sleutels"] = ", ".join(list(j)[:12]) if isinstance(j, dict) else type(j).__name__
         except ApiFout as e:
@@ -258,7 +259,7 @@ def afwijkingen(serial, device_function=None, cache=None):
     per_type, inv = _switch_scopes(cache)
     d = inv.get(serial)
     if not d or not d.get("scopeId"):
-        raise Invoer(f"{serial} staat niet in de inventaris van Central")
+        raise Invoer(_("{serial} staat niet in de inventaris van Central", serial=serial))
     # De device function van de switch zelf, zoals het oude overrides-scherm. Enkel als die ontbreekt
     # de gevraagde (standaard ACCESS_SWITCH).
     eigen = cx.func_of(d)
@@ -271,7 +272,7 @@ def afwijkingen(serial, device_function=None, cache=None):
           "scope": str(d["scopeId"]), "functie": df, "functie_central": d.get("deviceFunction") or ""}
     rijen, fouten = [], []
     if not eigen:
-        fouten.append(f"de switch heeft geen device function in Central ({d.get('deviceFunction') or '-'}); gelezen als {df}")
+        fouten.append(_("de switch heeft geen device function in Central ({functie}); gelezen als {df}", functie=d.get("deviceFunction") or "-", df=df))
     for naam, pad, lijst, sleutel, enkel_toestel in PROFIELEN:
         if enkel_toestel:
             continue
@@ -330,8 +331,8 @@ def override_switches():
 def afwijkingen_scan(serials=None, device_function=None, voortgang=lambda *a: None):
     """afwijkingen voor meerdere switches (of alle), met een gedeelde cache voor de hogere scopes."""
     cache = {}
-    voortgang(0, 1, "switches en scopes lezen")
-    _, inv = _switch_scopes(cache)
+    voortgang(0, 1, _("switches en scopes lezen"))
+    _scopes, inv = _switch_scopes(cache)
     lijst = [s for s in (serials or sorted(inv, key=lambda x: inv[x].get("deviceName") or x)) if s in inv]
     rijen, fouten, diagnose = [], [], []
     for i, s in enumerate(lijst, 1):
@@ -343,7 +344,7 @@ def afwijkingen_scan(serials=None, device_function=None, voortgang=lambda *a: No
             diagnose += [dict(x, switch=r["switch"]["naam"]) for x in r["diagnose"]]
         except ApiFout as e:
             fouten.append(f"{s}: {e.melding}")
-    voortgang(len(lijst), len(lijst), "klaar")
+    voortgang(len(lijst), len(lijst), _("klaar"))
     return {"rijen": rijen, "fouten": fouten, "diagnose": diagnose, "switches": len(lijst),
             "tijd": datetime.datetime.now().isoformat(timespec="seconds")}
 
@@ -432,13 +433,13 @@ def toestellen_uit_groep(groep, prefix="24", beheer_vlan="", serials=None):
     Hostname, site, site collection en device group komen uit Central; het IP uit de monitoring, met de prefix erbij."""
     groep = str(groep or "").strip()
     if not groep:
-        raise Invoer("kies een device group")
+        raise Invoer(_("kies een device group"))
     prefix = str(prefix or "").strip().lstrip("/") or "24"
     if not prefix.isdigit() or not 8 <= int(prefix) <= 32:
-        raise Invoer("prefix moet tussen 8 en 32 liggen")
+        raise Invoer(_("prefix moet tussen 8 en 32 liggen"))
     beheer_vlan = str(beheer_vlan or "").strip()
     if beheer_vlan and not (beheer_vlan.isdigit() and 1 <= int(beheer_vlan) <= 4094):
-        raise Invoer("beheer-VLAN moet tussen 1 en 4094 liggen")
+        raise Invoer(_("beheer-VLAN moet tussen 1 en 4094 liggen"))
     alle = scopes()
     collectie = {s["naam"]: s.get("collectie") or "" for s in alle if s["type"] == "Site"}
     scope_id = {(s["type"], s["naam"]): s["id"] for s in alle}
@@ -470,15 +471,15 @@ def toestellen_uit_groep(groep, prefix="24", beheer_vlan="", serials=None):
         gekozen = {str(x).strip().upper() for x in serials if isinstance(x, (str, int))} if isinstance(serials, list) else set()
         per_scope = {k: d for k, d in per_scope.items() if str(d.get("serialNumber") or "").upper() in gekozen}
         if not per_scope:
-            raise Invoer("kies minstens een toestel")
+            raise Invoer(_("kies minstens een toestel"))
     rijen, meldingen = [], []
     for d in sorted(per_scope.values(), key=lambda d: (d.get("siteName") or "", d.get("deviceName") or "")):
         m = mon.get(d.get("serialNumber"), {})
         ser = d.get("serialNumber") or ""
         gateway = bool(d.get("_gateway"))
-        opm = ["uit new Central, device group " + (d.get("deviceGroupName") or groep)]
+        opm = [_("uit new Central, device group {groep}", groep=d.get("deviceGroupName") or groep)]
         if gateway and cx.func_of(d) != "MOBILITY_GW":
-            opm.append(f"gateway met device function {d.get('deviceFunction') or '-'}: gaat als Mobility Gateway in het aliasbestand")
+            opm.append(_("gateway met device function {functie}: gaat als Mobility Gateway in het aliasbestand", functie=d.get("deviceFunction") or "-"))
             d = dict(d, deviceFunction="MOBILITY_GW")
         alias_vlan, alias_ip = sys_vlan_van(d)
         # Bij een gateway is het IP in de monitoring meestal dat van de uplink (bv. DHCP op VLAN 4094), niet het beheer-IP.
@@ -492,39 +493,39 @@ def toestellen_uit_groep(groep, prefix="24", beheer_vlan="", serials=None):
             ip, bron_ip = (alias_ip if "/" in alias_ip else f"{alias_ip}/{prefix}"), "alias"
         stack = not gateway and ((m.get("deployment") or d.get("deployment") or "").lower() == "stack" or bool(m.get("stackId") or d.get("stackId")))
         if bron_ip == "alias":
-            opm.append(f"IP uit de alias sys_vlan_ipv4_{alias_vlan} op de {'gateway' if gateway else 'switch'}")
+            opm.append(_("IP uit de alias sys_vlan_ipv4_{vlan} op de gateway", vlan=alias_vlan) if gateway else _("IP uit de alias sys_vlan_ipv4_{vlan} op de switch", vlan=alias_vlan))
         elif ip:
-            opm.append("IP uit de monitoring van Central. Beheerd via OOBM? Verplaats het dan naar mgmt_ip")
+            opm.append(_("IP uit de monitoring van Central. Beheerd via OOBM? Verplaats het dan naar mgmt_ip"))
         elif gateway:
-            opm.append("gateway zonder beheer-IP in Central: vul sys_vlan_ip in (bv. het IP van de controller in AOS-8)")
+            opm.append(_("gateway zonder beheer-IP in Central: vul sys_vlan_ip in (bv. het IP van de controller in AOS-8)"))
         else:
-            opm.append("geen IP in Central: vul sys_vlan_ip aan")
+            opm.append(_("geen IP in Central: vul sys_vlan_ip aan"))
         if stack:
-            opm.append("VSF-stack: gaat niet via de bulk-upload")
+            opm.append(_("VSF-stack: gaat niet via de bulk-upload"))
         fc = cx.func_of(d) or ""
         if not fc:
-            opm.append(f"geen device function in Central ({d.get('deviceFunction') or '-'}): gaat als Access Switch in het aliasbestand")
+            opm.append(_("geen device function in Central ({functie}): gaat als Access Switch in het aliasbestand", functie=d.get("deviceFunction") or "-"))
         site = d.get("siteName") or ""
         keten = (scope_id.get(("Device group", d.get("deviceGroupName") or groep)), scope_id.get(("Site", site)),
                  scope_id.get(("Site collection", collectie.get(site, ""))), global_id)
         profiel = systeemprofiel_van(d, keten, toewijzing_cache)
         if not profiel:
-            opm.append("geen System-info-profiel gevonden in Central: vul systeemprofiel aan, anders gaat enkel het IP mee")
+            opm.append(_("geen System-info-profiel gevonden in Central: vul systeemprofiel aan, anders gaat enkel het IP mee"))
         rijen.append({"serial": ser, "hostname": d.get("deviceName") or "", "stack": "ja" if stack else "",
                       "site_collection": collectie.get(site, ""), "site": site, "device_group": d.get("deviceGroupName") or groep,
                       "device_function": FUNCTIE_LABELS.get(fc, ""), "golf": site or groep, "sys_vlan_ip": ip, "beheer_vlan": beheer_vlan or alias_vlan or "",
                       "bron_ip": bron_ip, "mgmt_ip": "", "systeemprofiel": profiel,
                       "soort": "gateway" if gateway else "switch", "opmerking": ". ".join(opm)})
     if not rijen:
-        raise Invoer(f"geen switches of gateways gevonden in device group {groep}")
+        raise Invoer(_("geen switches of gateways gevonden in device group {groep}", groep=groep))
     zonder_ip = sum(1 for r in rijen if not r["sys_vlan_ip"])
     if zonder_ip:
-        meldingen.append(f"{zonder_ip} toestellen zonder beheer-IP in Central: vul sys_vlan_ip aan")
+        meldingen.append(_("{n} toestellen zonder beheer-IP in Central: vul sys_vlan_ip aan", n=zonder_ip))
     if sum(1 for r in rijen if r["stack"]):
-        meldingen.append(f"{sum(1 for r in rijen if r['stack'])} VSF-stacks: gemarkeerd, ze gaan niet via de bulk-upload")
-    zonder_sc = sorted({r["site"] or "(geen site)" for r in rijen if not r["site_collection"]})
+        meldingen.append(_("{n} VSF-stacks: gemarkeerd, ze gaan niet via de bulk-upload", n=sum(1 for r in rijen if r["stack"])))
+    zonder_sc = sorted({r["site"] or _("(geen site)") for r in rijen if not r["site_collection"]})
     if zonder_sc:
-        meldingen.append("geen site collection voor " + ", ".join(zonder_sc[:10]))
+        meldingen.append(_("geen site collection voor {sites}", sites=", ".join(zonder_sc[:10])))
     return {"rijen": rijen, "meldingen": meldingen, "groep": groep, "prefix": prefix}
 
 
@@ -570,17 +571,17 @@ def wis_plan(items, device_function=None, voortgang=lambda *a: None):
         for p, o in sorted(objecten):
             naam, wil, nu = r["switch"]["naam"], verwacht[(serial, p, o)], status.get((p, o))
             if p not in WISBAAR:
-                geweigerd.append(f"{naam} {p} {o}: dit profiel wist de toolkit niet")
+                geweigerd.append(_("{naam} {profiel} {object}: dit profiel wist de toolkit niet", naam=naam, profiel=p, object=o))
             elif wil not in WIS_GEVOLG:
-                geweigerd.append(f"{naam} {p} {o}: status '{wil}' wist de toolkit niet")
+                geweigerd.append(_("{naam} {profiel} {object}: status '{status}' wist de toolkit niet", naam=naam, profiel=p, object=o, status=wil))
             elif nu != wil:
-                geweigerd.append(f"{naam} {p} {o}: is niet (meer) {wil} ({nu or 'niet gevonden'})")
+                geweigerd.append(_("{naam} {profiel} {object}: is niet (meer) {status} ({nu})", naam=naam, profiel=p, object=o, status=wil, nu=nu or _("niet gevonden")))
             else:
                 acties.append({"serial": serial, "naam": naam, "scope": r["switch"]["scope"], "functie": r["switch"]["functie"],
                                "profiel": p, "object": o, "status": nu, "van": van.get((p, o), ""),
-                               "gevolg": WIS_GEVOLG[nu].format(van=van.get((p, o)) or "hoger"),
+                               "gevolg": _(WIS_GEVOLG[nu], van=van.get((p, o)) or _("hoger")),
                                "velden": velden.get((p, o), [])[:20]})
-    voortgang(len(gekozen), len(gekozen), "klaar")
+    voortgang(len(gekozen), len(gekozen), _("klaar"))
     return {"acties": acties, "geweigerd": geweigerd, "device_function": df or "ACCESS_SWITCH"}
 
 
@@ -611,7 +612,7 @@ def wis_uitvoeren(acties, device_function="ACCESS_SWITCH", voortgang=lambda *a: 
             if str(a["object"]) in nog:
                 resultaat = "Central meldde ok, maar het object staat er nog"
         uit.append(dict(a, resultaat=resultaat, code=r.status_code))
-    voortgang(len(acties), len(acties), "klaar")
+    voortgang(len(acties), len(acties), _("klaar"))
     return uit
 
 
