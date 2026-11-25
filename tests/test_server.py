@@ -67,9 +67,9 @@ def test_sessie_enkel_via_de_pagina_met_veilige_cookie(srv):
 def test_csrf_token_per_sessie(srv):
     server, _ = srv
     a, b = Browser(server), Browser(server)
-    assert a.token != b.token and a.token != web.ov.TOKEN
+    assert a.token != b.token and a.token != web.TOKEN
     assert a.ruw("/api/status", token=b.token)[0] == 403           # token van een ander
-    assert a.ruw("/api/status", token=web.ov.TOKEN)[0] == 403      # het vaste token van de lokale app
+    assert a.ruw("/api/status", token=web.TOKEN)[0] == 403      # het vaste token van de lokale app
     assert a.ruw("/api/status")[0] == 403                           # geen token
     assert a.ruw("/api/web/afmelden", {}, token=b.token)[0] == 403
     assert a.vraag("/api/status")[0] == 200

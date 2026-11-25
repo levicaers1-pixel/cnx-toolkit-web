@@ -25,7 +25,7 @@ Uitvoer van genereer:
   05-aliassen/<golf>__access-switch[__deelN].csv   klaar voor Configuration > Library > Named Objects >
                                                    Aliases > bulk upload
   05-aliassen/rapport.md                            wat er in elk bestand zit
-Dezelfde uitvoer als de pagina cnx-alias-invoer.html. Enkel standaardbibliotheek, geen API-calls.
+Enkel standaardbibliotheek, geen API-calls.
 """
 import argparse, csv, io, ipaddress, json, os, re, sys
 from collections import OrderedDict, defaultdict

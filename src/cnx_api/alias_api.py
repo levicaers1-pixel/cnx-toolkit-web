@@ -63,7 +63,7 @@ class Verbinding:
         self.s = requests.Session()
         self.gegevens = {}
         self.slot = threading.Lock()          # een token tegelijk vernieuwen
-        self.cache = {}                       # leesgegevens uit Central, per verbinding (zie overrides.cache)
+        self.cache = {}                       # leesgegevens uit Central, per verbinding (zie configapi)
 
     @property
     def aangemeld(self):

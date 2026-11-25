@@ -12,8 +12,7 @@ Voor gebruikers: zie [LEESMIJ.md](../LEESMIJ.md). Dit bestand is voor wie de too
 | `src/cnx_api/monitor.py` | Tabbladen Switches en Overzicht: vaste lijst van API-aanvragen (monitoring, events, audit, CX-probleemoplossing) |
 | `src/cnx_api/configapi.py` | Configuratie-API lezen: alle aliassen per scope, gereedheid voor migratie, snapshots en vergelijken |
 | `src/cnx_api/web.py` | `cnx web`: lokale webapp met alle functies; draait de bestaande commando's per taak in een eigen map; projecten van de assistent |
-| `src/cnx_api/overrides.py` | `cnx overrides`: lokale webserver met scherm (127.0.0.1, token per sessie) |
-| `src/cnx_api/data/` | Invulpagina, webapp (`web.html`), standaardconfig, sjablonen. `LEESMIJ.html` wordt gegenereerd |
+| `src/cnx_api/data/` | Webapp (`web.html`), modellenlijst AOS-10, standaardconfig, sjablonen. `LEESMIJ.html` wordt gegenereerd |
 | `build/` | PyInstaller-spec, startbestand, bouwhulp (`maak.py`) |
 | `tests/` | Rooktests en webapp-tests zonder API (pytest) |
 | `.github/workflows/release.yml` | Test, bouwt `cnx.exe` op Windows, ondertekent optioneel, maakt een release |

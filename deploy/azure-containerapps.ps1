@@ -9,7 +9,7 @@
   Opnieuw uitvoeren met een andere -Versie werkt de app bij. Zie docs/AZURE.md.
 
 .EXAMPLE
-  .\deploy\azure-containerapps.ps1                  # eerste keer, versie 0.1.1
+  .\deploy\azure-containerapps.ps1                  # eerste keer, versie 0.1.2
   .\deploy\azure-containerapps.ps1 -Versie 0.2.0    # bijwerken naar een nieuwe versie
   .\deploy\azure-containerapps.ps1 -Proef          # toont enkel de az-commando's, voert niets uit
 #>
@@ -17,7 +17,7 @@ param(
     [string]$Naam = "cnx-toolkit",
     [string]$ResourceGroup = "rg-cnx-toolkit",
     [string]$Regio = "westeurope",
-    [string]$Versie = "0.1.1",        # altijd een vaste versie: met "latest" maakt Container Apps geen nieuwe revisie
+    [string]$Versie = "0.1.2",        # altijd een vaste versie: met "latest" maakt Container Apps geen nieuwe revisie
     [string]$Image = "ghcr.io/levicaers1-pixel/cnx-toolkit-web",
     [string]$Abonnement = "",
     [string[]]$ExtraHosts = @(),       # eigen domeinnaam, bv. cnx.voorbeeld.be (zie docs/AZURE.md)

@@ -71,5 +71,5 @@ Nog te doen: het script uitvoeren op een echt abonnement en de app testen tegen 
 
 ## Fase 6: afwerking open source
 
-- Oude onderdelen weg: `cnx overrides` (aparte server) en `cnx invoer`.
+- Oude onderdelen weg (klaar): `cnx overrides` (aparte server, `overrides.py`) en `cnx invoer` (`invoer.html`).
 - Webapp ook in het Engels (later).

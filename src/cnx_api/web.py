@@ -11,7 +11,7 @@ Aanmelden: met CNX_BASE_URL, CNX_CLIENT_ID en CNX_CLIENT_SECRET, of in het scher
 (de gegevens blijven enkel in het geheugen van dit programma).
 """
 import argparse, base64, datetime, hmac, http.cookies, json, os, re, secrets, shutil, sys, threading, time, webbrowser
-from http.server import ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import xml.etree.ElementTree as ET
 from urllib.parse import parse_qs, quote, urlparse
 
@@ -22,10 +22,10 @@ from . import aos8
 from . import migratieplan
 from . import configapi
 from . import monitor
-from . import overrides as ov
 
 POORT = int(os.environ.get("CNX_WEB_POORT", "8766"))
 MAX_BODY = 50 * 1024 * 1024
+TOKEN = secrets.token_urlsafe(16)    # lokale app: het token (CSRF) van de pagina; in servermodus een per sessie
 WERKMAP = os.path.join(os.getcwd(), "cnx-web")
 OPSLAG = True               # False (--zonder-opslag, servermodus): niets op schijf; bestanden en logboeken gaan naar de browser
 
@@ -116,7 +116,7 @@ def onboard_bestand(groep, rijen):
 # ---------------------------------------------------------------- klantconfig
 
 def klantconfig_pad():
-    """Dezelfde klantconfig.json die 'cnx alias' en 'cnx overrides' gebruiken (map waar cnx draait)."""
+    """Dezelfde klantconfig.json die 'cnx alias' gebruikt (map waar cnx draait)."""
     return os.path.join(os.getcwd(), "klantconfig.json")
 
 
@@ -242,7 +242,7 @@ WEGGOOI_GRENS = 64 * 1024 * 1024   # te grote body tot hier lezen en weggooien; 
 MAX_TAKEN = 3               # lopende ophalingen per sessie
 COOKIE = "cnx_sessie"
 LOKAAL = Sessie(cx.verbinding())      # de standaardverbinding, ook die van de commandolijn
-LOKAAL.csrf = ov.TOKEN
+LOKAAL.csrf = TOKEN
 SESSIES = {}
 _SESSIE_SLOT = threading.Lock()
 
@@ -329,7 +329,10 @@ def central_url_ok(base):
     return any(host == d or host.endswith("." + d) for d in CENTRAL_DOMEINEN)
 
 
-class Handler(ov.Handler):
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass                                  # lokaal geen log per aanvraag; servermodus: log_request
+
     def parse_request(self):
         """Na het lezen van de kop: de sessie van deze browser zoeken en haar verbinding gebruiken voor de aanvraag."""
         self._start = time.monotonic()
@@ -484,7 +487,7 @@ class Handler(ov.Handler):
         if u.path == "/api/status":
             return self._json(self._status())
         if not u.path.startswith("/api/web/"):
-            return self._json({"fout": "onbekend"}, 404)      # de routes van de oude overrides-app horen hier niet
+            return self._json({"fout": "onbekend"}, 404)
         if u.path.startswith(("/api/web/sw/", "/api/web/ov/")):
             arg = lambda k, d="": q.get(k, [d])[0]  # noqa: E731
             if u.path == "/api/web/sw/overrides-lijst":
@@ -720,7 +723,7 @@ def main():
     if OPSLAG:
         os.makedirs(WERKMAP, exist_ok=True)
     if os.environ.get("CNX_CLIENT_ID") and os.environ.get("CNX_CLIENT_SECRET") and os.environ.get("CNX_BASE_URL"):
-        ok, msg = ov.aanmelden(os.environ["CNX_BASE_URL"], os.environ["CNX_CLIENT_ID"], os.environ["CNX_CLIENT_SECRET"])
+        ok, msg = cx.aanmelden(os.environ["CNX_BASE_URL"], os.environ["CNX_CLIENT_ID"], os.environ["CNX_CLIENT_SECRET"])
         print(msg)
     srv = maak_server(a.poort)
     url = f"http://127.0.0.1:{srv.server_address[1]}/"

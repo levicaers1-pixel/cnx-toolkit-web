@@ -2,6 +2,12 @@
 
 Versienummers volgen MAJOR.MINOR.PATCH.
 
+## 0.1.2 (2026-11-25)
+
+- Weg: `cnx overrides` (het oude aparte wisscherm voor VLAN's) en `cnx invoer` (de oude invulpagina). Overrides wissen
+  gebeurt in de webapp (Overrides controleren), het uploadbestand maak je in Onboarden of met `cnx alias`.
+- Het Azure-script slaat een bestaande resourcegroep over en geeft een tip als een regio geen nieuwe klanten aanneemt.
+
 ## 0.1.1 (2026-11-25)
 
 - Servermodus klaar voor publiek gebruik zonder login: hoogstens 20 nieuwe sessies per bezoeker per minuut (zodat

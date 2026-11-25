@@ -186,4 +186,4 @@ def test_voortgang_uit_de_browser_wordt_nagekeken():
 
 def web_token():
     from cnx_api import web
-    return web.ov.TOKEN
+    return web.TOKEN

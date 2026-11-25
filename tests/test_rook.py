@@ -133,39 +133,19 @@ def test_naar_library_valt_nooit_zonder_waarde(tmp_path, monkeypatch):
     assert toestand == {"glob": False, "dev": False, "toegewezen": {"sys_vlan_2000_description"}}
 
 
-def test_invoerpagina_en_data_aanwezig():
+def test_data_aanwezig():
     from cnx_api import resource
-    for naam in ("invoer.html", "alias-config.json", "klantconfig.json", "toestellen-sjabloon.csv"):
+    for naam in ("web.html", "LEESMIJ.html", "alias-config.json", "klantconfig.json", "toestellen-sjabloon.csv", "aos10-modellen.json"):
         assert os.path.exists(resource(naam)), naam
-    html = open(resource("invoer.html"), encoding="utf-8").read()
+    for weg in ("invoer.html",):
+        assert not os.path.exists(resource(weg)), weg
 
 
-def test_invoerpagina_script_syntax(tmp_path):
-    """Het script van de invulpagina moet laden. Een syntaxfout breekt de hele pagina."""
-    import re
-    import shutil
-    node = shutil.which("node")
-    if not node:
-        pytest.skip("node niet beschikbaar")
-    from cnx_api import resource
-    html = open(resource("invoer.html"), encoding="utf-8").read()
-    js = tmp_path / "invoer.js"
-    js.write_text(re.findall(r"<script>(.*?)</script>", html, re.S)[-1], encoding="utf-8")
-    r = subprocess.run([node, "--check", str(js)], capture_output=True, text=True)
-    assert r.returncode == 0, r.stderr[:500]
-
-
-def test_overrides_script_syntax(tmp_path):
-    import re
-    import shutil
-    node = shutil.which("node")
-    if not node:
-        pytest.skip("node niet beschikbaar")
-    from cnx_api import overrides
-    js = tmp_path / "overrides.js"
-    js.write_text(re.findall(r"<script>(.*?)</script>", overrides.PAGINA, re.S)[-1], encoding="utf-8")
-    r = subprocess.run([node, "--check", str(js)], capture_output=True, text=True)
-    assert r.returncode == 0, r.stderr[:500]
+def test_oude_commandos_zijn_weg():
+    import importlib.util
+    from cnx_api import __main__ as hoofd
+    assert importlib.util.find_spec("cnx_api.overrides") is None
+    assert "overrides" not in hoofd.COMMANDO_S and "invoer" not in hoofd.COMMANDO_S
 
 
 def test_aanmaken_zet_beschrijving(tmp_path, monkeypatch):

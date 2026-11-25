@@ -5,13 +5,11 @@ te houden.
 
 | Commando | Wat het doet |
 |---|---|
-| `cnx` | De webapp (ook bij dubbelklikken op `cnx.exe`): switches onboarden en overrides controleren. Zie [Webapp](#webapp) |
-| `cnx web` | Hetzelfde, met opties (`--poort`, `--map`, `--geen-browser`) |
+| `cnx` | De webapp (ook bij dubbelklikken op `cnx.exe`): onboarden, overrides controleren en AP-migratie. Zie [Webapp](#webapp) |
+| `cnx web` | Hetzelfde, met opties (`--poort`, `--map`, `--geen-browser`, `--zonder-opslag`, `--server`) |
 | `cnx menu` | Het menu in het venster, voor wie liever niet in de browser werkt |
-| `cnx invoer` | Invulpagina in de browser: een veld per parameter, controle terwijl je typt, uploadbestanden voor Central |
 | `cnx alias ...` | Hetzelfde vanaf de commandolijn, voor grote lijsten. Ook: switchlijst uit Classic omzetten, vergelijken na de upload, geimporteerde waarden analyseren |
 | `cnx api ...` | Via de API van new Central: aliassen aanmaken en toewijzen, lokale waarden opkuisen, VLAN's van Global doorzetten naar aggregation en core |
-| `cnx overrides` | Scherm in de browser: lokale overrides per switch bekijken en veilig wissen |
 | `cnx sjablonen` | `klantconfig.json` en `toestellen-sjabloon.csv` in de huidige map zetten |
 | `cnx hulp` | Deze handleiding openen |
 
@@ -136,15 +134,14 @@ veranderd is, valt eruit. Het plan toont per object het gevolg. Zitten er object
 typ je WISSEN om te bevestigen. Een object dat nog gebruikt wordt (bv. een VLAN op een poort) weigert Central; dat staat
 als "in gebruik, niet gewist" in het resultaat. Na het wissen kijkt de toolkit na dat het object weg is. Systeeminfo, beheerinterface, lokaal beheer en het
 firmwarebeleid worden nooit gewist. Alles komt in `cnx-web/overrides-wissen-log-<tijd>.json`; met **Logboek downloaden** krijg je het ook als bestand.
-Het vroegere wisscherm voor VLAN's blijft beschikbaar met `cnx overrides`.
 
 ## Vereisten
 
 - Windows 10 of 11. Geen Python nodig.
-- Voor `cnx api` en `cnx overrides`: een API-client in HPE GreenLake (Manage Workspace, Personal API clients) met
+- Voor de webapp en `cnx api`: een API-client in HPE GreenLake (Manage Workspace, Personal API clients) met
   toegang tot new Central. Gebruik bij voorkeur een aparte client voor deze tool, met enkel de rechten die nodig zijn,
   en trek hem in na de migratie.
-- `cnx invoer` en `cnx alias` werken zonder API en zonder internet.
+- `cnx alias` en de AP-migratie werken zonder API.
 
 ## Installeren
 
@@ -175,8 +172,7 @@ Zonder webapp: vul `klantconfig.json` zelf in. Alles met `VUL-IN` moet weg:
 | `velden.mgmt_ip.instance` | Naam van de beheerinterface (OOBM), meestal `mgmt` |
 | `modified` | Laat op `Yes`: Central past enkel rijen met `Yes` toe |
 
-`cnx alias` en `cnx overrides` gebruiken `klantconfig.json` uit de map waar je ze start. In `cnx invoer` sleep je
-het bestand naar het tabblad Export.
+`cnx alias` gebruikt `klantconfig.json` uit de map waar je het start.
 
 ## API-gegevens
 
@@ -188,7 +184,7 @@ $env:CNX_CLIENT_ID     = "..."
 $env:CNX_CLIENT_SECRET = "..."
 ```
 
-Gebruik de API-URL van de eigen cluster. `cnx overrides` vraagt de gegevens ook zelf in het scherm. De tool schrijft
+Gebruik de API-URL van de eigen cluster. De webapp vraagt de gegevens ook zelf (knop Aanmelden). De tool schrijft
 de gegevens nergens weg.
 
 ## Werkwijzen

@@ -19,15 +19,14 @@ weigeren elke andere device function.
 |---|---|
 | Hostname, system VLAN IP (of DHCP), beheer-IP (OOBM) | Geheimen, alles wat voor een site, device group of de hele tenant gelijk is (gewone profielen op Global, Site of Device Group), en alles van core en aggregation (manueel) |
 
-## Twee manieren, dezelfde uitvoer
+## Commandolijn
 
 | Hulpmiddel | Voor wie |
 |---|---|
-| `cnx invoer` | Invullen met een veld per parameter en controle terwijl je typt. Ook gepubliceerd als artifact "CNX Alias-invoer" |
 | `cnx alias` | Vanaf de commandolijn, voor grote lijsten uit Excel of uit de Classic-export |
 | `cnx api` | Wat de bulk-upload niet kan: aliassen aanmaken en lokale waarden verwijderen, via de API |
 
-Beide maken byte voor byte hetzelfde uploadbestand. Beide lezen en schrijven `toestellen.csv`.
+`cnx alias` leest en schrijft `toestellen.csv`; de webapp (Onboarden) maakt hetzelfde uploadbestand rechtstreeks uit Central.
 
 ## Bestanden
 
@@ -186,18 +185,6 @@ cnx api vlans-terugdraaien --log alias-api-log-<tijd>.json --apply
 Gevolg: elke aggregation- en core-switch in new Central krijgt die VLAN's. Een VLAN dat daar al lokaal bestaat
 (geimporteerd), houdt de lokale versie. Bestaande toewijzingen worden overgeslagen. Het logboek van
 `--apply` is nodig om terug te draaien: bewaar het. Te verifieren: DELETE op `config-assignments` met dezelfde body.
-
-## Lokale overrides wissen per switch (cnx overrides)
-
-`cnx overrides` start een scherm op http://127.0.0.1:8765. Per switch (een stack telt een keer) de lokale
-`layer2-vlan`-objecten, en optioneel de lokale `sys_vlan_<id>_description`. Per override kijkt het programma of
-dezelfde VLAN voor dezelfde device function toegewezen is aan de device group, de site of Global. Enkel dan is
-wissen veilig. Zonder vervanging verdwijnt de VLAN van de switch. VLAN 1 en 120 zijn standaard beschermd.
-
-Te verifieren bij het eerste gebruik: of `GET /layer2-vlan?view-type=LOCAL&scope-id=<switch>` enkel de lokale
-VLAN's geeft (vergelijk met de UI). Een VLAN waarnaar lokale poortconfig verwijst, kan Central weigeren
-("referenced by"): die poorten moeten eerst een poortprofiel van een hogere scope krijgen. Site collections worden
-niet meegenomen als vervanging.
 
 ## Wat het formaat doet (vastgesteld op 12 november 2026)
 

@@ -31,7 +31,7 @@ def server(tmp_path, monkeypatch):
 def vraag(url, body=None, token=True, headers=None):
     h = dict(headers or {})
     if token:
-        h["X-Token"] = web.ov.TOKEN
+        h["X-Token"] = web.TOKEN
     data = None
     if body is not None:
         data = json.dumps(body).encode()
@@ -149,7 +149,7 @@ def test_webpagina_script_syntax(tmp_path):
 
 def test_toegang_en_paden(server):
     s, b = vraag(server + "/", token=False)
-    assert s == 200 and web.ov.TOKEN.encode() in b
+    assert s == 200 and web.TOKEN.encode() in b
     assert vraag(server + "/api/web/klantconfig", token=False)[0] == 403
     assert vraag(server + "/", token=False, headers={"Host": "evil.example"})[0] == 403
     for pad in ("../x", "..%2F..%2Fwin.ini", "C:/Windows/win.ini"):

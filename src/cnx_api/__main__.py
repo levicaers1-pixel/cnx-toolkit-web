@@ -1,10 +1,8 @@
 """Startpunt van CNX Toolkit: cnx.exe of python -m cnx_api.
 
   cnx                       de webapp (ook bij dubbelklikken op cnx.exe), zelfde als 'cnx web'
-  cnx web                   alles in een scherm in de browser: invoer, aliasbestanden, API en overrides
+  cnx web                   de webapp: onboarden, overrides controleren, AP-migratie (--server: voor meerdere gebruikers)
   cnx menu                  menu in dit venster
-  cnx overrides             scherm: lokale overrides per switch bekijken en wissen
-  cnx invoer                invulpagina voor toestelwaarden (opent in de browser)
   cnx alias <commando>      uploadbestanden maken, controleren, vergelijken, Classic omzetten, globaliseren
   cnx api <commando>        via de API: aliassen aanmaken, toewijzen, opkuisen, VLAN's doorzetten
   cnx sjablonen             klantconfig.json en toestellen-sjabloon.csv in de huidige map zetten
@@ -20,9 +18,7 @@ import webbrowser
 from . import __version__, resource
 
 COMMANDO_S = {
-    "web": "Alles in de browser: invoer, aliasbestanden, API en overrides",
-    "overrides": "Scherm: lokale overrides per switch bekijken en wissen",
-    "invoer": "Invulpagina voor toestelwaarden (browser)",
+    "web": "De webapp: onboarden, overrides controleren, AP-migratie",
     "alias": "Uploadbestanden maken, controleren, vergelijken, Classic omzetten, globaliseren",
     "api": "Via de API: aliassen aanmaken, toewijzen, opkuisen, VLAN's doorzetten",
     "sjablonen": "klantconfig.json en toestellen-sjabloon.csv in de huidige map zetten",
@@ -36,13 +32,6 @@ def open_bestand(naam, doelnaam=None):
     shutil.copyfile(resource(naam), doel)
     webbrowser.open("file://" + os.path.abspath(doel).replace("\\", "/"))
     return doel
-
-
-def cmd_invoer(_):
-    pad = open_bestand("invoer.html", "cnx-alias-invoer.html")
-    print(f"Invulpagina geopend: {pad}")
-    print("Je werk blijft in de browser bewaard. Exporteer toestellen.csv om het echt te bewaren.")
-    return 0
 
 
 def cmd_hulp(_):
@@ -91,11 +80,6 @@ def uitvoeren(argv):
     if cmd == "web":
         from . import web
         return doorgeven(web, "web", rest)
-    if cmd == "overrides":
-        from . import overrides
-        return doorgeven(overrides, "overrides", rest)
-    if cmd == "invoer":
-        return cmd_invoer(rest)
     if cmd == "hulp":
         return cmd_hulp(rest)
     if cmd == "sjablonen":
