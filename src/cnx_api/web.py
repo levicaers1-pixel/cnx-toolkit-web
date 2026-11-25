@@ -234,6 +234,8 @@ PER_SESSIE = False          # True: elke browser een eigen verbinding met Centra
 TOEGELATEN_HOSTS = set()    # servermodus: hostnamen (zonder poort) die in de Host-kop mogen staan; "*" = alles
 CENTRAL_DOMEINEN = [d.strip().lower().lstrip(".") for d in os.environ.get("CNX_CENTRAL_DOMEINEN", "arubanetworks.com").split(",") if d.strip()]
 SESSIE_DUUR = 30 * 60       # seconden zonder activiteit, daarna zijn sessie en secret weg
+SESSIE_DUUR_ANONIEM = 10 * 60   # sessie die (nog) niet bij Central aangemeld is
+NIEUW_PER_MINUUT = 20       # servermodus: nieuwe sessies per bezoeker per minuut (tegen bots die alle sessies opeisen)
 MAX_SESSIES = 500
 MAX_BODY_SERVER = 20 * 1024 * 1024
 WEGGOOI_GRENS = 64 * 1024 * 1024   # te grote body tot hier lezen en weggooien; daarboven de verbinding sluiten
@@ -245,16 +247,35 @@ SESSIES = {}
 _SESSIE_SLOT = threading.Lock()
 
 
+_NIEUW = {}                 # bezoeker -> tijdstippen van nieuwe sessies (enkel in het geheugen, nooit gelogd)
+
+
 def _opruimen(nu):
-    """Sessies zonder activiteit sinds SESSIE_DUUR: verbinding (token en secret) en taken wissen. Onder _SESSIE_SLOT."""
-    for sid in [k for k, v in SESSIES.items() if nu - v.laatst > SESSIE_DUUR]:
+    """Sessies zonder activiteit sinds SESSIE_DUUR (niet aangemeld: SESSIE_DUUR_ANONIEM): verbinding (token en secret)
+    en taken wissen. Onder _SESSIE_SLOT."""
+    for sid in [k for k, v in SESSIES.items()
+                if nu - v.laatst > (SESSIE_DUUR if v.verbinding.aangemeld else SESSIE_DUUR_ANONIEM)]:
         SESSIES.pop(sid).wis()
+    for k in [k for k, t in _NIEUW.items() if not t or nu - t[-1] > 60]:
+        _NIEUW.pop(k, None)
 
 
-def sessie_van(cookie, mag_maken=False):
+def _te_veel_nieuw(bezoeker, nu):
+    """True als deze bezoeker de laatste minuut al NIEUW_PER_MINUUT sessies kreeg. Onder _SESSIE_SLOT."""
+    if not bezoeker:
+        return False
+    t = [x for x in _NIEUW.get(bezoeker, []) if nu - x < 60]
+    if len(t) >= NIEUW_PER_MINUUT:
+        _NIEUW[bezoeker] = t
+        return True
+    _NIEUW[bezoeker] = t + [nu]
+    return False
+
+
+def sessie_van(cookie, mag_maken=False, bezoeker=None):
     """Zoekt de sessie bij de cookie van de browser. Geeft (sessie of None, id van een nieuwe sessie of None).
     Een nieuwe sessie komt er enkel bij het openen van de pagina (mag_maken), niet bij elke losse aanvraag.
-    Geeft (None, "vol") als er al MAX_SESSIES zijn."""
+    Geeft (None, "vol") als er al MAX_SESSIES zijn of deze bezoeker te veel nieuwe sessies vraagt."""
     if not PER_SESSIE:
         return LOKAAL, None
     sid = None
@@ -272,7 +293,7 @@ def sessie_van(cookie, mag_maken=False):
             return sessie, None
         if not mag_maken:
             return None, None
-        if len(SESSIES) >= MAX_SESSIES:
+        if len(SESSIES) >= MAX_SESSIES or _te_veel_nieuw(bezoeker, nu):
             return None, "vol"
         sessie = Sessie(cx.Verbinding())
         SESSIES[sessie.id] = sessie
@@ -286,6 +307,13 @@ def nieuwe_sessie_id(sessie):
         sessie.id = secrets.token_urlsafe(24)
         SESSIES[sessie.id] = sessie
     return sessie.id
+
+
+VOETTEKST = ('<footer style="padding:6px 16px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);'
+             'background:var(--panel)">Gratis open-source toolkit, niet gemaakt of ondersteund door HPE. '
+             'De server bewaart niets: je Central-gegevens staan enkel in het geheugen van je sessie en verdwijnen bij '
+             'afmelden of na 30 minuten. Gebruik op eigen risico, test eerst met een proefrun. '
+             '<a href="https://github.com/levicaers1-pixel/cnx-toolkit-web" target="_blank" rel="noopener">Broncode</a></footer>')
 
 
 def central_url_ok(base):
@@ -308,13 +336,23 @@ class Handler(ov.Handler):
         if not super().parse_request():
             return False
         pad = urlparse(self.path).path
-        self.sessie, self._nieuwe_sessie = sessie_van(self.headers.get("Cookie"), mag_maken=self.command == "GET" and pad == "/")
+        self.sessie, self._nieuwe_sessie = sessie_van(self.headers.get("Cookie"), mag_maken=self.command == "GET" and pad == "/",
+                                                      bezoeker=self._bezoeker())
         if self._nieuwe_sessie == "vol":
             self._nieuwe_sessie = None
             self._vol = True
         # Zonder sessie een lege verbinding, nooit de standaardverbinding of die van een vorige aanvraag op dezelfde draad.
         cx._HUIDIG.set(self.sessie.verbinding if self.sessie else cx.Verbinding())
         return True
+
+    def _bezoeker(self):
+        """Wie de aanvraag stuurt, enkel om nieuwe sessies te begrenzen. In servermodus het laatste adres in
+        X-Forwarded-For (dat zet de proxy van het platform zelf; de rest kan de bezoeker verzinnen)."""
+        if SERVER:
+            fwd = [x.strip() for x in (self.headers.get("X-Forwarded-For") or "").split(",") if x.strip()]
+            if fwd:
+                return fwd[-1]
+        return self.client_address[0] if self.client_address else None
 
     def end_headers(self):
         if getattr(self, "_nieuwe_sessie", None):
@@ -434,8 +472,11 @@ class Handler(ov.Handler):
         if self._voor_alles(u.path):
             return
         if u.path == "/":
-            return self._html(pagina("web.html").replace("__TOKEN__", self.sessie.csrf).replace("__VERSIE__", __version__)
-                              .replace("__OPSLAG__", "true" if OPSLAG else "false"))
+            html = (pagina("web.html").replace("__TOKEN__", self.sessie.csrf).replace("__VERSIE__", __version__)
+                    .replace("__OPSLAG__", "true" if OPSLAG else "false"))
+            if SERVER:
+                html = html.replace('<main id="panes"></main>', '<main id="panes"></main>' + VOETTEKST, 1)
+            return self._html(html)
         if u.path == "/hulp":
             return self._html(pagina("LEESMIJ.html"))
         if not self._ok(q):

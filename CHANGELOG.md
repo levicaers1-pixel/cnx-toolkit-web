@@ -2,6 +2,13 @@
 
 Versienummers volgen MAJOR.MINOR.PATCH.
 
+## 0.1.1 (2026-11-25)
+
+- Servermodus klaar voor publiek gebruik zonder login: hoogstens 20 nieuwe sessies per bezoeker per minuut (zodat
+  niemand alle sessies kan opeisen), sessies die niet bij Central aangemeld zijn verdwijnen na 10 minuten, en een
+  vermelding onderaan de pagina (niet van HPE, niets bewaard, gebruik op eigen risico, link naar de broncode).
+- `deploy/azure-containerapps.ps1` en handleiding `docs/AZURE.md`: de toolkit gratis op Azure Container Apps zetten.
+
 ## 0.1.0 (2026-11-24)
 
 - Start van de webversie, gebaseerd op CNX Toolkit 1.25.2: Onboarden (switches en Mobility Gateways), Overrides

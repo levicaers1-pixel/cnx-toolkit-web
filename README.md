@@ -36,6 +36,8 @@ See [docs/WEBAPP.md](docs/WEBAPP.md) for the plan.
 docker run -d -p 8080:8080 -e CNX_HOSTS=cnx.example.com --read-only ghcr.io/levicaers1-pixel/cnx-toolkit-web:latest
 ```
 
+Free hosting on Azure Container Apps (public, no login): see [docs/AZURE.md](docs/AZURE.md) (Dutch).
+
 Put it behind a reverse proxy with HTTPS: the session cookie is `Secure`. `CNX_HOSTS` lists the host names the app is
 reachable on. Health check: `GET /gezond`.
 

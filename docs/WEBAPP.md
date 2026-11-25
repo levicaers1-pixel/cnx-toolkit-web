@@ -60,11 +60,14 @@ docker run -d -p 8080:8080 -e CNX_HOSTS=cnx.voorbeeld.be --read-only ghcr.io/lev
   Bij een tag `v*` komt het op GHCR als `:<versie>` en `:latest`. De eerste keer staat het pakket op GHCR privé:
   zet het in de pakketinstellingen op publiek.
 
-## Fase 5: hosting voor collega's
+## Fase 5: hosting (klaar om uit te voeren)
 
-- Azure App Service (Linux-container), een instantie, enkel HTTPS.
-- Aanmelden via App Service Authentication (Easy Auth) met Microsoft Entra ID.
-- Test op een echte Central: Onboarden, Overrides en AP-migratie geven hetzelfde als de lokale app.
+Publiek en zonder login op Azure Container Apps, gratis binnen het maandelijkse tegoed: script
+`deploy/azure-containerapps.ps1`, handleiding [AZURE.md](AZURE.md). Elke bezoeker meldt enkel aan bij de eigen
+Central. Voor publiek gebruik: nieuwe sessies per bezoeker begrensd, anonieme sessies na 10 minuten weg, vermelding
+onderaan de pagina.
+
+Nog te doen: het script uitvoeren op een echt abonnement en de app testen tegen een echte Central.
 
 ## Fase 6: afwerking open source
 

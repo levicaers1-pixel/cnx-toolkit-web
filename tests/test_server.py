@@ -23,6 +23,7 @@ def srv(monkeypatch, tmp_path):
     monkeypatch.setattr(web, "OPSLAG", False)
     monkeypatch.setattr(web, "TOEGELATEN_HOSTS", {"127.0.0.1"})
     monkeypatch.setattr(web, "SESSIES", {})
+    monkeypatch.setattr(web, "_NIEUW", {})
     monkeypatch.setattr(web, "WERKMAP", str(tmp_path / "cnx-web"))
     monkeypatch.setattr(cx, "_token", lambda v, cid, secret: v.s.headers.update(Authorization="Bearer " + cid) and None)
     monkeypatch.setattr(cx, "api", nep_central.api)
@@ -181,3 +182,35 @@ def test_central_url_ok():
     assert web.central_url_ok("https://de1.api.central.arubanetworks.com")
     assert web.central_url_ok("https://us4.api.central.arubanetworks.com/")
     assert not web.central_url_ok("https://evilarubanetworks.com")
+
+
+def test_nieuwe_sessies_per_bezoeker_begrensd(srv, monkeypatch):
+    server, _ = srv
+    monkeypatch.setattr(web, "NIEUW_PER_MINUUT", 3)
+    van = lambda ip: {"X-Forwarded-For": "6.6.6.6, " + ip}  # noqa: E731  (het eerste adres kan de bezoeker verzinnen)
+    for _ in range(3):
+        assert Browser(server, pagina=False).ruw("/", headers=van("10.0.0.1"))[0] == 200
+    assert Browser(server, pagina=False).ruw("/", headers=van("10.0.0.1"))[0] == 503
+    assert Browser(server, pagina=False).ruw("/", headers={"X-Forwarded-For": "1.1.1.1, 10.0.0.1"})[0] == 503
+    assert Browser(server, pagina=False).ruw("/", headers=van("10.0.0.2"))[0] == 200     # een andere bezoeker wel
+    assert len(web.SESSIES) == 4
+
+
+def test_sessie_zonder_aanmelding_verloopt_sneller(srv):
+    server, _ = srv
+    anoniem, aangemeld = Browser(server), Browser(server)
+    aangemeld.vraag("/api/aanmelden", {"base": CENTRAL, "id": "anna", "secret": "x"})
+    for s in web.SESSIES.values():
+        s.laatst -= web.SESSIE_DUUR_ANONIEM + 1
+    assert anoniem.vraag("/api/status")[0] == 401
+    assert aangemeld.vraag("/api/status")[1]["aangemeld"] is True
+
+
+def test_voettekst_enkel_in_servermodus(srv, monkeypatch):
+    server, _ = srv
+    s, html = Browser(server, pagina=False).ruw("/")
+    assert s == 200 and b"niet gemaakt of ondersteund door HPE" in html and b"De server bewaart niets" in html
+    monkeypatch.setattr(web, "SERVER", False)
+    monkeypatch.setattr(web, "PER_SESSIE", False)
+    s, html = Browser(server, pagina=False).ruw("/", headers={"Host": server.split("//")[1]})
+    assert s == 200 and b"<footer" not in html

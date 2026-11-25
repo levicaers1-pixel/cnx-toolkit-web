@@ -58,6 +58,7 @@ class Browser:
 def twee(server, monkeypatch):
     monkeypatch.setattr(web, "PER_SESSIE", True)
     monkeypatch.setattr(web, "SESSIES", {})
+    monkeypatch.setattr(web, "_NIEUW", {})
     # Aanmelden zonder echte Central: het token draagt de client-ID, zodat we zien welke verbinding een aanvraag deed.
     monkeypatch.setattr(cx, "_token", lambda v, cid, secret: v.s.headers.update(Authorization="Bearer " + cid) and None)
     gezien = []
