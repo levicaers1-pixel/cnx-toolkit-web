@@ -187,3 +187,35 @@ def test_voortgang_uit_de_browser_wordt_nagekeken():
 def web_token():
     from cnx_api import web
     return web.TOKEN
+
+
+def _blad(inhoud, voor=""):
+    import io, zipfile
+    b = io.BytesIO()
+    with zipfile.ZipFile(b, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("xl/workbook.xml", '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="A" sheetId="1" r:id="rId1"/></sheets></workbook>')
+        z.writestr("xl/_rels/workbook.xml.rels", '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Target="worksheets/sheet1.xml" Type="x"/></Relationships>')
+        z.writestr("xl/worksheets/sheet1.xml", voor + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' + inhoud + '</sheetData></worksheet>')
+    return b.getvalue()
+
+
+def test_xlsx_grenzen_tegen_kwaadaardige_bestanden(monkeypatch):
+    import pytest
+    # een cel in de laatste kolom maakt geen rij van 16.384 waarden meer
+    r = aos8.lees_xlsx(_blad('<row><c r="XFD1"><v>1</v></c></row>' * 50))
+    assert r["A"] == [[]] * 50
+    monkeypatch.setattr(aos8, "MAX_RIJEN", 10)
+    with pytest.raises(aos8.Fout, match="rijen"):
+        aos8.lees_xlsx(_blad('<row><c r="A1"><v>1</v></c></row>' * 11))
+    monkeypatch.setattr(aos8, "MAX_RIJEN", 100_000)
+    monkeypatch.setattr(aos8, "MAX_CELLEN", 1000)
+    with pytest.raises(aos8.Fout, match="cellen"):
+        aos8.lees_xlsx(_blad('<row><c r="IV1"><v>1</v></c></row>' * 5))
+    monkeypatch.setattr(aos8, "MAX_UITGEPAKT", 10_000)
+    with pytest.raises(aos8.Fout, match="uitgepakt"):
+        aos8.lees_xlsx(_blad(" " * 20_000))
+    monkeypatch.setattr(aos8, "MAX_UITGEPAKT", 20 * 1024 * 1024)
+    with pytest.raises(aos8.Fout, match="DOCTYPE"):
+        aos8.lees_xlsx(_blad("", voor='<!DOCTYPE x [<!ENTITY a "aaa">]>'))
+    with pytest.raises(aos8.Fout, match="bestanden"):
+        aos8.lees_bestanden([{"naam": "x.txt", "inhoud": ""}] * 11)

@@ -35,6 +35,39 @@ def _kolom(ref):
     return n - 1
 
 
+# Grenzen tegen kwaadaardige bestanden: een klein .xlsx kan uitgepakt gigabytes worden, en een cel in de laatste
+# kolom (XFD) maakt van elke rij een lijst van 16.384 waarden. Een echte inventaris (3.000 APs: ongeveer 40.000 cellen,
+# 2 MB XML) blijft ver onder deze grenzen. De bladen worden rij per rij gelezen, nooit als een boom in het geheugen.
+MAX_UITGEPAKT = 20 * 1024 * 1024     # bytes, alle gelezen onderdelen van een .xlsx samen
+MAX_ONDERDELEN = 500                 # bestanden in de zip
+MAX_KOLOMMEN = 256
+MAX_RIJEN = 100_000                  # per blad
+MAX_CELLEN = 1_000_000               # per bestand
+MAX_BESTANDEN = 10                   # per inlezing
+
+
+def _onderdeel(z, naam, teller):
+    """Een XML-onderdeel van de zip als bytes, met de grens op de uitgepakte grootte en zonder DOCTYPE (entiteiten)."""
+    info = z.getinfo(naam)
+    teller[0] += info.file_size
+    if info.file_size > MAX_UITGEPAKT or teller[0] > MAX_UITGEPAKT:
+        raise Fout("Excel-bestand te groot uitgepakt (maximum 20 MB)")
+    with z.open(info) as f:
+        data = f.read(MAX_UITGEPAKT + 1)
+    if len(data) > MAX_UITGEPAKT or b"<!DOCTYPE" in data[:4096].upper():
+        raise Fout("Excel-bestand niet aanvaard (te groot of met een DOCTYPE)")
+    return data
+
+
+def _elementen(data, tag):
+    """Elk afgesloten element met deze tag, waarna het gewist wordt: geheugen per element, niet per blad."""
+    volledig = f"{{{NS['m']}}}{tag}"
+    for _, el in ET.iterparse(io.BytesIO(data), events=("end",)):
+        if el.tag == volledig:
+            yield el
+            el.clear()
+
+
 def lees_xlsx(data):
     """{bladnaam: [rijen]} uit een .xlsx, enkel met de standaardbibliotheek. Waarden als tekst."""
     try:
@@ -42,20 +75,28 @@ def lees_xlsx(data):
     except zipfile.BadZipFile:
         raise Fout("geen geldig Excel-bestand (.xlsx)")
     with z:
+        if len(z.infolist()) > MAX_ONDERDELEN:
+            raise Fout("Excel-bestand met te veel onderdelen")
         namen = set(z.namelist())
+        if "xl/_rels/workbook.xml.rels" not in namen or "xl/workbook.xml" not in namen:
+            raise Fout("geen geldig Excel-bestand (.xlsx)")
+        teller, cellen = [0], 0
         gedeeld = []
         if "xl/sharedStrings.xml" in namen:
-            for si in ET.fromstring(z.read("xl/sharedStrings.xml")).findall("m:si", NS):
+            for si in _elementen(_onderdeel(z, "xl/sharedStrings.xml", teller), "si"):
                 gedeeld.append("".join(t.text or "" for t in si.iter(f"{{{NS['m']}}}t")))
-        rels = {r.get("Id"): r.get("Target") for r in ET.fromstring(z.read("xl/_rels/workbook.xml.rels")).findall("pr:Relationship", NS)}
+        rels = {r.get("Id"): r.get("Target")
+                for r in ET.fromstring(_onderdeel(z, "xl/_rels/workbook.xml.rels", teller)).findall("pr:Relationship", NS)}
         bladen = {}
-        for s in ET.fromstring(z.read("xl/workbook.xml")).find("m:sheets", NS).findall("m:sheet", NS):
+        for s in ET.fromstring(_onderdeel(z, "xl/workbook.xml", teller)).find("m:sheets", NS).findall("m:sheet", NS):
             doel = rels.get(s.get(f"{{{NS['r']}}}id"), "")
             pad = doel.lstrip("/") if doel.startswith("/") else "xl/" + doel
             if pad not in namen:
                 continue
             rijen = []
-            for row in ET.fromstring(z.read(pad)).iter(f"{{{NS['m']}}}row"):
+            for row in _elementen(_onderdeel(z, pad, teller), "row"):
+                if len(rijen) >= MAX_RIJEN:
+                    raise Fout(f"Excel-blad met meer dan {MAX_RIJEN} rijen")
                 rij = {}
                 for c in row.findall("m:c", NS):
                     t, v = c.get("t"), c.find("m:v", NS)
@@ -67,7 +108,12 @@ def lees_xlsx(data):
                         w = v.text if v is not None and v.text is not None else ""
                         if t != "str" and re.fullmatch(r"-?\d+\.0", w):
                             w = w[:-2]
-                    rij[_kolom(c.get("r")) if c.get("r") else len(rij)] = w
+                    k = _kolom(c.get("r")) if c.get("r") else len(rij)
+                    if k < MAX_KOLOMMEN:                  # kolommen daarna staan nooit in een inventaris
+                        rij[k] = w
+                cellen += (max(rij) + 1) if rij else 0
+                if cellen > MAX_CELLEN:
+                    raise Fout("Excel-bestand met te veel cellen")
                 rijen.append([rij.get(i, "") for i in range(max(rij) + 1)] if rij else [])
             bladen[s.get("name")] = rijen
         return bladen
@@ -152,6 +198,8 @@ def lees_bestanden(bestanden):
     """(aps, controllers, meldingen) uit de opgeladen bestanden."""
     if not isinstance(bestanden, list) or not bestanden:
         raise Fout("kies minstens een bestand")
+    if len(bestanden) > MAX_BESTANDEN:
+        raise Fout(f"hoogstens {MAX_BESTANDEN} bestanden tegelijk")
     aps, ctrls, meldingen = {}, {}, []
     for b in bestanden:
         if not isinstance(b, dict):

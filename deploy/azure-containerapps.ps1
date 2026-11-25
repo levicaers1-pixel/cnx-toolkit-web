@@ -9,7 +9,7 @@
   Opnieuw uitvoeren met een andere -Versie werkt de app bij. Zie docs/AZURE.md.
 
 .EXAMPLE
-  .\deploy\azure-containerapps.ps1                  # eerste keer, versie 0.1.3
+  .\deploy\azure-containerapps.ps1                  # eerste keer, versie 0.1.4
   .\deploy\azure-containerapps.ps1 -Versie 0.2.0    # bijwerken naar een nieuwe versie
   .\deploy\azure-containerapps.ps1 -Proef          # toont enkel de az-commando's, voert niets uit
 #>
@@ -17,7 +17,7 @@ param(
     [string]$Naam = "cnx-toolkit",
     [string]$ResourceGroup = "rg-cnx-toolkit",
     [string]$Regio = "northeurope",    # West Europe nam in november 2026 geen nieuwe klanten aan
-    [string]$Versie = "0.1.3",        # altijd een vaste versie: met "latest" maakt Container Apps geen nieuwe revisie
+    [string]$Versie = "0.1.4",        # altijd een vaste versie: met "latest" maakt Container Apps geen nieuwe revisie
     [string]$Image = "ghcr.io/levicaers1-pixel/cnx-toolkit-web",
     [string]$Abonnement = "",
     [string[]]$ExtraHosts = @(),       # eigen domeinnaam, bv. cnx.voorbeeld.be (zie docs/AZURE.md)
@@ -111,13 +111,13 @@ $volledigImage = "${Image}:$Versie"
 Write-Stap "Container-app $Naam met $volledigImage"
 if (Test-Az containerapp show --name $Naam --resource-group $ResourceGroup) {
     Invoke-Az containerapp update --name $Naam --resource-group $ResourceGroup --image $volledigImage `
-        --min-replicas 0 --max-replicas 1 --set-env-vars "CNX_HOSTS=$hosts" --output none | Out-Null
+        --min-replicas 0 --max-replicas 1 --set-env-vars "CNX_HOSTS=$hosts" "CNX_PROXY=1" --output none | Out-Null
     Write-Host "Bijgewerkt."
 } else {
     Invoke-Az containerapp create --name $Naam --resource-group $ResourceGroup --environment $Omgeving `
         --image $volledigImage --ingress external --target-port 8080 `
         --cpu 0.25 --memory 0.5Gi --min-replicas 0 --max-replicas 1 `
-        --env-vars "CNX_HOSTS=$hosts" --output none | Out-Null
+        --env-vars "CNX_HOSTS=$hosts" "CNX_PROXY=1" --output none | Out-Null
     if (-not $Proef) { Write-Host "Aangemaakt." }
 }
 

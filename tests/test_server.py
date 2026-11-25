@@ -2,6 +2,7 @@
 gegevens, veiligheidskoppen en enkel URL's van Central bij het aanmelden."""
 import json
 import urllib.error
+import urllib.request
 import os
 import sys
 import threading
@@ -142,8 +143,11 @@ def test_maximum_lopende_taken(srv, monkeypatch):
 def test_te_grote_aanvraag(srv, monkeypatch):
     server, _ = srv
     monkeypatch.setattr(web, "MAX_BODY_SERVER", 1000)
+    monkeypatch.setattr(web, "MAX_BODY_AOS8", 500)
     b = Browser(server)
-    s, r = b.vraag("/api/web/aos8/gereedheid", {"bestanden": [{"naam": "x.txt", "inhoud": "A" * 2000}]})
+    s, r = b.vraag("/api/web/onboard/bestand", {"groep": "x", "rijen": ["A" * 2000]})
+    assert s == 413
+    s, r = b.vraag("/api/web/aos8/gereedheid", {"bestanden": [{"naam": "x.txt", "inhoud": "A" * 700}]})
     assert s == 413
 
 
@@ -189,6 +193,7 @@ def test_central_url_ok():
 
 def test_nieuwe_sessies_per_bezoeker_begrensd(srv, monkeypatch):
     server, _ = srv
+    monkeypatch.setattr(web, "VERTROUW_PROXY", True)          # achter Azure Container Apps (CNX_PROXY=1)
     monkeypatch.setattr(web, "NIEUW_PER_MINUUT", 3)
     van = lambda ip: {"X-Forwarded-For": "6.6.6.6, " + ip}  # noqa: E731  (het eerste adres kan de bezoeker verzinnen)
     for _ in range(3):
@@ -314,3 +319,76 @@ def test_zonder_pilotcode_open(srv):
     server, _ = srv
     s, html = Browser(server, pagina=False).ruw("/")
     assert s == 200 and b"const T =" in html and b"Pilotcode" not in html
+
+
+def test_zonder_proxy_telt_het_echte_adres(srv, monkeypatch):
+    """Zonder CNX_PROXY is X-Forwarded-For verzinbaar: een ander adres in de kop helpt niet om de grens te omzeilen."""
+    server, _ = srv
+    monkeypatch.setattr(web, "VERTROUW_PROXY", False)
+    monkeypatch.setattr(web, "NIEUW_PER_MINUUT", 2)
+    for i in range(2):
+        assert Browser(server, pagina=False).ruw("/", headers={"X-Forwarded-For": f"10.9.9.{i}"})[0] == 200
+    assert Browser(server, pagina=False).ruw("/", headers={"X-Forwarded-For": "10.9.9.99"})[0] == 503
+
+
+def test_pilotcode_grens_voor_de_hele_server(srv, monkeypatch):
+    server, _ = srv
+    monkeypatch.setattr(web, "VERTROUW_PROXY", True)
+    monkeypatch.setattr(web, "PILOTCODE", "geheim-123")
+    monkeypatch.setattr(web, "PILOT_GLOBAAL", 4)
+    monkeypatch.setattr(web, "_PILOT_ALLE", [])
+    for i in range(4):                                          # elk een ander adres, elk een foute code
+        b = _met_pilot(server)
+        assert _pilot_post_van(b, "fout", f"10.1.1.{i}")[0] == 403
+    b = _met_pilot(server)
+    assert _pilot_post_van(b, "geheim-123", "10.1.1.50")[0] == 429
+
+
+def _pilot_post_van(b, code, ip):
+    import urllib.parse
+    data = urllib.parse.urlencode({"t": b.token_pilot, "code": code}).encode()
+    h = {"Content-Type": "application/x-www-form-urlencoded", "Cookie": "cnx_sessie=" + b.cookie, "X-Forwarded-For": ip}
+    try:
+        with urllib.request.urlopen(urllib.request.Request(b.server + "/pilot", data=data, headers=h), timeout=10) as r:
+            return r.status, r.read()
+    except urllib.error.HTTPError as e:
+        return e.code, e.read()
+
+
+def test_csp_hsts_en_nonce(srv):
+    import re
+    server, _ = srv
+    b = Browser(server, pagina=False)
+    s, html = b.ruw("/")
+    csp = b.koppen.get("Content-Security-Policy")
+    nonce = re.search(r"'nonce-([^']+)'", csp).group(1)
+    assert f'<script nonce="{nonce}">'.encode() in html and b"<script>" not in html
+    assert "frame-ancestors 'self'" in csp and "object-src 'none'" in csp and "unsafe-eval" not in csp
+    assert b.koppen.get("Strict-Transport-Security") == "max-age=31536000"
+    s2, html2 = Browser(server, pagina=False).ruw("/")
+    assert nonce.encode() not in html2                                         # elke pagina een nieuwe nonce
+
+
+def test_algemene_foutmelding_in_servermodus(srv, monkeypatch, capsys):
+    server, _ = srv
+    b = Browser(server)
+    b.vraag("/api/aanmelden", {"base": CENTRAL, "id": "anna", "secret": "x"})
+    def kapot(*a, **k):
+        raise RuntimeError("interne details van /pad/naar/bestand")
+    monkeypatch.setattr(web.configapi, "keuzes", kapot)
+    s, r = b.vraag("/api/web/ov/keuzes")
+    assert s == 500 and "interne details" not in r["fout"] and "Onverwachte fout" in r["fout"]
+    assert "onverwachte fout: RuntimeError" in capsys.readouterr().err
+
+
+def test_zware_verwerkingen_begrensd(srv, monkeypatch):
+    """Lopen er al zoveel AP-migraties als de grens toelaat, dan krijgt de volgende 503 (na het wachten)."""
+    server, _ = srv
+
+    class Vol:
+        def acquire(self, timeout=None):
+            return False
+
+    monkeypatch.setattr(web, "ZWAAR", Vol())
+    s, r = Browser(server).vraag("/api/web/aos8/plan", {"clusters": []})
+    assert s == 503 and "druk" in r["fout"]

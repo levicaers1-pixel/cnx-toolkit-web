@@ -38,6 +38,7 @@ cnx web --server --host-naam cnx.voorbeeld.be        # luistert op 0.0.0.0, poor
 | Toegelaten hostnamen | `--host-naam` (meermaals) of `CNX_HOSTS` (komma's). Verplicht; `*` schakelt de controle uit |
 | Domeinen voor Central | `CNX_CENTRAL_DOMEINEN`, standaard `arubanetworks.com` (enkel https, poort 443) |
 | Gezondheidscheck | `GET` of `HEAD /gezond` |
+| Proxy | `CNX_PROXY=1` enkel achter een proxy die `X-Forwarded-For` zelf zet (Azure Container Apps): dan telt dat adres voor de grenzen per bezoeker |
 | Pilotcode (optioneel) | `CNX_PILOTCODE`: eerst een codepagina, zonder juiste code blijven app en API dicht |
 
 Een sessie ontstaat enkel bij het openen van de pagina; losse aanvragen zonder sessie krijgen 401. Tests in

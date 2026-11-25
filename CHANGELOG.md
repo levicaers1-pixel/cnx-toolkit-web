@@ -2,6 +2,22 @@
 
 Versienummers volgen MAJOR.MINOR.PATCH.
 
+## 0.1.4 (2026-11-25)
+
+Beveiliging, na een audit:
+
+- AP-migratie: grenzen tegen kwaadaardige Excel-bestanden. Een bestand van minder dan 1 kB kon 110 MB geheugen en
+  19 seconden rekentijd kosten (en met iets meer de container laten crashen). Nu: hoogstens 20 MB uitgepakt,
+  500 onderdelen, 256 kolommen, 100.000 rijen en 1 miljoen cellen, bladen worden rij per rij gelezen, een DOCTYPE
+  wordt geweigerd, hoogstens 10 bestanden per inlezing.
+- Servermodus: hoogstens 2 AP-migraties tegelijk op de server, uploads voor AP-migratie tot 8 MB.
+- Servermodus: `X-Forwarded-For` telt enkel met `CNX_PROXY=1` (achter een proxy die de kop zelf zet, zoals Azure
+  Container Apps; het script zet dit). Anders telt het adres van de verbinding. Daarnaast hoogstens 60 foute
+  pilotcodes per minuut voor de hele server.
+- Time-out van 60 seconden op stille verbindingen.
+- Koppen: `Strict-Transport-Security` in servermodus, en een `Content-Security-Policy` met een nonce per pagina.
+- Servermodus: een onverwachte fout geeft een algemene melding in plaats van de Python-fout (het type staat in de log).
+
 ## 0.1.3 (2026-11-25)
 
 - Pilotcode voor de servermodus: met `CNX_PILOTCODE` gezet krijgt een bezoeker eerst een pagina die om de code vraagt;

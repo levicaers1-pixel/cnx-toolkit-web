@@ -19,6 +19,11 @@ its own CSRF token. A session, including the Central secret, is wiped after 30 m
 Logs contain only the method, the path without parameters, the status and the duration. Sign-in is only allowed to
 https addresses on the Central domains (`CNX_CENTRAL_DOMEINEN`, default `arubanetworks.com`).
 
+Uploads are bounded (a decompressed-size, row, column and cell limit for Excel files; no DOCTYPE), at most two
+heavy jobs run at once, idle connections time out after 60 seconds, and pages carry HSTS and a nonce-based
+Content-Security-Policy. Per-visitor limits trust `X-Forwarded-For` only with `CNX_PROXY=1` (behind a proxy that
+sets it, such as Azure Container Apps).
+
 An optional access code (`CNX_PILOTCODE`, set as a secret in the hosting platform, never in the repository) can
 restrict a hosted instance during a pilot; failed attempts are rate limited.
 

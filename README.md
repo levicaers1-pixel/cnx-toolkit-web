@@ -39,7 +39,7 @@ docker run -d -p 8080:8080 -e CNX_HOSTS=cnx.example.com --read-only ghcr.io/levi
 Free hosting on Azure Container Apps (public, no login): see [docs/AZURE.md](docs/AZURE.md) (Dutch).
 
 Put it behind a reverse proxy with HTTPS: the session cookie is `Secure`. `CNX_HOSTS` lists the host names the app is
-reachable on. Health check: `GET /gezond`.
+reachable on. Set `CNX_PROXY=1` only behind a proxy that sets `X-Forwarded-For` itself. Health check: `GET /gezond`.
 
 ## Running locally
 

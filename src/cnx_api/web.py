@@ -239,6 +239,10 @@ SESSIE_DUUR_ANONIEM = 10 * 60   # sessie die (nog) niet bij Central aangemeld is
 NIEUW_PER_MINUUT = 20       # servermodus: nieuwe sessies per bezoeker per minuut (tegen bots die alle sessies opeisen)
 PILOTCODE = os.environ.get("CNX_PILOTCODE", "")   # servermodus: toegangscode tijdens een pilot; leeg = open voor iedereen
 PILOT_POGINGEN = 10         # foute codes per bezoeker per kwartier
+PILOT_GLOBAAL = 60          # foute codes per minuut voor de hele server, wie ze ook stuurt (tegen raden met veel adressen)
+VERTROUW_PROXY = os.environ.get("CNX_PROXY") == "1"   # X-Forwarded-For enkel geloven achter een proxy die hem zelf zet
+MAX_BODY_AOS8 = 8 * 1024 * 1024    # servermodus: AP-migratie (inventaris, plan); een echte inventaris is ongeveer 1 MB
+ZWAAR = threading.BoundedSemaphore(2)   # hoogstens zoveel zware verwerkingen (AP-migratie) tegelijk op de server
 MAX_SESSIES = 500
 MAX_BODY_SERVER = 20 * 1024 * 1024
 WEGGOOI_GRENS = 64 * 1024 * 1024   # te grote body tot hier lezen en weggooien; daarboven de verbinding sluiten
@@ -252,6 +256,7 @@ _SESSIE_SLOT = threading.Lock()
 
 _NIEUW = {}                 # bezoeker -> tijdstippen van nieuwe sessies (enkel in het geheugen, nooit gelogd)
 _PILOT_FOUT = {}            # bezoeker -> tijdstippen van foute pilotcodes (idem)
+_PILOT_ALLE = []            # tijdstippen van alle foute pilotcodes, de laatste minuut
 
 
 def _opruimen(nu):
@@ -276,13 +281,15 @@ def pilot_controle(bezoeker, code):
     with _SESSIE_SLOT:
         _opruimen(nu)
         fouten = [x for x in _PILOT_FOUT.get(bezoeker, []) if nu - x < 900]
-        if len(fouten) >= PILOT_POGINGEN:
+        _PILOT_ALLE[:] = [x for x in _PILOT_ALLE if nu - x < 60]
+        if len(fouten) >= PILOT_POGINGEN or len(_PILOT_ALLE) >= PILOT_GLOBAAL:
             _PILOT_FOUT[bezoeker] = fouten
             return "geblokkeerd"
         if hmac.compare_digest(str(code or "")[:200].encode(), PILOTCODE.encode()):
             _PILOT_FOUT.pop(bezoeker, None)
             return "ok"
         _PILOT_FOUT[bezoeker] = fouten + [nu]
+        _PILOT_ALLE.append(nu)
         return "fout"
 
 
@@ -375,6 +382,8 @@ def central_url_ok(base):
 
 
 class Handler(BaseHTTPRequestHandler):
+    timeout = 60                              # seconden stilte op een verbinding, daarna dicht (tegen trage verbindingen)
+
     def log_message(self, *a):
         pass                                  # lokaal geen log per aanvraag; servermodus: log_request
 
@@ -394,9 +403,10 @@ class Handler(BaseHTTPRequestHandler):
         return True
 
     def _bezoeker(self):
-        """Wie de aanvraag stuurt, enkel om nieuwe sessies te begrenzen. In servermodus het laatste adres in
-        X-Forwarded-For (dat zet de proxy van het platform zelf; de rest kan de bezoeker verzinnen)."""
-        if SERVER:
+        """Wie de aanvraag stuurt, enkel om sessies en pilotcodes te begrenzen. Achter een vertrouwde proxy (CNX_PROXY=1,
+        bv. Azure Container Apps) het laatste adres in X-Forwarded-For: dat zet de proxy zelf, de rest kan de bezoeker
+        verzinnen. Zonder proxy het adres van de verbinding: dan is de hele kop verzinbaar."""
+        if SERVER and VERTROUW_PROXY:
             fwd = [x.strip() for x in (self.headers.get("X-Forwarded-For") or "").split(",") if x.strip()]
             if fwd:
                 return fwd[-1]
@@ -410,6 +420,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("X-Frame-Options", "SAMEORIGIN")
             self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Strict-Transport-Security", "max-age=31536000")
         super().end_headers()
 
     def log_request(self, code="-", size="-"):
@@ -487,13 +498,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._naar("/")
         melding = ("Te veel foute pogingen. Probeer het binnen een kwartier opnieuw." if uitslag == "geblokkeerd"
                    else "Die code klopt niet.")
-        b = pilot_pagina(self.sessie.csrf, melding).encode("utf-8")
-        self.send_response(429 if uitslag == "geblokkeerd" else 403)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Content-Length", str(len(b)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(b)
+        return self._html(pilot_pagina(self.sessie.csrf, melding), 429 if uitslag == "geblokkeerd" else 403)
 
     def do_HEAD(self):
         """Voor gezondheidschecks die HEAD gebruiken: enkel /gezond, zonder inhoud."""
@@ -517,14 +522,27 @@ class Handler(BaseHTTPRequestHandler):
             self._nieuwe_sessie = nieuwe_sessie_id(self.sessie)
         return {"ok": ok, "melding": msg}
 
-    def _html(self, tekst):
-        b = tekst.encode("utf-8")
-        self.send_response(200)
+    def _html(self, tekst, code=200):
+        """Een HTML-pagina met een Content-Security-Policy: enkel scripts met de nonce van deze aanvraag, geen
+        bronnen van buiten, geen inbedding door andere sites."""
+        nonce = secrets.token_urlsafe(16)
+        b = tekst.replace("<script>", f'<script nonce="{nonce}">').encode("utf-8")
+        self.send_response(code)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(b)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Security-Policy",
+                         f"default-src 'self'; script-src 'nonce-{nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+                         "connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'none'; object-src 'none'")
         self.end_headers()
         self.wfile.write(b)
+
+    def _onverwacht(self, e):
+        """Een onverwachte fout: lokaal met de details, in servermodus enkel een algemene melding (het type in de log)."""
+        if SERVER:
+            sys.stderr.write(f"onverwachte fout: {type(e).__name__}\n")
+            return "Onverwachte fout in de toolkit. Probeer het opnieuw of meld het."
+        return f"{type(e).__name__}: {e}"
 
     def _bestand(self, data, naam, soort="application/octet-stream"):
         self.send_response(200)
@@ -544,7 +562,7 @@ class Handler(BaseHTTPRequestHandler):
             tekst = e.melding if e.status == 400 and isinstance(e, monitor.Invoer) else f"Central gaf {e.status}: {e.melding}"
             return self._json({"fout": tekst, "status": e.status}, 400 if isinstance(e, monitor.Invoer) else 502)
         except Exception as e:  # noqa: BLE001
-            return self._json({"fout": f"{type(e).__name__}: {e}"}, 500)
+            return self._json({"fout": self._onverwacht(e)}, 500)
 
     def do_GET(self):
         u = urlparse(self.path)
@@ -594,6 +612,28 @@ class Handler(BaseHTTPRequestHandler):
                 return self._bestand(f.read(), "klantconfig.json", "application/json")
         return self._json({"fout": "onbekend"}, 404)
 
+    def _aos8(self, pad, body):
+        """AP-migratie: inventaris lezen, plan en rapport maken. De browser stuurt alles mee; de server bewaart niets."""
+        if pad == "/api/web/aos8/gereedheid":
+            try:
+                return self._json(aos8.analyseer(body.get("bestanden"), body.get("klant", "")))   # de browser bewaart het
+            except aos8.Fout as e:
+                return self._json({"fout": str(e)}, 400)
+            except (ET.ParseError, KeyError, ValueError, AttributeError) as e:
+                return self._json({"fout": f"bestand niet te lezen ({type(e).__name__}: {e})"}, 400)
+        if pad in ("/api/web/aos8/plan", "/api/web/aos8/rapport"):
+            # De inventaris en de voortgang komen van de browser; de server bewaart niets.
+            try:
+                res = migratieplan.inventaris_uit(body.get("inventaris"))
+                if pad.endswith("rapport"):
+                    return self._json({"rapport": aos8.rapport_html(res)})
+                plan = migratieplan.maak_plan(res, body.get("clusters"))
+                plan["html"] = migratieplan.plan_html(plan, migratieplan.voortgang_uit(body.get("voortgang")))
+                return self._json(plan)
+            except (ValueError, KeyError, TypeError, AttributeError) as e:
+                return self._json({"fout": str(e) or "ongeldige inventaris"}, 400)
+        return self._json({"fout": "onbekend"}, 404)
+
     def do_POST(self):
         u = urlparse(self.path)
         # Eerst de body lezen (binnen de grens), ook als de aanvraag straks geweigerd wordt: anders breekt de
@@ -602,7 +642,7 @@ class Handler(BaseHTTPRequestHandler):
             n = int(self.headers.get("Content-Length") or 0)
         except ValueError:
             n = -1
-        grens = MAX_BODY_SERVER if SERVER else MAX_BODY
+        grens = (MAX_BODY_AOS8 if u.path.startswith("/api/web/aos8/") else MAX_BODY_SERVER) if SERVER else MAX_BODY
         if n < 0:
             self.close_connection = True
             return self._json({"fout": "ongeldige aanvraag"}, 400)
@@ -641,24 +681,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(onboard_bestand(body.get("groep"), body.get("rijen")))
             except Fout as e:
                 return self._json({"fout": str(e)}, 400)
-        if u.path == "/api/web/aos8/gereedheid":
+        if u.path.startswith("/api/web/aos8/"):
+            if not ZWAAR.acquire(timeout=15):
+                return self._json({"fout": "De server is even druk met andere inventarissen. Probeer het zo opnieuw."}, 503)
             try:
-                return self._json(aos8.analyseer(body.get("bestanden"), body.get("klant", "")))   # de browser bewaart het
-            except aos8.Fout as e:
-                return self._json({"fout": str(e)}, 400)
-            except (ET.ParseError, KeyError, ValueError, AttributeError) as e:
-                return self._json({"fout": f"bestand niet te lezen ({type(e).__name__}: {e})"}, 400)
-        if u.path in ("/api/web/aos8/plan", "/api/web/aos8/rapport"):
-            # De inventaris en de voortgang komen van de browser; de server bewaart niets.
-            try:
-                res = migratieplan.inventaris_uit(body.get("inventaris"))
-                if u.path.endswith("rapport"):
-                    return self._json({"rapport": aos8.rapport_html(res)})
-                plan = migratieplan.maak_plan(res, body.get("clusters"))
-                plan["html"] = migratieplan.plan_html(plan, migratieplan.voortgang_uit(body.get("voortgang")))
-                return self._json(plan)
-            except (ValueError, KeyError, TypeError, AttributeError) as e:
-                return self._json({"fout": str(e) or "ongeldige inventaris"}, 400)
+                return self._aos8(u.path, body)
+            finally:
+                ZWAAR.release()
         if u.path == "/api/web/ov/ophaal":
             return self._monitor(lambda: {"id": start_ophaling(self.sessie, body.get("soort", ""), body.get("opties") or {}).id})
         if not OPSLAG and u.path.startswith("/api/web/klantconfig"):
@@ -751,7 +780,10 @@ def start_ophaling(sessie, soort, opties):
         except monitor.ApiFout as e:
             o.fout, o.status = (e.melding if isinstance(e, monitor.Invoer) else f"Central gaf {e.status}: {e.melding}"), "fout"
         except Exception as e:  # noqa: BLE001
-            o.fout, o.status = f"{type(e).__name__}: {e}", "fout"
+            o.fout, o.status = (("Onverwachte fout in de toolkit. Probeer het opnieuw of meld het."
+                                 if SERVER else f"{type(e).__name__}: {e}"), "fout")
+            if SERVER:
+                sys.stderr.write(f"onverwachte fout in een ophaling: {type(e).__name__}\n")
 
     threading.Thread(target=draai_ophaling, daemon=True).start()
     return o
