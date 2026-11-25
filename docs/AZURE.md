@@ -148,13 +148,29 @@ bv. 5 euro per maand, en een e-mail bij 80 %. Zo hoor je het als het gratis tego
 
 ## Eigen domeinnaam (optioneel)
 
-1. Voeg de naam toe aan de app, met een gratis certificaat van Azure (de portal toont welke DNS-records je moet
-   maken): **Container App** > **Custom domains** > **Add custom domain** > **Managed certificate**.
-2. Voer het script opnieuw uit met die naam erbij, zodat de app ze aanvaardt:
+Bv. `cnx.voorbeeld.be` in plaats van `cnx-toolkit....azurecontainerapps.io`, met een gratis certificaat van Azure dat
+zichzelf vernieuwt.
+
+1. Voer het script uit met je domein. Staan de DNS-records er nog niet, dan toont het welke je moet maken (met de
+   juiste waarden) en stopt het:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\deploy\azure-containerapps.ps1 -ExtraHosts cnx.voorbeeld.be
+powershell -ExecutionPolicy Bypass -File .\deploy\azure-containerapps.ps1 -Domein cnx.voorbeeld.be
 ```
+
+2. Maak die twee records bij de beheerder van je domein:
+
+| Type | Naam | Waarde |
+|---|---|---|
+| CNAME | `cnx` (dus `cnx.voorbeeld.be`) | het adres van de app, `cnx-toolkit.<omgeving>.<regio>.azurecontainerapps.io` |
+| TXT | `asuid.cnx` | de verificatie-ID van de omgeving (een lange reeks letters en cijfers) |
+
+   Bij Cloudflare: zet de CNAME op **DNS only** (grijze wolk), niet op Proxied. Anders kan Azure het certificaat niet
+   uitreiken.
+3. Wacht een paar minuten en voer het script opnieuw uit met `-Domein`. Het koppelt het domein, vraagt het
+   certificaat aan en zet het domein bij de toegelaten hostnamen. Daarna werkt ook het oude adres nog.
+
+Bij een volgende update hoef je `-Domein` niet meer mee te geven: het script neemt gekoppelde domeinen zelf mee.
 
 ## Verwijderen
 
@@ -168,7 +184,7 @@ az group delete --name rg-cnx-toolkit --yes
 
 | Wat je ziet | Oorzaak en oplossing |
 |---|---|
-| `{"fout": "geen toegang"}` (403) | De hostnaam staat niet in `CNX_HOSTS`. Voer het script opnieuw uit; bij een eigen domein met `-ExtraHosts` |
+| `{"fout": "geen toegang"}` (403) | De hostnaam staat niet in `CNX_HOSTS`. Voer het script opnieuw uit; bij een nieuw eigen domein met `-Domein` |
 | "Te veel gebruikers tegelijk" (503) | Het maximum aantal sessies is bereikt, of je opende de pagina meer dan 20 keer in een minuut. Wacht even |
 | "Je sessie is verlopen. Herlaad de pagina." | De container sliep of werd bijgewerkt, of je was 30 minuten (10 zonder aanmelding) niet actief |
 | "Geef de API-URL van new Central" bij aanmelden | Enkel `https://...arubanetworks.com` mag. Een ander domein: zet `CNX_CENTRAL_DOMEINEN` op de app |

@@ -2,6 +2,11 @@
 
 Versienummers volgen MAJOR.MINOR.PATCH.
 
+## Nog niet uitgebracht
+
+- Azure-script: `-Domein cnx.voorbeeld.be` koppelt een eigen domein met een gratis certificaat. Zonder DNS-records toont
+  het welke records je moet maken (met de waarden); gekoppelde domeinen blijven bij elke update toegelaten.
+
 ## 0.2.1 (2026-11-25)
 
 - Privacyverklaring in het Nederlands en het Engels (`PRIVACY.nl.md`, `PRIVACY.md`), ook in de app op `/privacy`, met

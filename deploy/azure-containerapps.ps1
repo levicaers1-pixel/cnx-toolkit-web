@@ -11,6 +11,7 @@
 .EXAMPLE
   .\deploy\azure-containerapps.ps1                  # eerste keer, versie 0.2.1
   .\deploy\azure-containerapps.ps1 -Versie 0.2.0    # bijwerken naar een nieuwe versie
+  .\deploy\azure-containerapps.ps1 -Domein cnx.voorbeeld.be   # eigen domein met gratis certificaat
   .\deploy\azure-containerapps.ps1 -Proef          # toont enkel de az-commando's, voert niets uit
 #>
 param(
@@ -20,7 +21,8 @@ param(
     [string]$Versie = "0.2.1",        # altijd een vaste versie: met "latest" maakt Container Apps geen nieuwe revisie
     [string]$Image = "ghcr.io/levicaers1-pixel/cnx-toolkit-web",
     [string]$Abonnement = "",
-    [string[]]$ExtraHosts = @(),       # eigen domeinnaam, bv. cnx.voorbeeld.be (zie docs/AZURE.md)
+    [string]$Domein = "",              # eigen domein koppelen met een gratis certificaat, bv. cnx.voorbeeld.be (zie docs/AZURE.md)
+    [string[]]$ExtraHosts = @(),       # extra hostnamen die de app aanvaardt (het eigen domein komt er vanzelf bij)
     [switch]$Pilot,                    # een pilotcode instellen (gevraagd, niet getoond; bewaard als geheim in Azure)
     [switch]$GeenPilot,                # de pilotcode weghalen: de app is weer open voor iedereen
     [switch]$Proef
@@ -103,9 +105,17 @@ if (Test-Az containerapp env show --name $Omgeving --resource-group $ResourceGro
     Invoke-Az containerapp env create --name $Omgeving --resource-group $ResourceGroup --location $Regio `
         --logs-destination none --output none | Out-Null
 }
-$domein = Invoke-Az containerapp env show --name $Omgeving --resource-group $ResourceGroup --query "properties.defaultDomain" --output tsv
-$fqdn = "$Naam.$domein"
-$hosts = (@($fqdn) + $ExtraHosts | Where-Object { $_ }) -join ","
+$omgevingsdomein = Invoke-Az containerapp env show --name $Omgeving --resource-group $ResourceGroup --query "properties.defaultDomain" --output tsv
+$fqdn = "$Naam.$omgevingsdomein"
+$Domein = $Domein.Trim().ToLower().TrimEnd(".")
+if ($Domein -and $Domein -notmatch '^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$') { throw "Domein '$Domein' is geen geldige hostnaam." }
+# Domeinen die al aan de app gekoppeld zijn, blijven toegelaten, ook als je -Domein deze keer niet meegeeft.
+$gekoppeld = @()
+if (-not $Proef -and (Test-Az containerapp show --name $Naam --resource-group $ResourceGroup)) {
+    $gekoppeld = @(Invoke-Az containerapp show --name $Naam --resource-group $ResourceGroup `
+        --query "properties.configuration.ingress.customDomains[].name" --output tsv | Where-Object { $_ })
+}
+$hosts = (@($fqdn) + $gekoppeld + @($Domein) + $ExtraHosts | Where-Object { $_ } | Select-Object -Unique) -join ","
 
 $volledigImage = "${Image}:$Versie"
 Write-Stap "Container-app $Naam met $volledigImage"
@@ -153,7 +163,36 @@ if ($GeenPilot) {
     if (-not $Proef) { Write-Host "Weggehaald. De app is weer open voor iedereen." }
 }
 
-$url = "https://$fqdn"
+$domeinKlaar = $false
+if ($Domein) {
+    Write-Stap "Eigen domein $Domein"
+    $verificatie = Invoke-Az containerapp env show --name $Omgeving --resource-group $ResourceGroup `
+        --query "properties.customDomainConfiguration.customDomainVerificationId" --output tsv
+    $cname = $null; $txt = @()
+    if (-not $Proef) {
+        $cname = (Resolve-DnsName -Name $Domein -Type CNAME -DnsOnly -ErrorAction SilentlyContinue | Where-Object { $_.Type -eq "CNAME" } | Select-Object -First 1).NameHost
+        $txt = @(Resolve-DnsName -Name "asuid.$Domein" -Type TXT -DnsOnly -ErrorAction SilentlyContinue | ForEach-Object { $_.Strings })
+    }
+    $cnameOk = $cname -and ($cname.TrimEnd(".").ToLower() -eq $fqdn.ToLower())
+    $txtOk = $txt -contains $verificatie
+    if (-not $Proef -and (-not $cnameOk -or -not $txtOk)) {
+        Write-Host "Maak eerst deze twee DNS-records bij de beheerder van het domein (zonder proxy, bv. bij Cloudflare 'DNS only'):" -ForegroundColor Yellow
+        Write-Host ("  {0,-6} {1,-40} {2}" -f "Type", "Naam", "Waarde")
+        Write-Host ("  {0,-6} {1,-40} {2}" -f "CNAME", $Domein, $fqdn) -ForegroundColor $(if ($cnameOk) { "Green" } else { "White" })
+        Write-Host ("  {0,-6} {1,-40} {2}" -f "TXT", "asuid.$Domein", $verificatie) -ForegroundColor $(if ($txtOk) { "Green" } else { "White" })
+        Write-Host "Voer het script daarna opnieuw uit met -Domein $Domein. DNS-wijzigingen kunnen enkele minuten tot een uur duren."
+    } else {
+        if (-not ($gekoppeld -contains $Domein)) {
+            Invoke-Az containerapp hostname add --name $Naam --resource-group $ResourceGroup --hostname $Domein --output none | Out-Null
+        }
+        Write-Host "Gratis certificaat aanvragen en koppelen (dit kan enkele minuten duren)..."
+        Invoke-Az containerapp hostname bind --name $Naam --resource-group $ResourceGroup --hostname $Domein `
+            --environment $Omgeving --validation-method CNAME --output none | Out-Null
+        $domeinKlaar = -not $Proef
+    }
+}
+
+$url = if ($domeinKlaar) { "https://$Domein" } else { "https://$fqdn" }
 Write-Stap "Nakijken: $url/gezond"
 if ($Proef) {
     Write-Host "Proefmodus: niets aangemaakt. Zonder -Proef komt de app op https://$Naam.<domein van de omgeving>."
