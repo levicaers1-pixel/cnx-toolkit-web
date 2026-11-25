@@ -142,7 +142,8 @@ def test_webpagina_script_syntax(tmp_path):
         pytest.skip("node niet beschikbaar")
     html = open(web.resource("web.html"), encoding="utf-8").read()
     js = tmp_path / "web.js"
-    js.write_text(re.findall(r"<script\b[^>]*>(.*?)</script\s*>", html, re.S | re.I)[-1], encoding="utf-8")
+    begin = html.index(">", html.rindex("<script")) + 1            # het laatste (enige) script van de eigen pagina
+    js.write_text(html[begin:html.index("</script>", begin)], encoding="utf-8")
     r = subprocess.run([node, "--check", str(js)], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr[:500]
 
