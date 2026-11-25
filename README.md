@@ -56,7 +56,8 @@ Usage (Dutch): [LEESMIJ.md](LEESMIJ.md). Development notes (Dutch): [docs/ONTWIK
 
 ## Security
 
-See [SECURITY.md](SECURITY.md) for what data goes where and how to report a problem.
+See [SECURITY.md](SECURITY.md) for what data goes where and how to report a problem, and the privacy statement
+([PRIVACY.md](PRIVACY.md), [Dutch](PRIVACY.nl.md)); the hosted app shows it at `/privacy`.
 
 ## License
 

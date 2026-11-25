@@ -61,6 +61,8 @@ def leesmij():
     """De handleiding in beide talen: LEESMIJ.md (Nederlands) en MANUAL.md (Engels)."""
     _handleiding("LEESMIJ.md", "LEESMIJ.html", "nl", "Handleiding", "versie")
     _handleiding("MANUAL.md", "MANUAL.html", "en", "Manual", "version")
+    _handleiding("PRIVACY.nl.md", "PRIVACY-nl.html", "nl", "Privacyverklaring", "versie")
+    _handleiding("PRIVACY.md", "PRIVACY-en.html", "en", "Privacy statement", "version")
 
 
 def versie():
@@ -88,7 +90,7 @@ def maak_zip():
     map_ = f"CNX Toolkit {__version__}"
     with zipfile.ZipFile(doel, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(exe, f"{map_}/{os.path.basename(exe)}")
-        for naam in ("LEESMIJ.md", "MANUAL.md", "LICENSE", "NOTICE", "CHANGELOG.md"):
+        for naam in ("LEESMIJ.md", "MANUAL.md", "PRIVACY.md", "PRIVACY.nl.md", "LICENSE", "NOTICE", "CHANGELOG.md"):
             z.write(os.path.join(ROOT, naam), f"{map_}/{naam}")
         z.write(os.path.join(DATA, "LEESMIJ.html"), f"{map_}/LEESMIJ.html")
         z.write(os.path.join(ROOT, "docs", "TECHNISCH.md"), f"{map_}/docs/TECHNISCH.md")

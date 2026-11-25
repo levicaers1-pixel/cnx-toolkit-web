@@ -106,7 +106,11 @@ def onboard_bestand(groep, rijen):
         inhoud = aliassen.bulk_tekst(deel)
         rel = None
         if OPSLAG:
-            pad = os.path.join(map_, naam)
+            # veilige_naam laat geen mappen of '..' toe; toch nakijken dat het pad in de werkmap blijft
+            basis = os.path.realpath(map_)
+            pad = os.path.realpath(os.path.join(basis, naam))
+            if not pad.startswith(basis + os.sep):
+                raise Fout(_("ongeldige naam"))
             with open(pad, "w", newline="", encoding="utf-8") as f:
                 f.write(inhoud)
             rel = os.path.relpath(pad, WERKMAP).replace(os.sep, "/")
@@ -311,7 +315,8 @@ button{{margin-top:14px;padding:10px 18px;border:0;border-radius:9px;background:
 </style></head><body><main><h1>CNX Toolkit</h1><p>{html.escape(_("Deze toolkit is in een besloten pilot. Geef de pilotcode die je kreeg."))}</p>{m}
 <form method="post" action="/pilot"><input type="hidden" name="t" value="{html.escape(csrf)}"><label for="code">{html.escape(_("Pilotcode"))}</label>
 <input id="code" name="code" type="password" autocomplete="off" required autofocus maxlength="200"><button type="submit">{html.escape(_("Verder"))}</button></form>
-<small>{html.escape(_("Gratis open-source toolkit, niet gemaakt of ondersteund door HPE. De server bewaart niets."))}</small></main></body></html>"""
+<small>{html.escape(_("Gratis open-source toolkit, niet gemaakt of ondersteund door HPE. De server bewaart niets."))}
+<a href="/privacy">{html.escape(_("Privacy"))}</a></small></main></body></html>"""
 
 
 def _te_veel_nieuw(bezoeker, nu):
@@ -383,7 +388,8 @@ def voettekst():
                             "staan enkel in het geheugen van je sessie en verdwijnen bij afmelden of na 30 minuten. Gebruik op eigen "
                             "risico, test eerst met een proefrun."))
             + ' <a href="https://github.com/levicaers1-pixel/cnx-toolkit-web" target="_blank" rel="noopener">'
-            + html.escape(_("Broncode")) + "</a></footer>")
+            + html.escape(_("Broncode")) + '</a> · <a href="/privacy" target="_blank" rel="noopener">'
+            + html.escape(_("Privacy")) + "</a></footer>")
 
 
 def central_url_ok(base):
@@ -488,10 +494,10 @@ class Handler(BaseHTTPRequestHandler):
         if getattr(self, "_vol", False):
             self._json({"fout": _("Te veel gebruikers tegelijk. Probeer later opnieuw.")}, 503)
             return True
-        if self.sessie is None and pad not in ("/", "/hulp"):
+        if self.sessie is None and pad not in ("/", "/hulp", "/privacy"):
             self._json({"fout": _("Je sessie is verlopen. Herlaad de pagina.")}, 401)
             return True
-        if pilot_nodig() and self.sessie is not None and not self.sessie.pilot_ok and pad not in ("/", "/pilot"):
+        if pilot_nodig() and self.sessie is not None and not self.sessie.pilot_ok and pad not in ("/", "/pilot", "/privacy"):
             self._json({"fout": _("Geef eerst de pilotcode: herlaad de pagina.")}, 401)
             return True
         return False
@@ -599,6 +605,8 @@ class Handler(BaseHTTPRequestHandler):
             if SERVER:
                 tekst = tekst.replace('<main id="panes"></main>', '<main id="panes"></main>' + voettekst(), 1)
             return self._html(tekst)
+        if u.path == "/privacy":
+            return self._html(pagina("PRIVACY-en.html" if taal.huidig() == "en" else "PRIVACY-nl.html"))
         if u.path == "/hulp":
             return self._html(pagina("MANUAL.html" if taal.huidig() == "en" else "LEESMIJ.html"))
         if not self._ok(q):

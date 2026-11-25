@@ -392,3 +392,18 @@ def test_zware_verwerkingen_begrensd(srv, monkeypatch):
     monkeypatch.setattr(web, "ZWAAR", Vol())
     s, r = Browser(server).vraag("/api/web/aos8/plan", {"clusters": []})
     assert s == 503 and "druk" in r["fout"]
+
+
+def test_privacy_zonder_sessie_en_tijdens_pilot(srv, monkeypatch):
+    server, _ = srv
+    monkeypatch.setattr(web, "PILOTCODE", "geheim-123")
+    b = Browser(server, pagina=False)
+    s, html = b.ruw("/privacy", headers={"Cookie": "cnx_taal=en"})
+    assert s == 200 and b"Privacy statement" in html and b"cnx_sessie" in html
+    s, html = b.ruw("/privacy", headers={"Cookie": "cnx_taal=nl"})
+    assert s == 200 and b"Privacyverklaring" in html
+    s, html = b.ruw("/")                                         # de pilotpagina linkt naar de verklaring
+    assert b'href="/privacy"' in html
+    monkeypatch.setattr(web, "PILOTCODE", "")
+    s, html = Browser(server, pagina=False).ruw("/")             # en de voettekst van de app
+    assert b'href="/privacy"' in html

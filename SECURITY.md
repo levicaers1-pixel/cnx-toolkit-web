@@ -32,7 +32,8 @@ Use a Central API client with only the permissions you need. Anything that write
 ## Supply chain
 
 GitHub Actions are pinned to commit SHAs and the base image to a digest; Dependabot proposes updates weekly
-(`.github/dependabot.yml`). Dependabot security updates and secret scanning with push protection are enabled.
+(`.github/dependabot.yml`). Dependabot security updates, CodeQL code scanning and secret scanning with push
+protection are enabled. What the app does with personal data: see [PRIVACY.md](PRIVACY.md).
 
 ## Reporting a problem
 

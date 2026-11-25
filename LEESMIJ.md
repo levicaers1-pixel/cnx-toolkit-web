@@ -236,7 +236,8 @@ Kijk in de proefrun welke VLAN's en welke switches geraakt worden. Bewaar het lo
   app ook in de werkmap.
 - Na een wijziging leest de tool terug en meldt verschillen.
 - Een alias of VLAN waarnaar iets verwijst, weigert Central te verwijderen. De tool meldt dat als "in gebruik".
-- Hoe de gehoste versie met gegevens omgaat: zie [SECURITY.md](SECURITY.md).
+- Hoe de toolkit met gegevens omgaat: zie de [privacyverklaring](PRIVACY.nl.md) (ook in de app: `/privacy`) en
+  [SECURITY.md](SECURITY.md).
 
 ## Beperkingen
 

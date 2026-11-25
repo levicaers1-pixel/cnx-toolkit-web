@@ -2,6 +2,13 @@
 
 Versienummers volgen MAJOR.MINOR.PATCH.
 
+## 0.2.1 (2026-11-25)
+
+- Privacyverklaring in het Nederlands en het Engels (`PRIVACY.nl.md`, `PRIVACY.md`), ook in de app op `/privacy`, met
+  een link onderaan de pagina en op de pilotpagina. Bereikbaar zonder sessie of pilotcode.
+- CodeQL staat aan (Python en GitHub Actions). De eerste scan vond twee meldingen, allebei opgelost: een extra
+  controle dat het importbestand in de werkmap blijft (lokale app), en een robuustere regex in een test.
+
 ## 0.2.0 (2026-11-25)
 
 - GitHub Actions op een vaste commit-SHA (met het versienummer erbij), het basisimage op een vaste digest, en

@@ -239,7 +239,8 @@ Check in the dry run which VLANs and which switches are affected. Keep the log: 
   working folder.
 - After a change the tool reads back and reports differences.
 - Central refuses to remove an alias or VLAN that something refers to. The tool reports that as "in use".
-- How the hosted version handles data: see [SECURITY.md](SECURITY.md).
+- How the toolkit handles data: see the [privacy statement](PRIVACY.md) (also in the app: `/privacy`) and
+  [SECURITY.md](SECURITY.md).
 
 ## Limitations
 

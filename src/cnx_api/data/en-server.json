@@ -1,7 +1,6 @@
 {
   "Aanmelden mislukt ({status}): {tekst}": "Sign-in failed ({status}): {tekst}",
   "aangemeld": "signed in",
-
   "System-info-profiel (velden.hostname.instance)": "System-info profile (velden.hostname.instance)",
   "Beheerinterface (velden.mgmt_ip.instance)": "Management interface (velden.mgmt_ip.instance)",
   "nog niet ingevuld": "not filled in yet",
@@ -32,7 +31,6 @@
   "geen IP en geen hostname: deze switch komt niet in het aliasbestand": "no IP and no hostname: this switch is not included in the alias file",
   "staat {n} keer in de lijst": "appears {n} times in the list",
   "'{waarde}' komt {n} keer voor": "'{waarde}' appears {n} times",
-
   "100-reeks: niet in AOS-10": "100 series: not in AOS-10",
   "200-reeks: niet ondersteund in AOS-10, vervangen": "200 series: not supported in AOS-10, replace",
   "AOS-10 vanaf 10.3.1.1, laatste release 10.8 (LSR) volgens HPE": "AOS-10 from 10.3.1.1, last release 10.8 (LSR) according to HPE",
@@ -42,13 +40,11 @@
   "AOS-10-gateway vanaf 10.4.0.0": "AOS-10 gateway from 10.4.0.0",
   "AOS-10-gateway": "AOS-10 gateway",
   "HPE Aruba Networking: Supported Access Point Platforms en Supported Gateway Platforms (new Central), zoekresultaten november 2026. Kijk de lijst na voor de AOS-10-versie die je gebruikt.": "HPE Aruba Networking: Supported Access Point Platforms and Supported Gateway Platforms (new Central), search results November 2026. Check the list for the AOS-10 version you use.",
-
   "klaar": "ready",
   "einde nadert": "end approaching",
   "vervangen": "replace",
   "valt weg": "goes away",
   "na te kijken": "to review",
-
   "Excel-blad met meer dan {n} rijen": "Excel sheet with more than {n} rows",
   "Excel-bestand met te veel cellen": "Excel file with too many cells",
   "{naam}: kon het bestand niet lezen": "{naam}: could not read the file",
@@ -114,7 +110,6 @@
   "Excel-bestand niet aanvaard (te groot of met een DOCTYPE)": "Excel file not accepted (too large or with a DOCTYPE)",
   "geen geldig Excel-bestand (.xlsx)": "not a valid Excel file (.xlsx)",
   "Excel-bestand met te veel onderdelen": "Excel file with too many parts",
-
   "erft dezelfde waarde van {van}: verandert niets": "inherits the same value from {van}: changes nothing",
   "neemt de waarde van {van} over: de switch verandert": "takes the value from {van}: the switch changes",
   "verdwijnt van de switch: staat nergens hoger": "disappears from the switch: set nowhere above",
@@ -146,7 +141,6 @@
   "{naam} {profiel} {object}: is niet (meer) {status} ({nu})": "{naam} {profiel} {object}: is not (or no longer) {status} ({nu})",
   "niet gevonden": "not found",
   "hoger": "above",
-
   "Serienummer": "Serial number",
   "Omgezet": "Converted",
   "Inventaris van deze cluster nakijken": "Review the inventory of this cluster",
@@ -235,11 +229,9 @@
   "APs en gateways moeten uitgaand HTTPS (443) naar Central en GreenLake kunnen, en NTP en DNS hebben. Kijk de firewall en eventuele proxy na voor de beheer-VLAN's van de APs en de controllers.": "APs and gateways need outbound HTTPS (443) to Central and GreenLake, and NTP and DNS. Check the firewall and any proxy for the management VLANs of the APs and controllers.",
   "Werkwijze testen in het lab": "Test the approach in the lab",
   "Doorloop het volledige plan eerst op een labcluster: controller omzetten, een AP omzetten, SSID's testen, en ook de terugweg. Pas de stappen aan waar de praktijk anders is.": "Run through the whole plan on a lab cluster first: convert a controller, convert an AP, test the SSIDs, and also the way back. Adjust the steps where practice differs.",
-
   "onbekende lijst": "unknown list",
   "ongeldig serienummer of stack-ID": "invalid serial number or stack ID",
   "filter te lang of ongeldig": "filter too long or invalid",
-
   "klantconfig.json is niet te lezen ({fout}). Opslaan maakt een nieuwe; de oude blijft als .bak.": "klantconfig.json cannot be read ({fout}). Saving creates a new one; the old one is kept as .bak.",
   "Niet opgeslagen.": "Not saved.",
   "kies een bulk-download": "choose a bulk download",
@@ -274,5 +266,7 @@
   "onbekende ophaling": "unknown task",
   "Er lopen al {n} taken. Wacht tot er een klaar is.": "{n} tasks are already running. Wait until one is done.",
   "geen beheer-VLAN gevonden: alias sys_vlan_ipv4_{vlan}": "no management VLAN found: alias sys_vlan_ipv4_{vlan}",
-  "niets om op te laden: geen IP en geen hostname": "nothing to upload: no IP and no hostname"
+  "niets om op te laden: geen IP en geen hostname": "nothing to upload: no IP and no hostname",
+  "Privacy": "Privacy",
+  "ongeldige naam": "invalid name"
 }
