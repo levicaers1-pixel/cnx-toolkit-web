@@ -10,7 +10,7 @@ De webapp draait enkel op deze computer (127.0.0.1). Overrides wissen gebeurt pa
 Aanmelden: met CNX_BASE_URL, CNX_CLIENT_ID en CNX_CLIENT_SECRET, of in het scherm zelf
 (de gegevens blijven enkel in het geheugen van dit programma).
 """
-import argparse, base64, datetime, hmac, http.cookies, json, os, re, secrets, shutil, sys, threading, time, webbrowser
+import argparse, base64, datetime, hmac, html, http.cookies, json, os, re, secrets, shutil, sys, threading, time, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import xml.etree.ElementTree as ET
 from urllib.parse import parse_qs, quote, urlparse
@@ -222,6 +222,7 @@ class Sessie:
         self.ophalingen = {}
         self.wisplannen = {}
         self.laatst = time.time()
+        self.pilot_ok = False                 # servermodus met pilotcode: pas na de juiste code iets te zien
 
     def wis(self):
         self.verbinding.wis()
@@ -236,6 +237,8 @@ CENTRAL_DOMEINEN = [d.strip().lower().lstrip(".") for d in os.environ.get("CNX_C
 SESSIE_DUUR = 30 * 60       # seconden zonder activiteit, daarna zijn sessie en secret weg
 SESSIE_DUUR_ANONIEM = 10 * 60   # sessie die (nog) niet bij Central aangemeld is
 NIEUW_PER_MINUUT = 20       # servermodus: nieuwe sessies per bezoeker per minuut (tegen bots die alle sessies opeisen)
+PILOTCODE = os.environ.get("CNX_PILOTCODE", "")   # servermodus: toegangscode tijdens een pilot; leeg = open voor iedereen
+PILOT_POGINGEN = 10         # foute codes per bezoeker per kwartier
 MAX_SESSIES = 500
 MAX_BODY_SERVER = 20 * 1024 * 1024
 WEGGOOI_GRENS = 64 * 1024 * 1024   # te grote body tot hier lezen en weggooien; daarboven de verbinding sluiten
@@ -248,6 +251,7 @@ _SESSIE_SLOT = threading.Lock()
 
 
 _NIEUW = {}                 # bezoeker -> tijdstippen van nieuwe sessies (enkel in het geheugen, nooit gelogd)
+_PILOT_FOUT = {}            # bezoeker -> tijdstippen van foute pilotcodes (idem)
 
 
 def _opruimen(nu):
@@ -258,6 +262,47 @@ def _opruimen(nu):
         SESSIES.pop(sid).wis()
     for k in [k for k, t in _NIEUW.items() if not t or nu - t[-1] > 60]:
         _NIEUW.pop(k, None)
+    for k in [k for k, t in _PILOT_FOUT.items() if not t or nu - t[-1] > 900]:
+        _PILOT_FOUT.pop(k, None)
+
+
+def pilot_nodig():
+    return SERVER and bool(PILOTCODE)
+
+
+def pilot_controle(bezoeker, code):
+    """Geeft "ok", "fout" of "geblokkeerd" (te veel foute codes het laatste kwartier). Vergelijkt in vaste tijd."""
+    nu = time.time()
+    with _SESSIE_SLOT:
+        _opruimen(nu)
+        fouten = [x for x in _PILOT_FOUT.get(bezoeker, []) if nu - x < 900]
+        if len(fouten) >= PILOT_POGINGEN:
+            _PILOT_FOUT[bezoeker] = fouten
+            return "geblokkeerd"
+        if hmac.compare_digest(str(code or "")[:200].encode(), PILOTCODE.encode()):
+            _PILOT_FOUT.pop(bezoeker, None)
+            return "ok"
+        _PILOT_FOUT[bezoeker] = fouten + [nu]
+        return "fout"
+
+
+def pilot_pagina(csrf, melding=""):
+    """De toegangspagina tijdens de pilot. Geen gegevens van Central, geen scripts."""
+    m = f'<p class="fout" role="alert">{html.escape(melding)}</p>' if melding else ""
+    return f"""<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CNX Toolkit</title><style>
+:root{{--paper:#f6f5f1;--panel:#fff;--ink:#1f1d1a;--muted:#6b675f;--line:#e2dfd7;--accent:#5b3fd6;--bad:#b3261e}}
+@media (prefers-color-scheme:dark){{:root{{--paper:#171614;--panel:#211f1c;--ink:#eeeae2;--muted:#a39e93;--line:#38352f;--accent:#a593ff;--bad:#ff8a80}}}}
+body{{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--paper);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px;box-sizing:border-box}}
+main{{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px;max-width:420px;width:100%;box-sizing:border-box}}
+h1{{font-size:20px;margin:0 0 6px}}p{{margin:0 0 16px;color:var(--muted)}}label{{display:block;font-weight:600;margin-bottom:6px}}
+input{{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--ink);font:inherit}}
+button{{margin-top:14px;padding:10px 18px;border:0;border-radius:9px;background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer}}
+.fout{{color:var(--bad);font-weight:600}}small{{display:block;margin-top:18px;color:var(--muted);font-size:12px}}
+</style></head><body><main><h1>CNX Toolkit</h1><p>Deze toolkit is in een besloten pilot. Geef de pilotcode die je kreeg.</p>{m}
+<form method="post" action="/pilot"><input type="hidden" name="t" value="{html.escape(csrf)}"><label for="code">Pilotcode</label>
+<input id="code" name="code" type="password" autocomplete="off" required autofocus maxlength="200"><button type="submit">Verder</button></form>
+<small>Gratis open-source toolkit, niet gemaakt of ondersteund door HPE. De server bewaart niets.</small></main></body></html>"""
 
 
 def _te_veel_nieuw(bezoeker, nu):
@@ -416,7 +461,39 @@ class Handler(BaseHTTPRequestHandler):
         if self.sessie is None and pad not in ("/", "/hulp"):
             self._json({"fout": "Je sessie is verlopen. Herlaad de pagina."}, 401)
             return True
+        if pilot_nodig() and self.sessie is not None and not self.sessie.pilot_ok and pad not in ("/", "/pilot"):
+            self._json({"fout": "Geef eerst de pilotcode: herlaad de pagina."}, 401)
+            return True
         return False
+
+    def _naar(self, pad):
+        self.send_response(303)
+        self.send_header("Location", pad)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _pilot(self, ruw):
+        """POST /pilot: het formulier van de toegangspagina (CSRF-token van de sessie + code)."""
+        if not pilot_nodig() or self.sessie is None:
+            return self._naar("/")
+        velden = parse_qs(ruw.decode("utf-8", "replace"), max_num_fields=5)
+        t, code = velden.get("t", [""])[0], velden.get("code", [""])[0]
+        if not hmac.compare_digest(t.encode(), self.sessie.csrf.encode()):
+            return self._naar("/")
+        uitslag = pilot_controle(self._bezoeker(), code)
+        if uitslag == "ok":
+            self.sessie.pilot_ok = True
+            self._nieuwe_sessie = nieuwe_sessie_id(self.sessie)
+            return self._naar("/")
+        melding = ("Te veel foute pogingen. Probeer het binnen een kwartier opnieuw." if uitslag == "geblokkeerd"
+                   else "Die code klopt niet.")
+        b = pilot_pagina(self.sessie.csrf, melding).encode("utf-8")
+        self.send_response(429 if uitslag == "geblokkeerd" else 403)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(b)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(b)
 
     def do_HEAD(self):
         """Voor gezondheidschecks die HEAD gebruiken: enkel /gezond, zonder inhoud."""
@@ -474,12 +551,16 @@ class Handler(BaseHTTPRequestHandler):
         q = parse_qs(u.query)
         if self._voor_alles(u.path):
             return
+        if u.path == "/pilot":                  # herladen na een foute code: terug naar de codepagina
+            return self._naar("/")
+        if u.path == "/" and pilot_nodig() and not self.sessie.pilot_ok:
+            return self._html(pilot_pagina(self.sessie.csrf))
         if u.path == "/":
-            html = (pagina("web.html").replace("__TOKEN__", self.sessie.csrf).replace("__VERSIE__", __version__)
+            tekst = (pagina("web.html").replace("__TOKEN__", self.sessie.csrf).replace("__VERSIE__", __version__)
                     .replace("__OPSLAG__", "true" if OPSLAG else "false"))
             if SERVER:
-                html = html.replace('<main id="panes"></main>', '<main id="panes"></main>' + VOETTEKST, 1)
-            return self._html(html)
+                tekst = tekst.replace('<main id="panes"></main>', '<main id="panes"></main>' + VOETTEKST, 1)
+            return self._html(tekst)
         if u.path == "/hulp":
             return self._html(pagina("LEESMIJ.html"))
         if not self._ok(q):
@@ -541,6 +622,8 @@ class Handler(BaseHTTPRequestHandler):
         ruw = self.rfile.read(n) if n else b""
         if self._voor_alles(u.path):
             return
+        if u.path == "/pilot":
+            return self._pilot(ruw)
         if not self._ok({}):
             return self._json({"fout": "geen toegang"}, 403)
         try:

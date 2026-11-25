@@ -9,20 +9,23 @@
   Opnieuw uitvoeren met een andere -Versie werkt de app bij. Zie docs/AZURE.md.
 
 .EXAMPLE
-  .\deploy\azure-containerapps.ps1                  # eerste keer, versie 0.1.2
+  .\deploy\azure-containerapps.ps1                  # eerste keer, versie 0.1.3
   .\deploy\azure-containerapps.ps1 -Versie 0.2.0    # bijwerken naar een nieuwe versie
   .\deploy\azure-containerapps.ps1 -Proef          # toont enkel de az-commando's, voert niets uit
 #>
 param(
     [string]$Naam = "cnx-toolkit",
     [string]$ResourceGroup = "rg-cnx-toolkit",
-    [string]$Regio = "westeurope",
-    [string]$Versie = "0.1.2",        # altijd een vaste versie: met "latest" maakt Container Apps geen nieuwe revisie
+    [string]$Regio = "northeurope",    # West Europe nam in november 2026 geen nieuwe klanten aan
+    [string]$Versie = "0.1.3",        # altijd een vaste versie: met "latest" maakt Container Apps geen nieuwe revisie
     [string]$Image = "ghcr.io/levicaers1-pixel/cnx-toolkit-web",
     [string]$Abonnement = "",
     [string[]]$ExtraHosts = @(),       # eigen domeinnaam, bv. cnx.voorbeeld.be (zie docs/AZURE.md)
+    [switch]$Pilot,                    # een pilotcode instellen (gevraagd, niet getoond; bewaard als geheim in Azure)
+    [switch]$GeenPilot,                # de pilotcode weghalen: de app is weer open voor iedereen
     [switch]$Proef
 )
+if ($Pilot -and $GeenPilot) { throw "Kies -Pilot of -GeenPilot, niet allebei." }
 
 $ErrorActionPreference = "Stop"
 $Omgeving = "$Naam-env"
@@ -116,6 +119,38 @@ if (Test-Az containerapp show --name $Naam --resource-group $ResourceGroup) {
         --cpu 0.25 --memory 0.5Gi --min-replicas 0 --max-replicas 1 `
         --env-vars "CNX_HOSTS=$hosts" --output none | Out-Null
     if (-not $Proef) { Write-Host "Aangemaakt." }
+}
+
+if ($Pilot) {
+    Write-Stap "Pilotcode instellen"
+    if ($Proef) {
+        Write-Host "  az containerapp secret set --name $Naam --resource-group $ResourceGroup --secrets pilotcode=***" -ForegroundColor DarkGray
+        Write-Host "  az containerapp update --name $Naam --resource-group $ResourceGroup --set-env-vars CNX_PILOTCODE=secretref:pilotcode CNX_PILOT_GEZET=<tijd>" -ForegroundColor DarkGray
+    } else {
+        $veilig = Read-Host "Pilotcode (wordt niet getoond)" -AsSecureString
+        $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($veilig)
+        try { $code = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+        if ($code.Length -lt 8) { throw "Kies een pilotcode van minstens 8 tekens." }
+        # Rechtstreeks via az, niet via Invoke-Az: zo komt de code nooit in een foutmelding of op het scherm.
+        $ErrorActionPreference = "Continue"
+        $uit = & az containerapp secret set --name $Naam --resource-group $ResourceGroup --secrets "pilotcode=$code" --only-show-errors --output none 2>&1
+        $gelukt = ($LASTEXITCODE -eq 0)
+        $ErrorActionPreference = "Stop"
+        $code = $null
+        if (-not $gelukt) { throw "Mislukt: de pilotcode als geheim bewaren.`n" + (($uit | ForEach-Object { "$_" }) -join "`n") }
+        # Een nieuwe waarde voor CNX_PILOT_GEZET maakt een nieuwe revisie, zodat de app de (nieuwe) code ook leest.
+        Invoke-Az containerapp update --name $Naam --resource-group $ResourceGroup `
+            --set-env-vars "CNX_PILOTCODE=secretref:pilotcode" "CNX_PILOT_GEZET=$(Get-Date -Format yyyyMMddHHmmss)" --output none | Out-Null
+        Write-Host "Ingesteld. Bezoekers zien eerst een pagina die om de pilotcode vraagt."
+    }
+}
+if ($GeenPilot) {
+    Write-Stap "Pilotcode weghalen"
+    Invoke-Az containerapp update --name $Naam --resource-group $ResourceGroup --remove-env-vars CNX_PILOTCODE CNX_PILOT_GEZET --output none | Out-Null
+    if (Test-Az containerapp secret show --name $Naam --resource-group $ResourceGroup --secret-name pilotcode) {
+        Invoke-Az containerapp secret remove --name $Naam --resource-group $ResourceGroup --secret-names pilotcode --output none | Out-Null
+    }
+    if (-not $Proef) { Write-Host "Weggehaald. De app is weer open voor iedereen." }
 }
 
 $url = "https://$fqdn"

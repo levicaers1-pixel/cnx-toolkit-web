@@ -103,6 +103,24 @@ Het script zet ook de omgevingsvariabele `CNX_HOSTS` op het adres van de app: an
    client-ID en secret. Gebruik een API-client met enkel de rechten die je nodig hebt.
 3. Probeer **Onboarden** met een device group, en **AP-migratie** met een inventaris.
 
+## Pilotcode (besloten toegang)
+
+Tijdens een pilot kan je de app afschermen met een code. Bezoekers krijgen dan eerst een pagina die erom vraagt;
+zonder de juiste code zien ze niets van de toolkit. De code staat als geheim in Azure, nooit in de repository.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\deploy\azure-containerapps.ps1 -Pilot
+```
+
+Het script vraagt de code (minstens 8 tekens) zonder ze te tonen. Opnieuw uitvoeren met `-Pilot` zet een nieuwe code;
+wie al binnen was, moet na de herstart de nieuwe code geven. Weer open voor iedereen:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\deploy\azure-containerapps.ps1 -GeenPilot
+```
+
+Na 10 foute codes binnen een kwartier weigert de app die bezoeker een kwartier lang.
+
 ## Bijwerken naar een nieuwe versie
 
 Elke versie (tag `v*` in de repository) komt als image op GHCR. Voer het script opnieuw uit met die versie:

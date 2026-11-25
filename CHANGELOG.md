@@ -2,6 +2,14 @@
 
 Versienummers volgen MAJOR.MINOR.PATCH.
 
+## 0.1.3 (2026-11-25)
+
+- Pilotcode voor de servermodus: met `CNX_PILOTCODE` gezet krijgt een bezoeker eerst een pagina die om de code vraagt;
+  zonder juiste code blijven de app en de API dicht. Hoogstens 10 foute codes per bezoeker per kwartier, nieuw
+  sessie-id na de juiste code, de code komt nooit in de logs. Het Azure-script zet ze als geheim (`-Pilot`, de code
+  wordt gevraagd en niet getoond) of haalt ze weg (`-GeenPilot`).
+- Azure-script: standaardregio North Europe (West Europe nam geen nieuwe klanten aan).
+
 ## 0.1.2 (2026-11-25)
 
 - Weg: `cnx overrides` (het oude aparte wisscherm voor VLAN's) en `cnx invoer` (de oude invulpagina). Overrides wissen

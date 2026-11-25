@@ -19,6 +19,9 @@ its own CSRF token. A session, including the Central secret, is wiped after 30 m
 Logs contain only the method, the path without parameters, the status and the duration. Sign-in is only allowed to
 https addresses on the Central domains (`CNX_CENTRAL_DOMEINEN`, default `arubanetworks.com`).
 
+An optional access code (`CNX_PILOTCODE`, set as a secret in the hosting platform, never in the repository) can
+restrict a hosted instance during a pilot; failed attempts are rate limited.
+
 Use a Central API client with only the permissions you need. Anything that writes to Central runs as a dry run first.
 
 ## Reporting a problem

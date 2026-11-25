@@ -1,6 +1,7 @@
 """Servermodus (cnx web --server): toegelaten hosts, sessie en CSRF-token per browser, time-out, limieten, logs zonder
 gegevens, veiligheidskoppen en enkel URL's van Central bij het aanmelden."""
 import json
+import urllib.error
 import os
 import sys
 import threading
@@ -24,6 +25,8 @@ def srv(monkeypatch, tmp_path):
     monkeypatch.setattr(web, "TOEGELATEN_HOSTS", {"127.0.0.1"})
     monkeypatch.setattr(web, "SESSIES", {})
     monkeypatch.setattr(web, "_NIEUW", {})
+    monkeypatch.setattr(web, "_PILOT_FOUT", {})
+    monkeypatch.setattr(web, "PILOTCODE", "")
     monkeypatch.setattr(web, "WERKMAP", str(tmp_path / "cnx-web"))
     monkeypatch.setattr(cx, "_token", lambda v, cid, secret: v.s.headers.update(Authorization="Bearer " + cid) and None)
     monkeypatch.setattr(cx, "api", nep_central.api)
@@ -214,3 +217,100 @@ def test_voettekst_enkel_in_servermodus(srv, monkeypatch):
     monkeypatch.setattr(web, "PER_SESSIE", False)
     s, html = Browser(server, pagina=False).ruw("/", headers={"Host": server.split("//")[1]})
     assert s == 200 and b"<footer" not in html
+
+
+def _pilot_post(b, code, token=None):
+    import urllib.parse
+    data = urllib.parse.urlencode({"t": token or b.token_pilot, "code": code}).encode()
+    h = {"Content-Type": "application/x-www-form-urlencoded"}
+    if b.cookie:
+        h["Cookie"] = "cnx_sessie=" + b.cookie
+    import urllib.request, urllib.error
+    class Geen(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *a, **k):
+            return None
+    opener = urllib.request.build_opener(Geen)
+    try:
+        r = opener.open(urllib.request.Request(b.server + "/pilot", data=data, headers=h), timeout=10)
+    except urllib.error.HTTPError as e:
+        r = e
+    with r:
+        for c in r.headers.get_all("Set-Cookie") or []:
+            if c.startswith("cnx_sessie="):
+                b.cookie = c.split(";")[0].split("=", 1)[1]
+        return r.status, r.headers.get("Location"), r.read()
+
+
+def _met_pilot(server):
+    """Opent de pagina met een pilotcode actief: geeft de browser met het token van het formulier."""
+    import re
+    b = Browser(server, pagina=False)
+    s, html = b.ruw("/")
+    assert s == 200 and b"Pilotcode" in html and b"const T =" not in html
+    b.token_pilot = re.search(rb'name="t" value="([^"]+)"', html).group(1).decode()
+    return b
+
+
+def test_pilotcode_houdt_de_app_dicht(srv, monkeypatch):
+    server, _ = srv
+    monkeypatch.setattr(web, "PILOTCODE", "geheim-123")
+    b = _met_pilot(server)
+    b.token = b.token_pilot
+    assert b.vraag("/api/status")[0] == 401                    # API dicht zonder code
+    assert b.ruw("/hulp")[0] == 401
+    assert b.vraag("/api/web/aos8/plan", {"clusters": []})[0] == 401
+    s, waar, html = _pilot_post(b, "fout")
+    assert s == 403 and "klopt niet".encode() in html
+    import urllib.request
+    class Geen(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *a, **k):
+            return None
+    try:
+        urllib.request.build_opener(Geen).open(urllib.request.Request(server + "/pilot", headers={"Cookie": "cnx_sessie=" + b.cookie}), timeout=5)
+        assert False, "verwacht een doorverwijzing"
+    except urllib.error.HTTPError as e:
+        assert e.code == 303 and e.headers["Location"] == "/"         # herladen na een foute code
+    oud = b.cookie
+    s, waar, _ = _pilot_post(b, "geheim-123")
+    assert s == 303 and waar == "/" and b.cookie != oud         # nieuw sessie-id na de juiste code
+    s, html = b.ruw("/")
+    assert s == 200 and b"const T =" in html                     # nu de app zelf
+    import re
+    b.token = re.search(r'const T = "([^"]+)"', html.decode()).group(1)
+    assert b.vraag("/api/status")[0] == 200
+
+
+def test_pilotcode_vraagt_het_token_van_de_sessie(srv, monkeypatch):
+    server, _ = srv
+    monkeypatch.setattr(web, "PILOTCODE", "geheim-123")
+    a, b = _met_pilot(server), _met_pilot(server)
+    s, waar, _ = _pilot_post(a, "geheim-123", token=b.token_pilot)     # formulier van een ander (CSRF)
+    assert s == 303 and next(x for x in web.SESSIES.values() if x.csrf == a.token_pilot).pilot_ok is False
+
+
+def test_pilotcode_pogingen_begrensd(srv, monkeypatch):
+    server, _ = srv
+    monkeypatch.setattr(web, "PILOTCODE", "geheim-123")
+    monkeypatch.setattr(web, "PILOT_POGINGEN", 3)
+    b = _met_pilot(server)
+    for _ in range(3):
+        assert _pilot_post(b, "fout")[0] == 403
+    s, _, html = _pilot_post(b, "geheim-123")                    # ook de juiste code even niet meer
+    assert s == 429 and "Te veel".encode() in html
+
+
+def test_pilotcode_niet_in_logs(srv, monkeypatch, capsys):
+    server, _ = srv
+    monkeypatch.setattr(web, "PILOTCODE", "geheim-123")
+    b = _met_pilot(server)
+    _pilot_post(b, "geheim-123")
+    _pilot_post(_met_pilot(server), "verkeerd-456")
+    time.sleep(0.05)
+    tekst = capsys.readouterr().err
+    assert "POST /pilot 303" in tekst and "geheim-123" not in tekst and "verkeerd-456" not in tekst
+
+
+def test_zonder_pilotcode_open(srv):
+    server, _ = srv
+    s, html = Browser(server, pagina=False).ruw("/")
+    assert s == 200 and b"const T =" in html and b"Pilotcode" not in html
