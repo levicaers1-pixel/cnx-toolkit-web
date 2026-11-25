@@ -1,7 +1,8 @@
 # CNX Toolkit (web)
 
 Tools to migrate and onboard network devices into **HPE Aruba Networking Central** (new Central): AOS-CX switches,
-Mobility Gateways and AOS-8 access points. The user interface and documentation are in Dutch for now.
+Mobility Gateways and AOS-8 access points. The web app is available in English and Dutch (switch at the top right);
+the manual is in both languages ([MANUAL.md](MANUAL.md), [LEESMIJ.md](LEESMIJ.md)). The command-line tools are in Dutch.
 
 > **Not an HPE product.** This project is not made, supported or endorsed by Hewlett Packard Enterprise. HPE, Aruba and
 > HPE Aruba Networking Central are trademarks of Hewlett Packard Enterprise. The software changes configuration in
@@ -15,11 +16,12 @@ server for several users (`cnx web --server`, or the container image):
 - **Stores no customer data.** No database and nothing written to disk on the server. Central credentials live only in
   memory for the session; inventories, migration plans and import files stay in the browser or are downloaded.
 - **One Central connection per user**, so several people can use one hosted instance safely.
-- **Runs as a container** (`docker run`), self-hosted or behind a login such as Microsoft Entra ID.
+- **Runs as a container** (`docker run`), self-hosted or on Azure Container Apps, optionally behind a pilot access code.
 
-Not yet tested behind a real HTTPS proxy or against a real Central in server mode.
+Tested in server mode on Azure Container Apps behind its HTTPS proxy, with sign-in to a real new Central. The commands in
+the AP migration plan (steps marked *check*) are not yet verified against HPE's migration guide.
 
-See [docs/WEBAPP.md](docs/WEBAPP.md) for the plan.
+See [docs/WEBAPP.md](docs/WEBAPP.md) for the design.
 
 ## Features
 
