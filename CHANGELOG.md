@@ -2,6 +2,12 @@
 
 Versienummers volgen MAJOR.MINOR.PATCH.
 
+## Nog niet uitgebracht
+
+- GitHub Actions op een vaste commit-SHA (met het versienummer erbij), het basisimage op een vaste digest, en
+  `.github/dependabot.yml`: Dependabot stelt elke week updates voor (actions, basisimage, pip).
+- Repository: private vulnerability reporting, kwetsbaarheidsmeldingen en Dependabot-beveiligingsupdates staan aan.
+
 ## 0.1.4 (2026-11-25)
 
 Beveiliging, na een audit:

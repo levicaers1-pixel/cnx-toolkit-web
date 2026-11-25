@@ -1,0 +1,18 @@
+# Dependabot houdt de vastgezette versies bij: elke week een pull request als er iets nieuws is.
+version: 2
+updates:
+  - package-ecosystem: github-actions        # de commit-SHA's in .github/workflows
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: docker                # de digest van het basisimage in Dockerfile
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip                   # requests en de dev-afhankelijkheden in pyproject.toml
+    directory: /
+    schedule:
+      interval: weekly

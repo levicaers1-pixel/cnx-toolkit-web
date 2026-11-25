@@ -29,6 +29,11 @@ restrict a hosted instance during a pilot; failed attempts are rate limited.
 
 Use a Central API client with only the permissions you need. Anything that writes to Central runs as a dry run first.
 
+## Supply chain
+
+GitHub Actions are pinned to commit SHAs and the base image to a digest; Dependabot proposes updates weekly
+(`.github/dependabot.yml`). Dependabot security updates and secret scanning with push protection are enabled.
+
 ## Reporting a problem
 
 Please do not open a public issue for a security problem. Use

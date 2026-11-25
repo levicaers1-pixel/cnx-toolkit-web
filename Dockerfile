@@ -1,7 +1,8 @@
 # CNX Toolkit (web) in servermodus: per gebruiker een sessie, niets op schijf.
 #   docker run -p 8080:8080 -e CNX_HOSTS=cnx.voorbeeld.be ghcr.io/levicaers1-pixel/cnx-toolkit-web
 # Zet de container achter een reverse proxy met HTTPS (de sessiecookie is Secure).
-FROM python:3.12-slim
+# Vaste digest (multi-arch index) van python:3.12-slim op 2026-11-25; Dependabot stelt nieuwe digests voor.
+FROM python:3.12-slim@sha256:191083cdf6c7bda8c76158983163ead5d5cf7b77cf3033e805bb0f5296f51b4b
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
