@@ -168,13 +168,21 @@ if ($Domein) {
     Write-Stap "Eigen domein $Domein"
     $verificatie = Invoke-Az containerapp env show --name $Omgeving --resource-group $ResourceGroup `
         --query "properties.customDomainConfiguration.customDomainVerificationId" --output tsv
-    $cname = $null; $txt = @()
+    # Rechtstreeks bij publieke resolvers vragen (zoals Azure zelf doet): de resolver van Windows houdt een
+    # 'bestaat niet' van daarnet nog een tijd in zijn cache. Zonder internet-DNS valt het terug op die van Windows.
+    $cnameOk = $false; $txtOk = $false
     if (-not $Proef) {
-        $cname = (Resolve-DnsName -Name $Domein -Type CNAME -DnsOnly -ErrorAction SilentlyContinue | Where-Object { $_.Type -eq "CNAME" } | Select-Object -First 1).NameHost
-        $txt = @(Resolve-DnsName -Name "asuid.$Domein" -Type TXT -DnsOnly -ErrorAction SilentlyContinue | ForEach-Object { $_.Strings })
+        foreach ($server in @("1.1.1.1", "8.8.8.8", $null)) {
+            $extra = @{ Name = $Domein; Type = "CNAME"; DnsOnly = $true; QuickTimeout = $true; ErrorAction = "SilentlyContinue" }
+            if ($server) { $extra.Server = $server }
+            $cname = (Resolve-DnsName @extra | Where-Object { $_.Type -eq "CNAME" } | Select-Object -First 1).NameHost
+            $extra.Name = "asuid.$Domein"; $extra.Type = "TXT"
+            $txt = @(Resolve-DnsName @extra | ForEach-Object { $_.Strings })
+            if ($cname -and $cname.TrimEnd(".").ToLower() -eq $fqdn.ToLower()) { $cnameOk = $true }
+            if ($txt -contains $verificatie) { $txtOk = $true }
+            if ($cnameOk -and $txtOk) { break }
+        }
     }
-    $cnameOk = $cname -and ($cname.TrimEnd(".").ToLower() -eq $fqdn.ToLower())
-    $txtOk = $txt -contains $verificatie
     if (-not $Proef -and (-not $cnameOk -or -not $txtOk)) {
         Write-Host "Maak eerst deze twee DNS-records bij de beheerder van het domein (zonder proxy, bv. bij Cloudflare 'DNS only'):" -ForegroundColor Yellow
         Write-Host ("  {0,-6} {1,-40} {2}" -f "Type", "Naam", "Waarde")
