@@ -42,7 +42,7 @@ Both are strictly necessary for the app to work; there are no other cookies.
 - **HPE (your own new Central and HPE GreenLake):** the toolkit sends your client ID and secret to HPE's sign-in
   service and then calls the API of the Central you entered, on your behalf. That data stays within your own HPE
   environment.
-- **The hosting provider** (for the public instance: Microsoft Azure Container Apps, region North Europe) runs the
+- **The hosting provider** (for the public instance at cnx.caersultancy.com: Microsoft Azure Container Apps, region North Europe) runs the
   server and its network. Azure keeps technical platform metrics such as request counts and CPU usage. Log Analytics
   is not enabled.
 - **Nobody else.** The server sends nothing to other parties.

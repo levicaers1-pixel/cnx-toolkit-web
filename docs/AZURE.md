@@ -8,7 +8,7 @@ wie ze gebruikt, meldt enkel aan bij de eigen new Central met een eigen client-I
 
 ```
 Bezoeker (browser)
-   │  https://cnx-toolkit.<omgeving>.westeurope.azurecontainerapps.io
+   │  https://cnx-toolkit.<omgeving>.northeurope.azurecontainerapps.io  (of een eigen domein)
    ▼
 Azure Container Apps  ── HTTPS en certificaat door Azure, http wordt https
    ▼
@@ -149,7 +149,8 @@ bv. 5 euro per maand, en een e-mail bij 80 %. Zo hoor je het als het gratis tego
 ## Eigen domeinnaam (optioneel)
 
 Bv. `cnx.voorbeeld.be` in plaats van `cnx-toolkit....azurecontainerapps.io`, met een gratis certificaat van Azure dat
-zichzelf vernieuwt.
+zichzelf vernieuwt. Het publieke exemplaar draait zo op [cnx.caersultancy.com](https://cnx.caersultancy.com) (DNS bij
+Cloudflare).
 
 1. Voer het script uit met je domein. Staan de DNS-records er nog niet, dan toont het welke je moet maken (met de
    juiste waarden) en stopt het:

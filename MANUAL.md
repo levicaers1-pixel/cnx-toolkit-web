@@ -10,7 +10,7 @@ points. Free open-source software, not made or supported by HPE.
 
 | Way | For whom | How |
 |---|---|---|
-| Hosted web app | Anyone who does not want to install anything | Open the address you received. See [Hosted version](#hosted-version) |
+| Hosted web app | Anyone who does not want to install anything | Open [cnx.caersultancy.com](https://cnx.caersultancy.com). See [Hosted version](#hosted-version) |
 | `cnx.exe` on Windows | Anyone working locally, also on the command line | Unzip and double-click `cnx.exe`. See [Installing](#installing) |
 | Container | Anyone hosting it themselves | `docker run` with the image from GHCR. See [docs/AZURE.md](docs/AZURE.md) and the README |
 
@@ -119,7 +119,8 @@ AOS-10 version you use on HPE's Supported Access Point Platforms and Supported G
 
 ## Hosted version
 
-The web app can also run on a server, for several users (`cnx web --server`, or the container image).
+The web app can also run on a server, for several users (`cnx web --server`, or the container image). The public
+instance is at **[cnx.caersultancy.com](https://cnx.caersultancy.com)**; during the pilot it asks for a pilot code.
 
 - Each browser gets its own session and signs in to its own Central. The server stores nothing: no database, nothing
   on disk. After 30 minutes without activity, or on sign-out, the session and the secret are gone.

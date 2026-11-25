@@ -2,8 +2,9 @@
 
 Versienummers volgen MAJOR.MINOR.PATCH.
 
-## Nog niet uitgebracht
+## 0.2.2 (2026-11-25)
 
+- Handleiding, README en privacyverklaring verwijzen naar het publieke exemplaar op https://cnx.caersultancy.com.
 - Azure-script: `-Domein cnx.voorbeeld.be` koppelt een eigen domein met een gratis certificaat. Zonder DNS-records toont
   het welke records je moet maken (met de waarden); gekoppelde domeinen blijven bij elke update toegelaten.
 

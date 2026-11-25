@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.2.1</title><style>
+<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.2.2</title><style>
 :root{color-scheme:light;--paper:#f4f6f9;--panel:#fff;--panel2:#f8fafc;--ink:#122033;--ink2:#2b3a4f;--muted:#5f6c7f;--line:#e2e7ee;--accent:#2457d6;--soft:#eaf0fd}
 @media (prefers-color-scheme:dark){:root{color-scheme:dark;--paper:#0e131a;--panel:#161d27;--panel2:#1a2230;--ink:#e7ecf3;--ink2:#c9d2df;--muted:#93a0b4;--line:#253042;--accent:#7aa2ff;--soft:#1c2943}}
 *{box-sizing:border-box}
@@ -18,7 +18,7 @@ code{font-family:"Cascadia Mono",Consolas,monospace;font-size:.88em;background:v
 pre{background:var(--panel2);border:1px solid var(--line);padding:14px 16px;border-radius:10px;overflow:auto}pre code{background:none;padding:0}
 @media (max-width:700px){main{margin:0;border-radius:0;padding:20px 16px}}
 </style></head>
-<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Handleiding</strong><div class="versie">CNX Toolkit, versie 0.2.1</div></div></div>
+<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Handleiding</strong><div class="versie">CNX Toolkit, versie 0.2.2</div></div></div>
 <h1 id="cnx-toolkit">CNX Toolkit</h1>
 <p>Hulpmiddelen om netwerktoestellen naar HPE Aruba Networking Central (new Central) te brengen en daar proper te
 houden: AOS-CX switches en Mobility Gateways onboarden, lokale overrides opkuisen, en de stap van AOS-8 naar AOS-10
@@ -37,7 +37,7 @@ voor access points plannen. Gratis open-source software, niet gemaakt of onderst
 <tr>
 <td>Gehoste webapp</td>
 <td>Wie niets wil installeren</td>
-<td>Open het adres dat je kreeg. Zie <a href="#gehoste-versie">Gehoste versie</a></td>
+<td>Open <a href="https://cnx.caersultancy.com" target="_blank" rel="noopener">cnx.caersultancy.com</a>. Zie <a href="#gehoste-versie">Gehoste versie</a></td>
 </tr>
 <tr>
 <td><code>cnx.exe</code> op Windows</td>
@@ -191,7 +191,9 @@ wordt niets gewijzigd en je hoeft niet aan te melden.</p>
 <p>De supportstatus per model staat in <code>aos10-modellen.json</code> in de toolkit, met de datum van de lijst. Kijk ze na voor
 de AOS-10-versie die je gebruikt op de pagina's Supported Access Point Platforms en Supported Gateway Platforms van HPE.</p>
 <h2 id="gehoste-versie">Gehoste versie</h2>
-<p>De webapp kan ook op een server draaien, voor meerdere gebruikers (<code>cnx web --server</code>, of het container-image).</p>
+<p>De webapp kan ook op een server draaien, voor meerdere gebruikers (<code>cnx web --server</code>, of het container-image). Het
+publieke exemplaar staat op <strong><a href="https://cnx.caersultancy.com" target="_blank" rel="noopener">cnx.caersultancy.com</a></strong>; tijdens de pilot vraagt het een
+pilotcode.</p>
 <ul>
 <li>Elke browser krijgt een eigen sessie en meldt zelf aan bij de eigen Central. De server bewaart niets: geen
   database, niets op schijf. Na 30 minuten zonder activiteit, of bij afmelden, zijn de sessie en het secret weg.</li>

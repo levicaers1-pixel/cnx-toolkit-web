@@ -10,7 +10,7 @@ voor access points plannen. Gratis open-source software, niet gemaakt of onderst
 
 | Manier | Voor wie | Hoe |
 |---|---|---|
-| Gehoste webapp | Wie niets wil installeren | Open het adres dat je kreeg. Zie [Gehoste versie](#gehoste-versie) |
+| Gehoste webapp | Wie niets wil installeren | Open [cnx.caersultancy.com](https://cnx.caersultancy.com). Zie [Gehoste versie](#gehoste-versie) |
 | `cnx.exe` op Windows | Wie lokaal werkt, ook met de commandolijn | Pak de zip uit en dubbelklik op `cnx.exe`. Zie [Installeren](#installeren) |
 | Container | Wie zelf host | `docker run` met het image van GHCR. Zie [docs/AZURE.md](docs/AZURE.md) en de README |
 
@@ -117,7 +117,9 @@ de AOS-10-versie die je gebruikt op de pagina's Supported Access Point Platforms
 
 ## Gehoste versie
 
-De webapp kan ook op een server draaien, voor meerdere gebruikers (`cnx web --server`, of het container-image).
+De webapp kan ook op een server draaien, voor meerdere gebruikers (`cnx web --server`, of het container-image). Het
+publieke exemplaar staat op **[cnx.caersultancy.com](https://cnx.caersultancy.com)**; tijdens de pilot vraagt het een
+pilotcode.
 
 - Elke browser krijgt een eigen sessie en meldt zelf aan bij de eigen Central. De server bewaart niets: geen
   database, niets op schijf. Na 30 minuten zonder activiteit, of bij afmelden, zijn de sessie en het secret weg.

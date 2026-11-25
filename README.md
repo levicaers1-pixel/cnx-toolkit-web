@@ -18,6 +18,8 @@ server for several users (`cnx web --server`, or the container image):
 - **One Central connection per user**, so several people can use one hosted instance safely.
 - **Runs as a container** (`docker run`), self-hosted or on Azure Container Apps, optionally behind a pilot access code.
 
+**Public instance: [cnx.caersultancy.com](https://cnx.caersultancy.com)** (currently a closed pilot with an access code).
+
 Tested in server mode on Azure Container Apps behind its HTTPS proxy, with sign-in to a real new Central. The commands in
 the AP migration plan (steps marked *check*) are not yet verified against HPE's migration guide.
 
