@@ -109,6 +109,8 @@ changed and you do not need to sign in.
      the server; type the customer name and the toolkit loads them again.
    - **Export** creates a migration file (`.json`) with the inventory, the ticked steps and the chosen clusters. With
      **Load migration file...** you continue on another PC or hand the plan over.
+   - **Forget** removes this customer's inventory, ticked steps and chosen clusters from the browser. Do that on a
+     shared PC when you are done; export first if you still need them.
    - **Download step plan (HTML)** gives the plan with the ticked steps, for the engineer or the customer.
    - Steps marked *check* contain commands that can differ per AOS-8 version (converting controllers and APs): check
      them in HPE's migration guide before you run them.

@@ -9,7 +9,7 @@ LIT = re.compile(r'"((?:[^"\\\n]|\\.)*)"|\'((?:[^\'\\\n]|\\.)*)\'|`((?:[^`\\]|\\
 
 # Strings in de code die geen tekst voor de gebruiker zijn (of in beide talen gelijk blijven).
 GEEN_TEKST = {
-    "__TOKEN__", "POST", "Content-Type", "X-Token", "Enter", "VUL-IN", "{vlan}", "sys_vlan_ipv4_{vlan}", "Modified", "Yes",
+    "__TOKEN__", "POST", "Content-Type", "X-Token", "X-Tijd", "Enter", "VUL-IN", "{vlan}", "sys_vlan_ipv4_{vlan}", "Modified", "Yes",
     "Access Switch", "Aggregation Switch", "Core Switch", "Mobility Gateway", "ACCESS_SWITCH", "IP", "VLAN", "AP", "AP-",
     "MAC", "Up", "Down", "AOS-10", "ONLINE", "FOUT", "LET OP", "Hostname", "Site", "Switch", "Object", "Model", "Status",
     "Cluster", "Clusters", "Controller", "Controllers", "Download", "APs", "Device group", "Device groups", "Sites",

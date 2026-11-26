@@ -107,6 +107,8 @@ wordt niets gewijzigd en je hoeft niet aan te melden.
      browser, nooit op de server; typ de klantnaam en de toolkit laadt ze opnieuw.
    - **Exporteren** maakt een migratiebestand (`.json`) met de inventaris, de afgevinkte stappen en de gekozen
      clusters. Met **Migratiebestand laden...** werk je verder op een andere pc of geef je het plan door.
+   - **Vergeten** wist de inventaris, de afgevinkte stappen en de gekozen clusters van deze klant uit de browser. Doe
+     dat op een gedeelde pc als je klaar bent; exporteer eerst als je ze nog nodig hebt.
    - **Download stappenplan (HTML)** geeft het plan met de afgevinkte stappen, voor de technieker of de klant.
    - Stappen met *nakijken* bevatten commando's die per AOS-8-versie kunnen verschillen (omzetten van controllers en
      APs): kijk ze na in de migratiegids van HPE voor je ze uitvoert.

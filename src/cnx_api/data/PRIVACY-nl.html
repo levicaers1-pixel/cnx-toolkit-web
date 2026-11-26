@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.2.2</title><style>
+<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.2.3</title><style>
 :root{color-scheme:light;--paper:#f4f6f9;--panel:#fff;--panel2:#f8fafc;--ink:#122033;--ink2:#2b3a4f;--muted:#5f6c7f;--line:#e2e7ee;--accent:#2457d6;--soft:#eaf0fd}
 @media (prefers-color-scheme:dark){:root{color-scheme:dark;--paper:#0e131a;--panel:#161d27;--panel2:#1a2230;--ink:#e7ecf3;--ink2:#c9d2df;--muted:#93a0b4;--line:#253042;--accent:#7aa2ff;--soft:#1c2943}}
 *{box-sizing:border-box}
@@ -18,7 +18,7 @@ code{font-family:"Cascadia Mono",Consolas,monospace;font-size:.88em;background:v
 pre{background:var(--panel2);border:1px solid var(--line);padding:14px 16px;border-radius:10px;overflow:auto}pre code{background:none;padding:0}
 @media (max-width:700px){main{margin:0;border-radius:0;padding:20px 16px}}
 </style></head>
-<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Privacyverklaring</strong><div class="versie">CNX Toolkit, versie 0.2.2</div></div></div>
+<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Privacyverklaring</strong><div class="versie">CNX Toolkit, versie 0.2.3</div></div></div>
 <h1 id="privacyverklaring">Privacyverklaring</h1>
 <p><em>English: <a href="https://github.com/levicaers1-pixel/cnx-toolkit-web/blob/main/PRIVACY.md" target="_blank" rel="noopener">PRIVACY.md</a>.</em></p>
 <p>Deze verklaring beschrijft wat de webapp van de CNX Toolkit met gegevens doet. Ze geldt voor de gehoste versie
@@ -60,7 +60,7 @@ draait, is verantwoordelijk voor dat exemplaar; de toolkit zelf is zo gebouwd da
 <tr>
 <td>AP-migratie: inventaris, afgevinkte stappen, gekozen clusters</td>
 <td>Je browser (local storage), per klantnaam</td>
-<td>Tot je ze wist (browserinstellingen)</td>
+<td>Tot je op Vergeten klikt in het tabblad AP-migratie, of de sitegegevens wist</td>
 </tr>
 <tr>
 <td>Voorkeuren: laatste API-URL (niet het secret), device group, site, prefix, open tabblad, filters van tabellen</td>
@@ -116,7 +116,8 @@ draait, is verantwoordelijk voor dat exemplaar; de toolkit zelf is zo gebouwd da
 <h2 id="wat-je-zelf-kan-doen">Wat je zelf kan doen</h2>
 <ul>
 <li>Meld af (rechtsboven) om je gegevens meteen van de server te halen.</li>
-<li>Wis de sitegegevens in je browser om de bewaarde AP-migratie en voorkeuren te verwijderen. Exporteer eerst een
+<li>Klik op <strong>Vergeten</strong> in het tabblad AP-migratie om de inventaris en voortgang van een klant te wissen, of wis de
+  sitegegevens in je browser om alle bewaarde AP-migratie en voorkeuren te verwijderen. Exporteer eerst een
   migratiebestand als je het nog nodig hebt.</li>
 <li>Gebruik voor de toolkit een aparte API-client van Central, met enkel de rechten die nodig zijn, en trek hem in als
   je klaar bent. De server bewaart het secret nooit, maar wie een exemplaar draait, kan in principe het geheugen van

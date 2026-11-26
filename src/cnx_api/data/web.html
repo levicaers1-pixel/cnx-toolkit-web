@@ -246,7 +246,7 @@ function el(tag, attrs, ...kids) {
 }
 async function get(p) { const r = await fetch(p + (p.includes("?") ? "&" : "?") + "t=" + T); return r.json(); }
 async function post(p, b) {
-  const r = await fetch(p, { method: "POST", headers: { "Content-Type": "application/json", "X-Token": T }, body: JSON.stringify(b) });
+  const r = await fetch(p, { method: "POST", headers: { "Content-Type": "application/json", "X-Token": T, "X-Tijd": lokaleTijd() }, body: JSON.stringify(b) });
   return r.json();
 }
 function opslaan(k, v) { try { localStorage.setItem("cnx-web-" + k, v); } catch (e) {} }
@@ -1099,6 +1099,14 @@ function aos8Bewaar() {
 }
 function aos8BewaarVoortgang() { opslaan(aos8Sleutel("voortgang"), JSON.stringify(AOS8.vg)); }
 const aos8Inventaris = () => { const inv = Object.assign({}, AOS8.res); delete inv.rapport; return inv; };
+// Vergeten: de inventaris, de afgevinkte stappen en de gekozen clusters van deze klant uit deze browser wissen.
+function aos8Vergeten() {
+  const wie = AOS8.klant.trim() || vt("deze klant");
+  if (!confirm(t("Inventaris en afgevinkte stappen van {0} uit deze browser wissen? Exporteer eerst als je ze nog nodig hebt.", wie))) return;
+  for (const k of [aos8Sleutel("inventaris"), aos8Sleutel("voortgang"), "aos8-kies-" + AOS8.klant]) { try { localStorage.removeItem("cnx-web-" + k); } catch (e) {} }
+  Object.assign(AOS8, { res: null, vg: {}, kies: new Set(), plan: null, geladen: null, st: {}, bestanden: [], fout: null, planFout: null, gekeken: true, nietBewaard: false });
+  renderAos8();
+}
 function aos8Exporteer() {
   const r = AOS8.res; if (!r) return;
   const data = { soort: "cnx-aos8-migratie", versie: 1, klant: AOS8.klant, inventaris: aos8Inventaris(), voortgang: AOS8.vg, clusters: [...AOS8.kies] };
@@ -1170,7 +1178,7 @@ function renderAos8() {
     el("div", { class: "field" }, el("label", { for: "aos8-klant" }, "Klant (voor het rapport)"),
       el("input", { id: "aos8-klant", type: "text", value: AOS8.klant, placeholder: "optioneel", oninput: e => { AOS8.klant = e.target.value; opslaan("aos8-klant", AOS8.klant); },
         onchange: () => { if (!AOS8.bestanden.length) { AOS8.res = null; AOS8.plan = null; AOS8.gekeken = false; renderAos8(); } } }),
-      el("span", { class: "hint" }, "De inventaris en de afgevinkte stappen worden per klant bewaard in deze browser, niet op de server. Exporteer ze om ze door te geven of op een andere pc verder te werken.")),
+      el("span", { class: "hint" }, "De inventaris en de afgevinkte stappen worden per klant bewaard in deze browser, niet op de server. Exporteer ze om ze door te geven of op een andere pc verder te werken. Op een gedeelde pc: klik op Vergeten als je klaar bent.")),
     el("div", { class: "field" }, el("div", { class: "lbl" }, "Inventaris"),
       el("div", { class: "bestand" + (AOS8.bestanden.length ? " gevuld" : "") }, kies, el("button", { class: "btn", type: "button", onclick: () => kies.click() }, "Bestanden kiezen..."), gekozen),
       el("details", {}, el("summary", { class: "hint" }, "Wat exporteer ik?"),
@@ -1180,7 +1188,8 @@ function renderAos8() {
     el("div", { class: "row" }, el("button", { class: "btn primary", disabled: AOS8.bezig || null, onclick: aos8Inlezen }, AOS8.bezig ? "Inlezen..." : AOS8.res ? "Opnieuw inlezen" : "Inlezen"),
       el("span", { class: "sp" }), laad,
       el("button", { class: "btn", onclick: () => laad.click() }, "Migratiebestand laden..."),
-      AOS8.res ? el("button", { class: "btn", onclick: aos8Exporteer }, "Exporteren") : ""),
+      AOS8.res ? el("button", { class: "btn", onclick: aos8Exporteer }, "Exporteren") : "",
+      AOS8.res ? el("button", { class: "btn", title: "Inventaris en voortgang van deze klant uit deze browser wissen", onclick: aos8Vergeten }, "Vergeten") : ""),
     AOS8.nietBewaard ? el("div", { class: "banner warn", style: "margin-top:12px" }, "Deze inventaris is te groot om in de browser te bewaren. Exporteer ze, anders ben je ze kwijt als je de pagina sluit.") : "",
     AOS8.fout ? el("div", { class: "banner bad", style: "margin-top:12px" }, AOS8.fout) : "");
   const delen = [invoer];

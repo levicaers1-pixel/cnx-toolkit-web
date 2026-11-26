@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.2.2</title><style>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.2.3</title><style>
 :root{color-scheme:light;--paper:#f4f6f9;--panel:#fff;--panel2:#f8fafc;--ink:#122033;--ink2:#2b3a4f;--muted:#5f6c7f;--line:#e2e7ee;--accent:#2457d6;--soft:#eaf0fd}
 @media (prefers-color-scheme:dark){:root{color-scheme:dark;--paper:#0e131a;--panel:#161d27;--panel2:#1a2230;--ink:#e7ecf3;--ink2:#c9d2df;--muted:#93a0b4;--line:#253042;--accent:#7aa2ff;--soft:#1c2943}}
 *{box-sizing:border-box}
@@ -18,7 +18,7 @@ code{font-family:"Cascadia Mono",Consolas,monospace;font-size:.88em;background:v
 pre{background:var(--panel2);border:1px solid var(--line);padding:14px 16px;border-radius:10px;overflow:auto}pre code{background:none;padding:0}
 @media (max-width:700px){main{margin:0;border-radius:0;padding:20px 16px}}
 </style></head>
-<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Manual</strong><div class="versie">CNX Toolkit, version 0.2.2</div></div></div>
+<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Manual</strong><div class="versie">CNX Toolkit, version 0.2.3</div></div></div>
 <h1 id="cnx-toolkit">CNX Toolkit</h1>
 <p>Tools to bring network devices into HPE Aruba Networking Central (new Central) and keep them tidy there: onboard
 AOS-CX switches and Mobility Gateways, clean up local overrides, and plan the move from AOS-8 to AOS-10 for access
@@ -185,6 +185,8 @@ changed and you do not need to sign in.</p>
      the server; type the customer name and the toolkit loads them again.</li>
 <li><strong>Export</strong> creates a migration file (<code>.json</code>) with the inventory, the ticked steps and the chosen clusters. With
      <strong>Load migration file...</strong> you continue on another PC or hand the plan over.</li>
+<li><strong>Forget</strong> removes this customer's inventory, ticked steps and chosen clusters from the browser. Do that on a
+     shared PC when you are done; export first if you still need them.</li>
 <li><strong>Download step plan (HTML)</strong> gives the plan with the ticked steps, for the engineer or the customer.</li>
 <li>Steps marked <em>check</em> contain commands that can differ per AOS-8 version (converting controllers and APs): check
      them in HPE's migration guide before you run them.</li>

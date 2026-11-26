@@ -219,3 +219,19 @@ def test_xlsx_grenzen_tegen_kwaadaardige_bestanden(monkeypatch):
         aos8.lees_xlsx(_blad("", voor='<!DOCTYPE x [<!ENTITY a "aaa">]>'))
     with pytest.raises(aos8.Fout, match="bestanden"):
         aos8.lees_bestanden([{"naam": "x.txt", "inhoud": ""}] * 11)
+
+
+def test_tijd_van_de_browser(server):
+    """De server draait in UTC; het inlezen, het rapport en het plan tonen de lokale tijd van de browser (kop X-Tijd)."""
+    data = xlsx({"AP Inventory": [AP_KOP] + APS, "Controllers": [CTRL_KOP] + CTRLS})
+    _, tekst = vraag(server + "/api/web/aos8/gereedheid", {"bestanden": [bestand("inv.xlsx", data)]},
+                     headers={"X-Tijd": "2026-11-26T14:31:07"})
+    inv = json.loads(tekst)
+    assert inv["tijd"] == "2026-11-26T14:31:07" and "2026-11-26 14:31" in inv["rapport"]
+    del inv["rapport"]
+    _, tekst = vraag(server + "/api/web/aos8/plan", {"inventaris": inv, "clusters": ["CTRL-B"]}, headers={"X-Tijd": "2026-11-26T15:02:00"})
+    plan = json.loads(tekst)
+    assert plan["tijd"] == "2026-11-26T15:02:00" and "2026-11-26 15:02" in plan["html"]
+    for slecht in ("gisteren", "2026-11-26T14:31", "2026-13-40T99:99:99", "<script>"):
+        _, tekst = vraag(server + "/api/web/aos8/plan", {"inventaris": inv, "clusters": ["CTRL-B"]}, headers={"X-Tijd": slecht})
+        assert json.loads(tekst)["tijd"] != slecht                       # ongeldig: de tijd van de server

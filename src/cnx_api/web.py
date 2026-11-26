@@ -46,7 +46,7 @@ def veilige_naam(naam):
 ONBOARD_MAX_RIJEN = 5000
 
 
-def onboard_bestand(groep, rijen):
+def onboard_bestand(groep, rijen, tijd=None):
     """Onboarding: rijen (zoals toestellen_uit_groep ze geeft, eventueel aangepast) naar het importbestand voor Central.
     Geen klantconfig nodig: VLAN, profiel en device function staan per switch. De browser krijgt de inhoud; met opslag
     komt er ook een kopie in cnx-web/onboarding."""
@@ -99,7 +99,8 @@ def onboard_bestand(groep, rijen):
     map_ = os.path.join(WERKMAP, "onboarding")
     if OPSLAG:
         os.makedirs(map_, exist_ok=True)
-    stam = f"{veilige_naam(groep or 'switches').replace(' ', '_')}-{datetime.datetime.now():%Y%m%d-%H%M%S}"
+    moment = datetime.datetime.fromisoformat(tijd) if tijd else datetime.datetime.now()
+    stam = f"{veilige_naam(groep or 'switches').replace(' ', '_')}-{moment:%Y%m%d-%H%M%S}"
     bestanden = []
     for i, deel in enumerate(delen, 1):
         naam = stam + (f"-deel{i}" if len(delen) > 1 else "") + ".csv"
@@ -562,6 +563,18 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b)
 
+    def _klok(self):
+        """De lokale tijd van de browser (kop X-Tijd, 2026-11-26T14:31:07), of None. De server draait in UTC, de
+        gebruiker niet: zo tonen het inlezen, het rapport en het plan de tijd van de gebruiker."""
+        v = str(self.headers.get("X-Tijd") or "")
+        if not re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d", v):
+            return None
+        try:
+            datetime.datetime.fromisoformat(v)
+        except ValueError:
+            return None
+        return v
+
     def _onverwacht(self, e):
         """Een onverwachte fout: lokaal met de details, in servermodus enkel een algemene melding (het type in de log)."""
         if SERVER:
@@ -644,7 +657,7 @@ class Handler(BaseHTTPRequestHandler):
         """AP-migratie: inventaris lezen, plan en rapport maken. De browser stuurt alles mee; de server bewaart niets."""
         if pad == "/api/web/aos8/gereedheid":
             try:
-                return self._json(aos8.analyseer(body.get("bestanden"), body.get("klant", "")))   # de browser bewaart het
+                return self._json(aos8.analyseer(body.get("bestanden"), body.get("klant", ""), self._klok()))   # de browser bewaart het
             except aos8.Fout as e:
                 return self._json({"fout": str(e)}, 400)
             except (ET.ParseError, KeyError, ValueError, AttributeError) as e:
@@ -655,7 +668,7 @@ class Handler(BaseHTTPRequestHandler):
                 res = migratieplan.inventaris_uit(body.get("inventaris"))
                 if pad.endswith("rapport"):
                     return self._json({"rapport": aos8.rapport_html(res)})
-                plan = migratieplan.maak_plan(res, body.get("clusters"))
+                plan = migratieplan.maak_plan(res, body.get("clusters"), self._klok())
                 plan["html"] = migratieplan.plan_html(plan, migratieplan.voortgang_uit(body.get("voortgang")))
                 return self._json(plan)
             except (ValueError, KeyError, TypeError, AttributeError) as e:
@@ -706,7 +719,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"fout": _("onbekend")}, 404)
         if u.path == "/api/web/onboard/bestand":
             try:
-                return self._json(onboard_bestand(body.get("groep"), body.get("rijen")))
+                return self._json(onboard_bestand(body.get("groep"), body.get("rijen"), self._klok()))
             except Fout as e:
                 return self._json({"fout": str(e)}, 400)
         if u.path.startswith("/api/web/aos8/"):

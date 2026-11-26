@@ -206,7 +206,7 @@ def cluster_plan(c, aps_cluster, ctrls):
                          for a in sorted(aps_cluster, key=lambda a: (a["groep"], a["naam"]))]}
 
 
-def maak_plan(res, clusternamen):
+def maak_plan(res, clusternamen, tijd=None):
     if not isinstance(clusternamen, list) or not clusternamen:
         raise ValueError(_("kies minstens een cluster"))
     cl = {c["naam"]: c for c in res["clusters"]}
@@ -223,7 +223,7 @@ def maak_plan(res, clusternamen):
         ctrls = sorted((x for x in res["controllers"] if x["naam"] in leden), key=lambda x: x["naam"])
         aps = [a for x in ctrls for a in per_ctrl.get(x["naam"], [])]
         golven.append(cluster_plan(c, aps, ctrls))
-    return {"klant": res.get("klant", ""), "tijd": datetime.datetime.now().isoformat(timespec="seconds"),
+    return {"klant": res.get("klant", ""), "tijd": tijd or datetime.datetime.now().isoformat(timespec="seconds"),
             "klantbreed": klantbreed(res), "clusters": golven}
 
 

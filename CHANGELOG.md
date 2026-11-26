@@ -2,6 +2,14 @@
 
 Versienummers volgen MAJOR.MINOR.PATCH.
 
+## 0.2.3 (2026-11-26)
+
+- AP-migratie: knop **Vergeten** wist de inventaris, de afgevinkte stappen en de gekozen clusters van een klant uit de
+  browser (na bevestiging). Uitleg erbij voor een gedeelde pc.
+- Tijden in de lokale tijd van de gebruiker: de browser stuurt zijn tijd mee (kop `X-Tijd`). Het inlezen van een
+  inventaris, het AOS-10-rapport, het migratieplan en de naam van het importbestand toonden in servermodus de tijd van
+  de server (UTC).
+
 ## 0.2.2 (2026-11-25)
 
 - Handleiding, README en privacyverklaring verwijzen naar het publieke exemplaar op https://cnx.caersultancy.com.

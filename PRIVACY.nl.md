@@ -21,7 +21,7 @@ draait, is verantwoordelijk voor dat exemplaar; de toolkit zelf is zo gebouwd da
 | API-URL, client-ID en secret van Central, en het toegangstoken | Geheugen van de server, in je sessie | Tot je afmeldt, 30 minuten zonder activiteit, of een herstart |
 | Gegevens die de toolkit uit je Central leest (toestellen, serienummers, IP-adressen, hostnames, aliassen, profielen) | Geheugen van de server, om de schermen en bestanden te maken die je vraagt | Voor de sessie; resultaten van lange taken hoogstens voor de sessie |
 | Bestanden die je oplaadt (AOS-8-inventaris, CSV) | Geheugen van de server, enkel tijdens de verwerking | Enkele seconden |
-| AP-migratie: inventaris, afgevinkte stappen, gekozen clusters | Je browser (local storage), per klantnaam | Tot je ze wist (browserinstellingen) |
+| AP-migratie: inventaris, afgevinkte stappen, gekozen clusters | Je browser (local storage), per klantnaam | Tot je op Vergeten klikt in het tabblad AP-migratie, of de sitegegevens wist |
 | Voorkeuren: laatste API-URL (niet het secret), device group, site, prefix, open tabblad, filters van tabellen | Je browser (local storage) | Tot je ze wist |
 | Je IP-adres | Geheugen van de server, enkel om nieuwe sessies per bezoeker (1 minuut) en foute pilotcodes (15 minuten) te begrenzen | Hoogstens 15 minuten; nooit gelogd |
 | Logs | Console-uitvoer van de server: datum en tijd, methode, pad zonder parameters, statuscode en duur | Zolang het hostingplatform de console-uitvoer bijhoudt |
@@ -50,7 +50,8 @@ Beide zijn strikt nodig om de app te laten werken; er zijn geen andere cookies.
 ## Wat je zelf kan doen
 
 - Meld af (rechtsboven) om je gegevens meteen van de server te halen.
-- Wis de sitegegevens in je browser om de bewaarde AP-migratie en voorkeuren te verwijderen. Exporteer eerst een
+- Klik op **Vergeten** in het tabblad AP-migratie om de inventaris en voortgang van een klant te wissen, of wis de
+  sitegegevens in je browser om alle bewaarde AP-migratie en voorkeuren te verwijderen. Exporteer eerst een
   migratiebestand als je het nog nodig hebt.
 - Gebruik voor de toolkit een aparte API-client van Central, met enkel de rechten die nodig zijn, en trek hem in als
   je klaar bent. De server bewaart het secret nooit, maar wie een exemplaar draait, kan in principe het geheugen van

@@ -401,12 +401,13 @@ def gereedheid(aps, ctrls):
             "aps": ap_rijen, "bron": {"bijgewerkt": tabel.get("bijgewerkt", ""), "tekst": tabel.get("bron", "")}}
 
 
-def analyseer(bestanden, klant=""):
+def analyseer(bestanden, klant="", tijd=None):
+    """tijd: de lokale tijd van de browser (ISO), anders die van de server."""
     aps, ctrls, meldingen = lees_bestanden(bestanden)
     res = gereedheid(aps, ctrls)
     res["meldingen"] = meldingen
     res["klant"] = str(klant or "").strip()[:80]
-    res["tijd"] = datetime.datetime.now().isoformat(timespec="seconds")
+    res["tijd"] = tijd or datetime.datetime.now().isoformat(timespec="seconds")
     res["taal"] = huidig()                 # de zinnen (aanpak, opmerkingen) staan in deze taal
     res["rapport"] = rapport_html(res)
     return res

@@ -306,7 +306,6 @@
   "Lees de inventaris van de mobility conductor in en zie welke APs en controllers klaar zijn voor AOS-10, welke clusters je in stappen kan migreren en wat je eerst opkuist. Er wordt niets gewijzigd, ook niet in Central; aanmelden is niet nodig.": "Read in the inventory of the mobility conductor and see which APs and controllers are ready for AOS-10, which clusters you can migrate step by step and what to clean up first. Nothing is changed, not in Central either; no sign-in needed.",
   "Klant (voor het rapport)": "Customer (for the report)",
   "optioneel": "optional",
-  "De inventaris en de afgevinkte stappen worden per klant bewaard in deze browser, niet op de server. Exporteer ze om ze door te geven of op een andere pc verder te werken.": "The inventory and the ticked steps are kept per customer in this browser, not on the server. Export them to pass them on or to continue on another PC.",
   "Inventaris": "Inventory",
   "Bestanden kiezen...": "Choose files...",
   "Wat exporteer ik?": "What do I export?",
@@ -425,5 +424,9 @@
   "in gebruik, niet gewist": "in use, not removed",
   "Central meldde ok, maar het object staat er nog": "Central reported ok, but the object is still there",
   "fout: niet toegelaten": "error: not allowed",
-  "Deze inventaris werd in een andere taal ingelezen. Lees ze opnieuw in om ook de teksten bij de clusters en modellen in deze taal te krijgen.": "This inventory was read in another language. Read it again to also get the texts for the clusters and models in this language."
+  "Deze inventaris werd in een andere taal ingelezen. Lees ze opnieuw in om ook de teksten bij de clusters en modellen in deze taal te krijgen.": "This inventory was read in another language. Read it again to also get the texts for the clusters and models in this language.",
+  "De inventaris en de afgevinkte stappen worden per klant bewaard in deze browser, niet op de server. Exporteer ze om ze door te geven of op een andere pc verder te werken. Op een gedeelde pc: klik op Vergeten als je klaar bent.": "The inventory and the ticked steps are kept per customer in this browser, not on the server. Export them to pass them on or to continue on another PC. On a shared PC: click Forget when you are done.",
+  "Vergeten": "Forget",
+  "Inventaris en voortgang van deze klant uit deze browser wissen": "Remove this customer's inventory and progress from this browser",
+  "Inventaris en afgevinkte stappen van {0} uit deze browser wissen? Exporteer eerst als je ze nog nodig hebt.": "Remove the inventory and ticked steps of {0} from this browser? Export them first if you still need them."
 }
