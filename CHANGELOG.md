@@ -2,7 +2,7 @@
 
 Versienummers volgen MAJOR.MINOR.PATCH.
 
-## Nog niet uitgebracht
+## 0.3.0 (2026-11-26)
 
 - Nieuw tabblad **Voor/na-controle**: een snapshot van het netwerk (status en firmware per toestel, status en buur per
   switchpoort, aantal clients per SSID en per AP) voor en na een change, en een vergelijking die toont wat offline of
