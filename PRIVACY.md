@@ -19,6 +19,8 @@ responsible for that instance; the toolkit itself is built so that the server st
 | Data | Where | How long |
 |---|---|---|
 | Central API URL, client ID and secret, and the access token | Server memory, in your session | Until you sign out, 30 minutes without activity, or a restart |
+| GreenLake API client ID and secret, and the access token (GreenLake Onboarding) | Server memory, in your session | Until you sign out of GreenLake, 30 minutes without activity, or a restart |
+| GreenLake Onboarding: the device list you paste or upload (serial numbers, MAC addresses, sites) | Your browser, only in the open page; server memory while making the plan and running it | Until you reload or close the page; on the server for the session |
 | Data read from your Central (devices, serial numbers, IP addresses, hostnames, aliases, profiles) | Server memory, to build the screens and files you ask for | For the session; results of long tasks are kept at most for the session |
 | Files you upload (AOS-8 inventory, CSV) | Server memory, only while processing the request | A few seconds |
 | Before/after check: snapshots (device status and firmware, port status and neighbours, client counts per SSID and AP; no client names or addresses) | Your browser (local storage), the last ten | Until you click Forget in the Before/after check tab, or clear the site data |

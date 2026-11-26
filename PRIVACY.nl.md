@@ -19,6 +19,8 @@ draait, is verantwoordelijk voor dat exemplaar; de toolkit zelf is zo gebouwd da
 | Gegevens | Waar | Hoe lang |
 |---|---|---|
 | API-URL, client-ID en secret van Central, en het toegangstoken | Geheugen van de server, in je sessie | Tot je afmeldt, 30 minuten zonder activiteit, of een herstart |
+| Client-ID en secret van de GreenLake-API-client, en het toegangstoken (GreenLake Onboarding) | Geheugen van de server, in je sessie | Tot je afmeldt bij GreenLake, 30 minuten zonder activiteit, of een herstart |
+| GreenLake Onboarding: de lijst met toestellen die je plakt of oplaadt (serienummers, MAC-adressen, sites) | Je browser, enkel in de open pagina; geheugen van de server tijdens het plan en het uitvoeren | Tot je de pagina herlaadt of sluit; op de server voor de sessie |
 | Gegevens die de toolkit uit je Central leest (toestellen, serienummers, IP-adressen, hostnames, aliassen, profielen) | Geheugen van de server, om de schermen en bestanden te maken die je vraagt | Voor de sessie; resultaten van lange taken hoogstens voor de sessie |
 | Bestanden die je oplaadt (AOS-8-inventaris, CSV) | Geheugen van de server, enkel tijdens de verwerking | Enkele seconden |
 | Voor/na-controle: snapshots (status en firmware van toestellen, status en buren van poorten, aantal clients per SSID en AP; geen namen of adressen van clients) | Je browser (local storage), de laatste tien | Tot je op Vergeten klikt in het tabblad Voor/na-controle, of de sitegegevens wist |

@@ -254,6 +254,7 @@ function lezen(k) { try { return localStorage.getItem("cnx-web-" + k); } catch (
 const TABS = [
   { id: "onboard", label: "Onboarden", eigen: true },
   { id: "overrides", label: "Overrides controleren", eigen: true, aside: true },
+  { id: "glp", label: "GreenLake Onboarding", eigen: true },
   { id: "snap", label: "Voor/na-controle", eigen: true },
   { id: "aos8", label: "AP-migratie", eigen: true },
   ...(OPSLAG ? [{ id: "klant", label: "Instellingen", eigen: true }] : []),
@@ -282,6 +283,7 @@ function openTab(id) {
   if (t.id === "onboard") renderOnb();
   if (t.id === "aos8") renderAos8();
   if (t.id === "snap") renderSnap();
+  if (t.id === "glp") renderGlp();
   opslaan("tab", t.id);
   history.replaceState(null, "", "#" + t.id);
 }
@@ -294,7 +296,7 @@ async function laadStatus() {
   $("aanmeldknop").textContent = vt(STATUS.aangemeld ? "Afmelden" : "Aanmelden");
 }
 $("aanmeldknop").onclick = async () => {
-  if (STATUS.aangemeld) { await post("/api/web/afmelden", {}); await laadStatus(); renderAlles(); return; }
+  if (STATUS.aangemeld) { await post("/api/web/afmelden", {}); GLP.centraal = null; GLP.nietDelen = false; await laadStatus(); renderAlles(); return; }
   $("d-fout").hidden = true; $("d-secret").value = "";
   $("d-base").value = $("d-base").value || STATUS.base || lezen("base") || "";
   $("dlg").showModal();
@@ -307,7 +309,7 @@ $("d-ok").onclick = async () => {
   try {
     const r = await post("/api/aanmelden", { base, id, secret });
     if (!r.ok) { $("d-fout").textContent = vt(r.melding || r.fout || "Aanmelden mislukt."); $("d-fout").hidden = false; return; }
-    opslaan("base", base); $("d-secret").value = ""; $("dlg").close();
+    opslaan("base", base); $("d-secret").value = ""; $("dlg").close(); GLP.centraal = null; GLP.nietDelen = false;
     await laadStatus(); renderAlles();
   } finally { $("d-ok").disabled = false; }
 };
@@ -320,6 +322,7 @@ function renderAlles() {
     if (t.id === "overrides") renderOvr();
     if (t.id === "snap") { if (STATUS.aangemeld && SNAP.keuzes && !(SNAP.keuzes.sites || []).length) SNAP.keuzes = undefined; renderSnap(); }
     if (t.id === "aos8") { if (AOS8.afw) AOS8.afw.keuzes = undefined; renderAos8(); }
+    if (t.id === "glp") renderGlp();
   }
 }
 // ---------------------------------------------------------------- klantconfig (Instellingen)
@@ -1083,6 +1086,180 @@ function wisPaneel(ctx) {
           el("td", {}, el("span", { class: "pill " + (r.resultaat === "gewist" || r.resultaat === "bestond niet meer" ? "ok" : "bad") }, r.resultaat))))))));
   }
   return blok;
+}
+
+// ---------------------------------------------------------------- tabblad GreenLake Onboarding
+// Nieuwe toestellen in GreenLake zetten, aan Central en een subscription toewijzen, en in Central aan site, device
+// group en device function. De lijst blijft enkel in het geheugen van deze pagina.
+const GLP = { id: "", ws: "", centraal: null, nietDelen: false, rijen: null, fouten: [], tekst: "", fout: null, bezig: "", vg: null, keuzes: undefined, app: lezen("glp-app") || "",
+  subs: { AP: "", SWITCH: "", GATEWAY: "" }, proef: true, plan: null, werk: null, st: {} };
+const GLP_SOORT = { AP: "AP", SWITCH: "Switch", GATEWAY: "Gateway" };
+const GLP_FN = { ACCESS_SWITCH: "Access Switch", AGG_SWITCH: "Aggregation Switch", CORE_SWITCH: "Core Switch", CAMPUS_AP: "Campus AP",
+  MICROBRANCH_AP: "Microbranch AP", MOBILITY_GW: "Mobility Gateway", BRANCH_GW: "Branch Gateway" };
+async function glpAanmelden() {
+  GLP.fout = null;
+  const secret = $("glp-secret").value;
+  if (!GLP.id.trim() || !secret) { GLP.fout = vt("Vul client-ID en secret in."); renderGlp(); return; }
+  GLP.bezig = "Aanmelden bij GreenLake..."; renderGlp();
+  const r = await post("/api/web/glp/aanmelden", { id: GLP.id.trim(), secret, workspace: GLP.ws.trim() }).catch(e => ({ fout: "Geen antwoord van cnx: " + e }));
+  GLP.bezig = "";
+  if (!r.ok) GLP.fout = r.melding || r.fout || vt("Aanmelden mislukt.");
+  else { GLP.keuzes = undefined; await laadStatus(); }
+  renderGlp();
+}
+async function glpAfmelden() {
+  if (STATUS.glp_gedeeld) GLP.nietDelen = true;      // apart aanmelden: de Central-aanmelding niet opnieuw delen
+  await post("/api/web/glp/afmelden", {});
+  Object.assign(GLP, { keuzes: undefined, plan: null }); await laadStatus(); renderGlp();
+}
+async function glpLees(bestand) {
+  GLP.fout = null; GLP.plan = null; GLP.werk = null; GLP.bezig = "Inlezen..."; renderGlp();
+  let body = { tekst: GLP.tekst };
+  if (bestand) {
+    const inhoud = await new Promise((ok, nok) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = nok; r.readAsDataURL(bestand); });
+    body = { bestand: { naam: bestand.name, inhoud } };
+  }
+  const r = await post("/api/web/glp/lees", body).catch(e => ({ fout: "Geen antwoord van cnx: " + e }));
+  GLP.bezig = "";
+  if (r.fout) GLP.fout = r.fout; else { GLP.rijen = r.rijen; GLP.fouten = r.fouten || []; }
+  renderGlp();
+}
+async function glpPlan() {
+  GLP.fout = null; GLP.plan = null; GLP.werk = null; GLP.bezig = "Plan maken in GreenLake en Central..."; renderGlp();
+  const goed = GLP.rijen.filter(r => !r.fouten.length);
+  const r = await ophaalEnWacht("glpplan", { rijen: goed, keuze: { applicatie: GLP.app, subscriptions: GLP.subs } }, i => { GLP.vg = i; renderGlp(); });
+  GLP.bezig = ""; GLP.vg = null;
+  if (r.fout) GLP.fout = r.fout; else GLP.plan = r.resultaat;
+  renderGlp();
+}
+async function glpUitvoeren() {
+  const p = GLP.plan;
+  if (!GLP.proef) {
+    const w = prompt(t("Dit voegt toestellen toe in GreenLake, wijst ze toe aan Central en een subscription, en in Central aan site, device group en device function ({0} toestellen). Dat is niet met de toolkit terug te draaien.\n\nTyp ONBOARDEN om door te gaan.", p.acties.length));
+    if ((w || "").trim().toUpperCase() !== vt("ONBOARDEN")) return;
+  }
+  GLP.fout = null; GLP.bezig = GLP.proef ? "Proef in GreenLake..." : "Uitvoeren in GreenLake en Central..."; renderGlp();
+  const r = await ophaalEnWacht("glpuitvoeren", { plan: p.id, proef: GLP.proef }, i => { GLP.vg = i; renderGlp(); });
+  GLP.bezig = ""; GLP.vg = null;
+  if (r.fout) GLP.fout = r.fout; else { GLP.werk = r.resultaat; if (!r.resultaat.proef) GLP.plan = null; }
+  renderGlp();
+}
+function glpVoorbeeld() {
+  bewaarBestand("greenlake-onboarding-voorbeeld.csv", "serial;mac;soort;site;device group;device function;subscription;naam\r\n" +
+    "CNXXXXXXXX;aa:bb:cc:dd:ee:01;AP;SITE01;ACME-AP;;;SITE01-AP01\r\nSGXXXXXXXX;aa:bb:cc:dd:ee:02;switch;SITE01;ACME-SW;Access Switch;;SITE01-AC1\r\n", "text/csv");
+}
+function renderGlp() {
+  const werk = $("werk-glp");
+  if (!werk) return;
+  const sc = werk.scrollTop, aan = !!STATUS.glp;
+  // Met een API-client van het GreenLake-platform volstaat de aanmelding rechtsboven: eerst die proberen.
+  if (STATUS.aangemeld && !aan && !GLP.nietDelen && GLP.centraal === null) {
+    GLP.centraal = "bezig";
+    post("/api/web/glp/central", {}).then(async r => { GLP.centraal = r.ok ? "ok" : "nee"; if (r.ok) { GLP.keuzes = undefined; await laadStatus(); } renderGlp(); });
+  }
+  if (aan && GLP.keuzes === undefined) {
+    GLP.keuzes = null;
+    post("/api/web/glp/keuzes", {}).then(k => { GLP.keuzes = k; if (!k.fout && !GLP.app && k.applicaties.length) GLP.app = k.applicaties[0].id + "|" + k.applicaties[0].regio; renderGlp(); });
+  }
+  const bezig = GLP.bezig ? el("div", { class: "banner info", style: "margin-top:12px" }, el("span", {}, GLP.bezig + (GLP.vg && GLP.vg.stap ? " " + GLP.vg.stap : "")),
+    GLP.vg && GLP.vg.totaal ? el("progress", { max: GLP.vg.totaal, value: GLP.vg.gedaan, style: "flex:1;min-width:120px" }) : null) : "";
+  const kop = el("div", { class: "card" }, el("h2", {}, "GreenLake Onboarding"),
+    el("p", { class: "lead" }, "Nieuwe toestellen in een keer klaarzetten: toevoegen aan de inventaris van GreenLake, toewijzen aan new Central en een subscription, en in Central aan een site, device group en device function. Dat zijn aparte stappen met wachttijd ertussen; de toolkit doet ze na elkaar. Eerst zie je een plan; met Proef doet GreenLake een dry-run die niets wijzigt."),
+    GLP.centraal === "bezig" ? el("div", { class: "banner info" }, "Kijken of je aanmelding bij Central ook in GreenLake mag...") :
+    aan ? el("div", { class: "row" }, el("span", { class: "pill ok" }, STATUS.glp_gedeeld ? "aangemeld bij GreenLake (via je aanmelding rechtsboven)" : "aangemeld bij GreenLake"),
+        el("button", { class: "btn small", onclick: glpAfmelden }, STATUS.glp_gedeeld ? "Apart aanmelden bij GreenLake" : "Afmelden bij GreenLake"),
+        el("span", { class: "pill " + (STATUS.aangemeld ? "ok" : "warn") }, STATUS.aangemeld ? "aangemeld bij Central" : "niet aangemeld bij Central"),
+        STATUS.aangemeld ? "" : el("span", { class: "hint" }, "Voor site, device group en device function: meld ook rechtsboven aan bij Central.")) :
+      el("div", {},
+        GLP.centraal === "nee" && STATUS.aangemeld ? el("div", { class: "banner info", style: "margin-bottom:10px" }, "Je aanmelding rechtsboven mag niet in GreenLake: dat is een API-client voor je Central-instantie. Meld hieronder apart aan, of meld rechtsboven aan met een API-client voor HPE GreenLake Platform: die kan volgens HPE ook de Central-API aanroepen, en dan volstaat een aanmelding.") : "",
+        el("div", { class: "row", style: "flex-wrap:wrap;align-items:flex-end" },
+          el("div", { class: "field", style: "margin:0" }, el("label", { for: "glp-id" }, "Client-ID (GreenLake)"),
+            el("input", { id: "glp-id", type: "text", value: GLP.id, autocomplete: "off", oninput: e => { GLP.id = e.target.value; } })),
+          el("div", { class: "field", style: "margin:0" }, el("label", { for: "glp-secret" }, "Client secret"),
+            el("input", { id: "glp-secret", type: "password", autocomplete: "off", onkeydown: e => { if (e.key === "Enter") glpAanmelden(); } })),
+          el("div", { class: "field", style: "margin:0" }, el("label", { for: "glp-ws" }, "Workspace-ID (optioneel)"),
+            el("input", { id: "glp-ws", type: "text", value: GLP.ws, autocomplete: "off", oninput: e => { GLP.ws = e.target.value; } })),
+          el("button", { class: "btn primary", disabled: !!GLP.bezig || null, onclick: glpAanmelden }, "Aanmelden bij GreenLake")),
+        el("p", { class: "hint" }, "Een persoonlijke API-client van GreenLake (Identity & access management > API access) voor HPE GreenLake Platform, met rechten om toestellen en subscriptions te beheren. Lukt aanmelden niet, vul dan de workspace-ID in: sommige clients halen hun token bij GreenLake zelf. Client-ID en secret blijven enkel in het geheugen van de toolkit, voor je sessie.")),
+    bezig, GLP.fout ? el("div", { class: "banner bad", style: "margin-top:12px" }, GLP.fout) : "");
+  const delen = [kop];
+  // de lijst met toestellen
+  const kies = el("input", { type: "file", accept: ".csv,.txt,.xlsx", hidden: true, "aria-label": "Lijst met toestellen", onchange: e => { if (e.target.files[0]) glpLees(e.target.files[0]); e.target.value = ""; } });
+  const lijst = el("div", { class: "card" }, el("div", { class: "row" }, el("h2", { style: "margin:0" }, "Toestellen"), el("span", { class: "sp" }),
+      el("button", { class: "btn small", onclick: glpVoorbeeld }, "Voorbeeld (CSV)")),
+    el("p", { class: "hint" }, "Een tabel met een kop: serial en mac zijn verplicht; verder soort (AP, switch, gateway), site, device group, device function en eventueel een subscription-key per toestel. Plak ze uit Excel of kies een CSV- of xlsx-bestand."),
+    el("textarea", { rows: 5, style: "width:100%;font-family:var(--mono, monospace);font-size:12px", placeholder: "serial;mac;soort;site;device group;device function", "aria-label": "Toestellen plakken",
+      value: GLP.tekst, oninput: e => { GLP.tekst = e.target.value; } }),
+    el("div", { class: "row", style: "margin-top:8px" }, el("button", { class: "btn primary", disabled: !!GLP.bezig || null, onclick: () => glpLees(null) }, "Inlezen"), kies,
+      el("button", { class: "btn", onclick: () => kies.click() }, "Bestand kiezen...")));
+  if (GLP.rijen) {
+    const fout = GLP.rijen.filter(r => r.fouten.length);
+    for (const f of GLP.fouten) lijst.append(el("div", { class: "banner warn" }, f));
+    lijst.append(el("p", { class: "hint" }, t("{0} toestellen ingelezen, {1} met fouten (die gaan niet mee in het plan).", GLP.rijen.length, fout.length)),
+      jtabel({ st: GLP.st, naam: "greenlake-toestellen", items: GLP.rijen.map(r => Object.assign({}, r, { stand: r.fouten.length ? "fout" : "ok", fn: GLP_FN[r.functie] || r.functie, srt: GLP_SOORT[r.soort] || r.soort, melding: r.fouten.join("; ") })),
+        statusKolom: "stand", kolommen: [{ k: "stand", label: "Stand", pill: w => w === "ok" ? "ok" : "bad" }, { k: "rij", label: "Rij" }, { k: "serial", label: "Serienummer", mono: true },
+          { k: "mac", label: "MAC", mono: true }, { k: "srt", label: "Soort" }, { k: "site", label: "Site" }, { k: "groep", label: "Device group" }, { k: "fn", label: "Device function" },
+          { k: "subscription", label: "Subscription", mono: true }, { k: "melding", label: "Fout", wrap: true }] }));
+  }
+  delen.push(lijst);
+  // keuzes en plan
+  if (aan && GLP.rijen && GLP.rijen.some(r => !r.fouten.length)) {
+    const k = GLP.keuzes;
+    const kaart = el("div", { class: "card" }, el("h2", {}, "Plan"));
+    if (!k) kaart.append(el("div", { class: "banner info" }, "Applicaties en subscriptions lezen in GreenLake..."));
+    else if (k.fout) kaart.append(el("div", { class: "banner bad" }, k.fout));
+    else {
+      const soorten = [...new Set(GLP.rijen.filter(r => !r.fouten.length).map(r => r.soort))];
+      kaart.append(el("div", { class: "row", style: "flex-wrap:wrap;align-items:flex-end;gap:16px" },
+        el("div", { class: "field", style: "margin:0" }, el("label", { for: "glp-app" }, "Toewijzen aan (applicatie en regio)"),
+          el("select", { id: "glp-app", onchange: e => { GLP.app = e.target.value; opslaan("glp-app", GLP.app); GLP.plan = null; renderGlp(); } },
+            el("option", { value: "" }, "(niet toewijzen)"), k.applicaties.map(a => el("option", { value: a.id + "|" + a.regio, selected: GLP.app === a.id + "|" + a.regio || null }, a.naam + " · " + a.regio)))),
+        soorten.map(s => el("div", { class: "field", style: "margin:0" }, el("label", { for: "glp-sub-" + s }, t("Subscription voor {0}", GLP_SOORT[s] || s)),
+          el("select", { id: "glp-sub-" + s, onchange: e => { GLP.subs[s] = e.target.value; GLP.plan = null; renderGlp(); } },
+            el("option", { value: "" }, "(geen)"), k.subscriptions.map(x => el("option", { value: x.id, selected: GLP.subs[s] === x.id || null },
+              x.key + " · " + (x.tier || x.type) + " · " + t("{0} vrij", x.vrij) + (x.einde ? " · " + t("tot {0}", x.einde) : "") + (x.eval ? " · eval" : "")))))),
+        el("label", { class: "row", style: "gap:6px;cursor:pointer" }, el("input", { type: "checkbox", checked: GLP.proef, onchange: e => { GLP.proef = e.target.checked; renderGlp(); } }),
+          "Proef (dry-run in GreenLake, Central overslaan)")),
+        el("div", { class: "row", style: "margin-top:12px" }, el("button", { class: "btn primary", disabled: !!GLP.bezig || null, onclick: glpPlan }, GLP.plan ? "Plan opnieuw maken" : "Plan maken (wijzigt niets)"),
+          el("span", { class: "hint" }, "Bestaat een toestel al in GreenLake, dan wordt het niet opnieuw toegevoegd; heeft het al een applicatie of subscription, dan blijft die.")));
+    }
+    const p = GLP.plan;
+    if (p) {
+      const pijl = (nu, nieuw) => nieuw ? el("span", {}, el("span", { class: "muted" }, nu || "-"), " → ", el("strong", {}, nieuw)) : el("span", { class: "muted" }, nu || "-");
+      const ja = b => b ? el("span", { class: "pill info" }, "ja") : el("span", { class: "muted" }, "-");
+      kaart.append(tegels([["Toestellen", p.toestellen], ["Al in GreenLake", p.in_glp], ["Toe te voegen", p.acties.filter(a => a.toevoegen).length], ["Te wijzigen", p.acties.length, p.acties.length ? "warn" : ""], ["Al in orde", p.gelijk, "ok"]]));
+      if (!p.centraal) kaart.append(el("div", { class: "banner warn" }, "Niet aangemeld bij Central: site, device group en device function zijn niet nagekeken."));
+      if (p.geweigerd.length) kaart.append(el("div", { class: "banner warn", style: "display:block" }, el("strong", {}, t("{0} niet in het plan:", p.geweigerd.length)),
+        el("ul", { style: "margin:6px 0 0;padding-left:20px" }, p.geweigerd.slice(0, 30).map(x => el("li", {}, x)), p.geweigerd.length > 30 ? el("li", {}, "...") : "")));
+      if (p.acties.length) {
+        kaart.append(el("div", { class: "tabelbox", style: "max-height:380px;margin-top:12px" }, el("table", {},
+            el("thead", {}, el("tr", {}, ["Serienummer", "Soort", "Toevoegen", "Applicatie", "Subscription", "Site", "Device group", "Device function"].map(x => el("th", {}, x)))),
+            el("tbody", {}, p.acties.map(a => el("tr", {}, el("td", { class: "mono" }, a.serial), el("td", {}, GLP_SOORT[a.soort] || a.soort), el("td", {}, ja(a.toevoegen)),
+              el("td", {}, a.app_id ? a.regio : el("span", { class: "muted" }, "-")), el("td", { class: "mono" }, a.sub_key || el("span", { class: "muted" }, "-")),
+              el("td", {}, pijl(a.site_nu, a.site)), el("td", {}, pijl(a.groep_nu, a.dg)), el("td", {}, pijl(GLP_FN[a.functie_nu] || a.functie_nu, GLP_FN[a.functie] || a.functie))))))),
+          el("div", { class: "banner " + (GLP.proef ? "info" : "warn"), style: "margin-top:12px" }, el("span", {}, GLP.proef ? t("Proef: GreenLake kijkt {0} toestellen na zonder iets te wijzigen.", p.acties.length) : t("{0} toestellen klaar om te onboarden.", p.acties.length)),
+            el("button", { class: "btn " + (GLP.proef ? "primary" : "danger"), disabled: !!GLP.bezig || null, onclick: glpUitvoeren }, GLP.proef ? t("Proef uitvoeren ({0})", p.acties.length) : t("Uitvoeren ({0})", p.acties.length))));
+      } else kaart.append(el("div", { class: "banner ok" }, "Niets te doen: deze toestellen staan al zoals gevraagd."));
+    }
+    delen.push(kaart);
+  }
+  if (GLP.werk) {
+    const res = GLP.werk.resultaten, velden = ["toevoegen_uit", "app_uit", "sub_uit", "site_uit", "dg_uit", "functie_uit"];
+    const isProef = u => /^(proef|test run)/.test(u);
+    const goed = res.filter(x => velden.every(v => !x[v] || x[v] === "ok" || isProef(x[v]))).length, tijd = lokaleTijd();
+    const cel = u => !u ? el("span", { class: "muted" }, "-") : el("span", { class: "pill " + (u === "ok" ? "ok" : isProef(u) ? "neu" : "bad"), title: u }, u === "ok" ? "ok" : isProef(u) ? vt("proef") : vt("fout"));
+    delen.push(el("div", { class: "card" }, el("h2", {}, GLP.werk.proef ? "Resultaat van de proef" : "Resultaat"),
+      el("div", { class: "banner " + (goed === res.length ? "ok" : "warn") }, t("{0} van {1} toestellen zonder fouten.", goed, res.length) + " " +
+          (GLP.werk.proef ? vt("Er is niets gewijzigd. Haal het vinkje Proef weg om echt uit te voeren.") : GLP.werk.logboek ? t("Het logboek staat in cnx-web/{0}.", GLP.werk.logboek) : vt("Download het logboek: de server bewaart het niet.")), " ",
+        el("button", { class: "btn small", onclick: () => bewaarBestand("greenlake-onboarding-" + (GLP.werk.proef ? "proef-" : "log-") + tijd.replace(/[-:]/g, "").replace("T", "-") + ".json",
+          JSON.stringify(res.map(x => Object.assign({ versie: GLP.werk.versie, tijd, proef: GLP.werk.proef }, x)), null, 2), "application/json", false) }, "Logboek downloaden"), " ",
+        el("button", { class: "btn small", onclick: () => { GLP.werk = null; renderGlp(); } }, "Sluiten")),
+      el("div", { class: "tabelbox" }, el("table", {}, el("thead", {}, el("tr", {}, ["Serienummer", "Toevoegen", "Applicatie", "Subscription", "Site", "Device group", "Device function", "Melding"].map(x => el("th", {}, x)))),
+        el("tbody", {}, res.map(x => el("tr", {}, el("td", { class: "mono" }, x.serial), velden.map(v => el("td", {}, cel(x[v]))),
+          el("td", { style: "white-space:normal" }, [...new Set(velden.map(v => x[v]).filter(m => m && m !== "ok"))].join("; ")))))))));
+  }
+  werk.replaceChildren(...delen);
+  werk.scrollTop = sc;
 }
 
 // ---------------------------------------------------------------- tabblad Voor/na-controle: snapshots nemen en vergelijken

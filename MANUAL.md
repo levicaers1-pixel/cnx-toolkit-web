@@ -23,6 +23,7 @@ remembers the choice.
 |---|---|
 | Onboarding | Choose a device group in new Central, select switches and gateways, review IP and hostname, and download the import file (aliases). See [Onboarding](#onboarding) |
 | Check overrides | What is set locally on a switch compared with what it inherits, for profiles and aliases, and removing overrides. See [Check overrides](#check-overrides) |
+| GreenLake Onboarding | Add new devices to GreenLake, assign them to Central and a subscription, and in Central to a site, device group and device function. See [GreenLake Onboarding](#greenlake-onboarding) |
 | Before/after check | Record the state of the network before and after a change, and see what dropped. See [Before/after check](#beforeafter-check) |
 | AP migration | Read in an AOS-8 inventory of the mobility conductor and see what is ready for AOS-10, with a report and a migration plan per cluster, and after the migration rename and assign the APs in Central. See [AP migration](#ap-migration) |
 | Settings | Only in the local app: fill in `klantconfig.json` for `cnx alias` on the command line |
@@ -82,6 +83,52 @@ to confirm. Central refuses to remove an object that is still in use (e.g. a VLA
 "in use, not removed". After removal the toolkit checks that the object is gone. System info, management interface,
 local management and firmware policy are never removed. With **Download log** you keep a record of what happened; the
 local app also writes it to `cnx-web/overrides-wissen-log-<time>.json`.
+
+### GreenLake Onboarding
+
+Prepare new devices in one go. These are separate steps with waiting in between, through two APIs; the toolkit runs
+them one after the other:
+
+1. add them to the GreenLake inventory (serial number and MAC);
+2. assign them to new Central in a region;
+3. assign a subscription;
+4. wait until the device is in Central (at most ten minutes);
+5. in Central, assign a site, device group and device function, then check.
+
+**Signing in.** You create an API client in GreenLake (Identity & access management > API access). If you choose the
+**HPE GreenLake Platform** service there instead of your Central instance, that client can also call the Central API,
+according to HPE. Sign in with it at the top right and the tab checks whether that sign-in also works in GreenLake; if
+so, that one sign-in is enough for everything. A client for your Central instance is not allowed in GreenLake: then
+sign in separately in the tab with a GreenLake platform client. If that fails, also fill in the workspace ID; some
+clients get their token from GreenLake itself. Tokens of a GreenLake platform client are valid for 15 minutes; the
+toolkit renews them by itself. Client ID and secret stay only in the toolkit's memory. Signing out at the top right also
+signs you out of GreenLake.
+
+**How it works.**
+
+- Paste a table from Excel or choose a CSV or xlsx file. Required: *serial* and *mac*. Further: *type* (AP, switch
+  or gateway), *site*, *device group*, *device function* (Access Switch, Aggregation Switch, Core Switch, Mobility
+  Gateway...) and optionally *subscription* (a key per device). **Example (CSV)** gives a template. Rows with errors
+  (invalid serial or MAC, duplicate, unknown function) are left out.
+- Choose the application and region (Central) and a subscription per type; you see how many are still free.
+- **Make a plan (changes nothing)** looks up each device in GreenLake and Central. A device that is already in
+  GreenLake is not added again; a device with an application or subscription keeps it. The plan refuses a MAC address
+  that differs from GreenLake, a device already assigned to another application, a site or device group that does not
+  exist, and too few free licences.
+- **Test run** (on by default): GreenLake does a dry run and changes nothing; Central is skipped. Untick it to run for
+  real; you then type ONBOARD to confirm.
+- The result shows ok or the error per device and per step, with **Download log**.
+
+**Good to know.**
+
+- A device that came online before it had a site and device group lands in the default group. Onboard devices before
+  you connect them.
+- According to HPE, assigning to a site or device group only works in an account with new Central only, not together
+  with Classic. APs get their device function automatically; for a VSF stack, assign only the conductor.
+- Based on HPE's API references, but not yet tested against a real GreenLake. Start with a test run and a few devices.
+  Still to confirm: which id GreenLake expects to assign to Central (the toolkit sends the service manager id with the
+  region) and how GreenLake returns the result per device.
+- The device list stays only in the page; reloading clears it.
 
 ### Before/after check
 

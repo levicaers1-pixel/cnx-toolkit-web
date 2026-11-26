@@ -2,6 +2,15 @@
 
 Versienummers volgen MAJOR.MINOR.PATCH.
 
+## Nog niet uitgebracht
+
+- Nieuw tabblad **GreenLake Onboarding**: een lijst met toestellen (plakken, CSV of xlsx) in GreenLake zetten, aan
+  new Central en een subscription toewijzen, en in Central aan een site, device group en device function. Aparte
+  aanmelding met een GreenLake-API-client, of een aanmelding voor alles: met een API-client voor HPE GreenLake
+  Platform rechtsboven gebruikt het tabblad die aanmelding ook voor GreenLake. Optioneel een workspace-ID voor de
+  token-URL van GreenLake. Eerst een plan; standaard een proef (dry-run in GreenLake). Nog niet getest tegen een echte
+  GreenLake.
+
 ## 0.3.0 (2026-11-26)
 
 - Nieuw tabblad **Voor/na-controle**: een snapshot van het netwerk (status en firmware per toestel, status en buur per

@@ -26,6 +26,7 @@ from . import configapi
 from . import monitor
 from . import snapshot
 from . import apafwerking
+from . import glponboard
 
 POORT = int(os.environ.get("CNX_WEB_POORT", "8766"))
 MAX_BODY = 50 * 1024 * 1024
@@ -231,6 +232,8 @@ class Sessie:
         self.ophalingen = {}
         self.wisplannen = {}
         self.applannen = {}
+        self.glp = cx.Verbinding(glponboard.GLP)   # aparte aanmelding bij GreenLake
+        self.glpplannen = {}
         self.laatst = time.time()
         self.pilot_ok = False                 # servermodus met pilotcode: pas na de juiste code iets te zien
 
@@ -239,6 +242,8 @@ class Sessie:
         self.ophalingen.clear()
         self.wisplannen.clear()
         self.applannen.clear()
+        self.glp.wis()
+        self.glpplannen.clear()
 
 
 SERVER = False              # servermodus (--server): achter een reverse proxy, voor meerdere gebruikers
@@ -274,7 +279,7 @@ def _opruimen(nu):
     """Sessies zonder activiteit sinds SESSIE_DUUR (niet aangemeld: SESSIE_DUUR_ANONIEM): verbinding (token en secret)
     en taken wissen. Onder _SESSIE_SLOT."""
     for sid in [k for k, v in SESSIES.items()
-                if nu - v.laatst > (SESSIE_DUUR if v.verbinding.aangemeld else SESSIE_DUUR_ANONIEM)]:
+                if nu - v.laatst > (SESSIE_DUUR if v.verbinding.aangemeld or v.glp.aangemeld else SESSIE_DUUR_ANONIEM)]:
         SESSIES.pop(sid).wis()
     for k in [k for k, t in _NIEUW.items() if not t or nu - t[-1] > 60]:
         _NIEUW.pop(k, None)
@@ -541,7 +546,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _status(self):
         v = cx.verbinding()
-        return {"aangemeld": v.aangemeld, "base": v.base, "env": bool(os.environ.get("CNX_CLIENT_ID")) and not SERVER}
+        return {"aangemeld": v.aangemeld, "base": v.base, "env": bool(os.environ.get("CNX_CLIENT_ID")) and not SERVER,
+                "glp": self.sessie.glp.aangemeld, "glp_gedeeld": self.sessie.glp.aangemeld and bool(getattr(self.sessie.glp, "gedeeld", False))}
 
     def _aanmelden(self, body):
         base = str(body.get("base") or "")
@@ -657,6 +663,33 @@ class Handler(BaseHTTPRequestHandler):
                 return self._bestand(f.read(), "klantconfig.json", "application/json")
         return self._json({"fout": _("onbekend")}, 404)
 
+    def _glp(self, pad, body):
+        """GreenLake Onboarding: aparte aanmelding bij GreenLake, toestellenlijst inlezen, keuzes. Bewaart niets."""
+        try:
+            if pad == "/api/web/glp/lees":
+                return self._json(glponboard.lees(body.get("bestand"), body.get("tekst")))
+            if pad == "/api/web/glp/aanmelden":
+                ok, msg = glponboard.aanmelden(self.sessie.glp, body.get("id"), body.get("secret"), body.get("workspace"))
+                if ok and PER_SESSIE:
+                    self._nieuwe_sessie = nieuwe_sessie_id(self.sessie)
+                return self._json({"ok": ok, "melding": msg})
+            if pad == "/api/web/glp/central":
+                return self._json({"ok": glponboard.gebruik_central(self.sessie.glp, self.sessie.verbinding)})
+            if pad == "/api/web/glp/afmelden":
+                self.sessie.glp.wis()
+                self.sessie.glpplannen.clear()
+                return self._json({"ok": True})
+            if pad == "/api/web/glp/keuzes":
+                if not self.sessie.glp.aangemeld:
+                    return self._json({"fout": _("Eerst aanmelden bij GreenLake.")}, 401)
+                return self._json(glponboard.keuzes(self.sessie.glp))
+        except monitor.ApiFout as e:
+            tekst = e.melding if isinstance(e, monitor.Invoer) else _("GreenLake gaf {status}: {melding}", status=e.status, melding=e.melding)
+            return self._json({"fout": tekst}, 400 if isinstance(e, monitor.Invoer) else 502)
+        except Exception as e:  # noqa: BLE001
+            return self._json({"fout": self._onverwacht(e)}, 500)
+        return self._json({"fout": _("onbekend")}, 404)
+
     def _aos8(self, pad, body):
         """AP-migratie: inventaris lezen, plan en rapport maken. De browser stuurt alles mee; de server bewaart niets."""
         if pad == "/api/web/aos8/gereedheid":
@@ -737,6 +770,8 @@ class Handler(BaseHTTPRequestHandler):
             opties = body.get("opties") if isinstance(body.get("opties"), dict) else {}
             opties = dict(opties, tijd=self._klok())
             return self._monitor(lambda: {"id": start_ophaling(self.sessie, body.get("soort", ""), opties).id})
+        if u.path.startswith("/api/web/glp/"):
+            return self._glp(u.path, body)
         if u.path == "/api/web/snapshot/vergelijk":
             try:
                 return self._json(snapshot.vergelijk(body.get("voor"), body.get("na")))   # de browser bewaart de snapshots
@@ -830,6 +865,30 @@ def start_ophaling(sessie, soort, opties):
             res = apafwerking.uitvoeren(acties, v)
             pad = logboek("ap-afwerking-log", res)
             return {"resultaten": res, "logboek": os.path.relpath(pad, WERKMAP).replace(os.sep, "/") if pad else None,
+                    "versie": __version__}
+    elif soort == "glpplan":
+        if not sessie.glp.aangemeld:
+            raise monitor.Invoer(_("Eerst aanmelden bij GreenLake."))
+
+        def doe(v):
+            plan = glponboard.plan(sessie.glp, opties.get("rijen"), opties.get("keuze"), sessie.verbinding.aangemeld, v)
+            pid = f"glp-{datetime.datetime.now():%Y%m%d%H%M%S}-{secrets.token_hex(4)}"
+            if plan["acties"]:
+                sessie.glpplannen.clear()
+                sessie.glpplannen[pid] = plan["acties"]
+            return dict(plan, id=pid)
+    elif soort == "glpuitvoeren":
+        acties = sessie.glpplannen.get(str(opties.get("plan") or ""))
+        proef = opties.get("proef") is not False
+        if acties is None:
+            raise monitor.Invoer(_("Dit plan is verlopen of al uitgevoerd. Maak een nieuw plan."))
+        if not proef:
+            sessie.glpplannen.pop(str(opties.get("plan")), None)     # echt uitvoeren: maar een keer
+
+        def doe(v):
+            res = glponboard.uitvoeren(sessie.glp, acties, proef, v)
+            pad = None if proef else logboek("greenlake-onboarding-log", res)
+            return {"resultaten": res, "proef": proef, "logboek": os.path.relpath(pad, WERKMAP).replace(os.sep, "/") if pad else None,
                     "versie": __version__}
     elif soort == "afwijkingen":
         serials = [str(x) for x in (opties.get("serials") or []) if isinstance(x, (str, int))][:2000] or None

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.2.3</title><style>
+<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.3.0</title><style>
 :root{color-scheme:light;--paper:#f4f6f9;--panel:#fff;--panel2:#f8fafc;--ink:#122033;--ink2:#2b3a4f;--muted:#5f6c7f;--line:#e2e7ee;--accent:#2457d6;--soft:#eaf0fd}
 @media (prefers-color-scheme:dark){:root{color-scheme:dark;--paper:#0e131a;--panel:#161d27;--panel2:#1a2230;--ink:#e7ecf3;--ink2:#c9d2df;--muted:#93a0b4;--line:#253042;--accent:#7aa2ff;--soft:#1c2943}}
 *{box-sizing:border-box}
@@ -18,7 +18,7 @@ code{font-family:"Cascadia Mono",Consolas,monospace;font-size:.88em;background:v
 pre{background:var(--panel2);border:1px solid var(--line);padding:14px 16px;border-radius:10px;overflow:auto}pre code{background:none;padding:0}
 @media (max-width:700px){main{margin:0;border-radius:0;padding:20px 16px}}
 </style></head>
-<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Handleiding</strong><div class="versie">CNX Toolkit, versie 0.2.3</div></div></div>
+<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Handleiding</strong><div class="versie">CNX Toolkit, versie 0.3.0</div></div></div>
 <h1 id="cnx-toolkit">CNX Toolkit</h1>
 <p>Hulpmiddelen om netwerktoestellen naar HPE Aruba Networking Central (new Central) te brengen en daar proper te
 houden: AOS-CX switches en Mobility Gateways onboarden, lokale overrides opkuisen, en de stap van AOS-8 naar AOS-10
@@ -68,6 +68,10 @@ voor access points plannen. Gratis open-source software, niet gemaakt of onderst
 <tr>
 <td>Overrides controleren</td>
 <td>Wat lokaal op een switch staat tegenover wat hij erft, voor profielen en aliassen, en overrides wissen. Zie <a href="#overrides-controleren">Overrides controleren</a></td>
+</tr>
+<tr>
+<td>GreenLake Onboarding</td>
+<td>Nieuwe toestellen in GreenLake zetten, aan Central en een subscription toewijzen, en in Central aan site, device group en device function. Zie <a href="#greenlake-onboarding">GreenLake Onboarding</a></td>
 </tr>
 <tr>
 <td>Voor/na-controle</td>
@@ -161,6 +165,50 @@ ter bevestiging WISSEN (in het Engels: DELETE). Een object dat nog gebruikt word
 Central; dat staat als "in gebruik, niet gewist" in het resultaat. Na het wissen kijkt de toolkit na dat het object weg
 is. Systeeminfo, beheerinterface, lokaal beheer en het firmwarebeleid worden nooit gewist. Met <strong>Logboek downloaden</strong>
 bewaar je wat er gebeurd is; de lokale app zet het ook in <code>cnx-web/overrides-wissen-log-&lt;tijd&gt;.json</code>.</p>
+<h3 id="greenlake-onboarding">GreenLake Onboarding</h3>
+<p>Nieuwe toestellen in een keer klaarzetten. Dat zijn aparte stappen met wachttijd ertussen, via twee API's; de toolkit
+doet ze na elkaar:</p>
+<ol>
+<li>toevoegen aan de inventaris van GreenLake (serienummer en MAC);</li>
+<li>toewijzen aan new Central in een regio;</li>
+<li>een subscription toewijzen;</li>
+<li>wachten tot het toestel in Central staat (hoogstens tien minuten);</li>
+<li>in Central toewijzen aan een site, device group en device function, en daarna nakijken.</li>
+</ol>
+<p><strong>Aanmelden.</strong> Een API-client maak je in GreenLake (Identity &amp; access management &gt; API access). Kies je daar de dienst
+<strong>HPE GreenLake Platform</strong> in plaats van je Central-instantie, dan kan die client volgens HPE ook de Central-API
+aanroepen. Meld je daarmee rechtsboven aan, dan kijkt het tabblad of die aanmelding ook in GreenLake mag; zo ja, dan
+volstaat die ene aanmelding voor alles. Een client voor je Central-instantie mag niet in GreenLake: dan meld je in het
+tabblad apart aan met een GreenLake-platform-client. Lukt dat niet, vul dan ook de workspace-ID in; sommige clients
+halen hun token bij GreenLake zelf. Tokens van een GreenLake-platform-client zijn 15 minuten geldig; de toolkit
+vernieuwt ze vanzelf. Client-ID en secret blijven enkel in het geheugen van de toolkit. Afmelden rechtsboven meldt ook
+af bij GreenLake.</p>
+<p><strong>Werkwijze.</strong></p>
+<ul>
+<li>Plak een tabel uit Excel of kies een CSV- of xlsx-bestand. Verplicht: <em>serial</em> en <em>mac</em>. Verder: <em>soort</em> (AP,
+  switch of gateway), <em>site</em>, <em>device group</em>, <em>device function</em> (Access Switch, Aggregation Switch, Core Switch,
+  Mobility Gateway...) en eventueel <em>subscription</em> (een key per toestel). <strong>Voorbeeld (CSV)</strong> geeft een sjabloon. Rijen
+  met fouten (ongeldig serienummer of MAC, dubbel, onbekende functie) gaan niet mee.</li>
+<li>Kies de applicatie en regio (Central) en per soort een subscription; je ziet hoeveel er nog vrij zijn.</li>
+<li><strong>Plan maken (wijzigt niets)</strong> zoekt elk toestel in GreenLake en Central. Een toestel dat al in GreenLake staat,
+  wordt niet opnieuw toegevoegd; een toestel met een applicatie of subscription houdt die. Het plan weigert een ander
+  MAC-adres dan in GreenLake, een toestel dat al aan een andere applicatie hangt, een site of device group die niet
+  bestaat, en te weinig vrije licenties.</li>
+<li><strong>Proef</strong> (standaard aan): GreenLake doet een dry-run en wijzigt niets; Central wordt overgeslagen. Haal het vinkje
+  weg om echt uit te voeren; je typt dan ter bevestiging ONBOARDEN.</li>
+<li>Het resultaat toont per toestel en per stap ok of de fout, met <strong>Logboek downloaden</strong>.</li>
+</ul>
+<p><strong>Te weten.</strong></p>
+<ul>
+<li>Een toestel dat al online kwam voor het een site en device group had, landt in de default-groep. Onboard toestellen
+  voor je ze aansluit.</li>
+<li>Toewijzen aan een site of device group werkt volgens HPE enkel in een account met alleen new Central, niet samen
+  met Classic. APs krijgen hun device function vanzelf; bij een VSF-stack wijs je enkel de conductor toe.</li>
+<li>Gebaseerd op de API-referenties van HPE, maar nog niet getest tegen een echte GreenLake. Begin met een proef en een
+  paar toestellen. Wat nog te bevestigen is: welk id GreenLake verwacht om aan Central toe te wijzen (de toolkit stuurt
+  het id van de service manager met de regio) en hoe GreenLake het resultaat per toestel teruggeeft.</li>
+<li>De lijst met toestellen blijft enkel in de pagina; herladen wist ze.</li>
+</ul>
 <h3 id="voorna-controle">Voor/na-controle</h3>
 <p>Leg voor een change, een firmware-upgrade of een migratie de stand van het netwerk vast, en daarna nog eens. Leest
 enkel uit Central; er wordt niets gewijzigd.</p>

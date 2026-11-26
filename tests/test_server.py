@@ -65,7 +65,7 @@ def test_sessie_enkel_via_de_pagina_met_veilige_cookie(srv):
     assert len(web.SESSIES) == 1
     vlaggen = {x.strip().lower() for x in b.set_cookie.split(";")[1:]}
     assert {"httponly", "secure", "samesite=strict", "path=/"} <= vlaggen
-    assert b.vraag("/api/status") == (200, {"aangemeld": False, "base": "", "env": False})
+    assert b.vraag("/api/status") == (200, {"aangemeld": False, "base": "", "env": False, "glp": False, "glp_gedeeld": False})
 
 
 def test_csrf_token_per_sessie(srv):

@@ -22,6 +22,7 @@ De webapp is overal dezelfde. Rechtsboven kies je de taal (**NL** of **EN**); de
 |---|---|
 | Onboarden | Device group in new Central kiezen, switches en gateways aanvinken, IP en hostname nakijken, en het importbestand (aliassen) downloaden. Zie [Onboarden](#onboarden) |
 | Overrides controleren | Wat lokaal op een switch staat tegenover wat hij erft, voor profielen en aliassen, en overrides wissen. Zie [Overrides controleren](#overrides-controleren) |
+| GreenLake Onboarding | Nieuwe toestellen in GreenLake zetten, aan Central en een subscription toewijzen, en in Central aan site, device group en device function. Zie [GreenLake Onboarding](#greenlake-onboarding) |
 | Voor/na-controle | De stand van het netwerk vastleggen voor en na een change, en zien wat er wegviel. Zie [Voor/na-controle](#voorna-controle) |
 | AP-migratie | Een AOS-8-inventaris van de mobility conductor inlezen en zien wat klaar is voor AOS-10, met een rapport en een migratieplan per cluster, en na de migratie de APs in Central hernoemen en toewijzen. Zie [AP-migratie](#ap-migratie) |
 | Instellingen | Enkel in de lokale app: `klantconfig.json` invullen voor `cnx alias` op de commandolijn |
@@ -80,6 +81,52 @@ ter bevestiging WISSEN (in het Engels: DELETE). Een object dat nog gebruikt word
 Central; dat staat als "in gebruik, niet gewist" in het resultaat. Na het wissen kijkt de toolkit na dat het object weg
 is. Systeeminfo, beheerinterface, lokaal beheer en het firmwarebeleid worden nooit gewist. Met **Logboek downloaden**
 bewaar je wat er gebeurd is; de lokale app zet het ook in `cnx-web/overrides-wissen-log-<tijd>.json`.
+
+### GreenLake Onboarding
+
+Nieuwe toestellen in een keer klaarzetten. Dat zijn aparte stappen met wachttijd ertussen, via twee API's; de toolkit
+doet ze na elkaar:
+
+1. toevoegen aan de inventaris van GreenLake (serienummer en MAC);
+2. toewijzen aan new Central in een regio;
+3. een subscription toewijzen;
+4. wachten tot het toestel in Central staat (hoogstens tien minuten);
+5. in Central toewijzen aan een site, device group en device function, en daarna nakijken.
+
+**Aanmelden.** Een API-client maak je in GreenLake (Identity & access management > API access). Kies je daar de dienst
+**HPE GreenLake Platform** in plaats van je Central-instantie, dan kan die client volgens HPE ook de Central-API
+aanroepen. Meld je daarmee rechtsboven aan, dan kijkt het tabblad of die aanmelding ook in GreenLake mag; zo ja, dan
+volstaat die ene aanmelding voor alles. Een client voor je Central-instantie mag niet in GreenLake: dan meld je in het
+tabblad apart aan met een GreenLake-platform-client. Lukt dat niet, vul dan ook de workspace-ID in; sommige clients
+halen hun token bij GreenLake zelf. Tokens van een GreenLake-platform-client zijn 15 minuten geldig; de toolkit
+vernieuwt ze vanzelf. Client-ID en secret blijven enkel in het geheugen van de toolkit. Afmelden rechtsboven meldt ook
+af bij GreenLake.
+
+**Werkwijze.**
+
+- Plak een tabel uit Excel of kies een CSV- of xlsx-bestand. Verplicht: *serial* en *mac*. Verder: *soort* (AP,
+  switch of gateway), *site*, *device group*, *device function* (Access Switch, Aggregation Switch, Core Switch,
+  Mobility Gateway...) en eventueel *subscription* (een key per toestel). **Voorbeeld (CSV)** geeft een sjabloon. Rijen
+  met fouten (ongeldig serienummer of MAC, dubbel, onbekende functie) gaan niet mee.
+- Kies de applicatie en regio (Central) en per soort een subscription; je ziet hoeveel er nog vrij zijn.
+- **Plan maken (wijzigt niets)** zoekt elk toestel in GreenLake en Central. Een toestel dat al in GreenLake staat,
+  wordt niet opnieuw toegevoegd; een toestel met een applicatie of subscription houdt die. Het plan weigert een ander
+  MAC-adres dan in GreenLake, een toestel dat al aan een andere applicatie hangt, een site of device group die niet
+  bestaat, en te weinig vrije licenties.
+- **Proef** (standaard aan): GreenLake doet een dry-run en wijzigt niets; Central wordt overgeslagen. Haal het vinkje
+  weg om echt uit te voeren; je typt dan ter bevestiging ONBOARDEN.
+- Het resultaat toont per toestel en per stap ok of de fout, met **Logboek downloaden**.
+
+**Te weten.**
+
+- Een toestel dat al online kwam voor het een site en device group had, landt in de default-groep. Onboard toestellen
+  voor je ze aansluit.
+- Toewijzen aan een site of device group werkt volgens HPE enkel in een account met alleen new Central, niet samen
+  met Classic. APs krijgen hun device function vanzelf; bij een VSF-stack wijs je enkel de conductor toe.
+- Gebaseerd op de API-referenties van HPE, maar nog niet getest tegen een echte GreenLake. Begin met een proef en een
+  paar toestellen. Wat nog te bevestigen is: welk id GreenLake verwacht om aan Central toe te wijzen (de toolkit stuurt
+  het id van de service manager met de regio) en hoe GreenLake het resultaat per toestel teruggeeft.
+- De lijst met toestellen blijft enkel in de pagina; herladen wist ze.
 
 ### Voor/na-controle
 

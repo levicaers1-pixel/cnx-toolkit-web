@@ -105,9 +105,10 @@ def __getattr__(naam):
     raise AttributeError(f"module {__name__!r} has no attribute {naam!r}")
 
 
-def _token(v, cid, secret):
-    """Haalt een token en zet het op de sessie van verbinding v. Geeft None, of de foutmelding."""
-    r = requests.post(TOKEN_URL, timeout=30, data={"grant_type": "client_credentials",
+def _token(v, cid, secret, url=None):
+    """Haalt een token en zet het op de sessie van verbinding v. Geeft None, of de foutmelding. url: een andere
+    token-URL (een API-client van het GreenLake-platform met workspace-ID); anders die van de verbinding of TOKEN_URL."""
+    r = requests.post(url or v.gegevens.get("token_url") or TOKEN_URL, timeout=30, data={"grant_type": "client_credentials",
                                                    "client_id": cid, "client_secret": secret})
     if r.status_code >= 300:
         return _("Aanmelden mislukt ({status}): {tekst}", status=r.status_code, tekst=r.text[:300])

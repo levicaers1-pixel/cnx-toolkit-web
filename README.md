@@ -35,6 +35,9 @@ See [docs/WEBAPP.md](docs/WEBAPP.md) for the design.
 - **AP-migratie**: read an AOS-8 inventory (`show ap database long`, `show switches`, or Excel/CSV), get an AOS-10
   readiness report and a step-by-step migration plan per cluster. After the migration, find the APs in Central by
   serial or MAC, rename them to their AOS-8 name and assign them to a site and device group (plan first, then run).
+- **GreenLake Onboarding**: add new devices to GreenLake, assign them to Central and a subscription, and in Central to a
+  site, device group and device function, in one run (plan first, with a GreenLake dry run). Not yet tested against a
+  real GreenLake.
 - **Voor/na-controle**: take a read-only snapshot of device status, port status and neighbours, and client counts per
   SSID and AP before and after a change, and see what went down or dropped. Snapshots stay in the browser.
 

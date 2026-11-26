@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.2.3</title><style>
+<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.3.0</title><style>
 :root{color-scheme:light;--paper:#f4f6f9;--panel:#fff;--panel2:#f8fafc;--ink:#122033;--ink2:#2b3a4f;--muted:#5f6c7f;--line:#e2e7ee;--accent:#2457d6;--soft:#eaf0fd}
 @media (prefers-color-scheme:dark){:root{color-scheme:dark;--paper:#0e131a;--panel:#161d27;--panel2:#1a2230;--ink:#e7ecf3;--ink2:#c9d2df;--muted:#93a0b4;--line:#253042;--accent:#7aa2ff;--soft:#1c2943}}
 *{box-sizing:border-box}
@@ -18,7 +18,7 @@ code{font-family:"Cascadia Mono",Consolas,monospace;font-size:.88em;background:v
 pre{background:var(--panel2);border:1px solid var(--line);padding:14px 16px;border-radius:10px;overflow:auto}pre code{background:none;padding:0}
 @media (max-width:700px){main{margin:0;border-radius:0;padding:20px 16px}}
 </style></head>
-<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Privacyverklaring</strong><div class="versie">CNX Toolkit, versie 0.2.3</div></div></div>
+<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Privacyverklaring</strong><div class="versie">CNX Toolkit, versie 0.3.0</div></div></div>
 <h1 id="privacyverklaring">Privacyverklaring</h1>
 <p><em>English: <a href="https://github.com/levicaers1-pixel/cnx-toolkit-web/blob/main/PRIVACY.md" target="_blank" rel="noopener">PRIVACY.md</a>.</em></p>
 <p>Deze verklaring beschrijft wat de webapp van de CNX Toolkit met gegevens doet. Ze geldt voor de gehoste versie
@@ -46,6 +46,16 @@ draait, is verantwoordelijk voor dat exemplaar; de toolkit zelf is zo gebouwd da
 <td>API-URL, client-ID en secret van Central, en het toegangstoken</td>
 <td>Geheugen van de server, in je sessie</td>
 <td>Tot je afmeldt, 30 minuten zonder activiteit, of een herstart</td>
+</tr>
+<tr>
+<td>Client-ID en secret van de GreenLake-API-client, en het toegangstoken (GreenLake Onboarding)</td>
+<td>Geheugen van de server, in je sessie</td>
+<td>Tot je afmeldt bij GreenLake, 30 minuten zonder activiteit, of een herstart</td>
+</tr>
+<tr>
+<td>GreenLake Onboarding: de lijst met toestellen die je plakt of oplaadt (serienummers, MAC-adressen, sites)</td>
+<td>Je browser, enkel in de open pagina; geheugen van de server tijdens het plan en het uitvoeren</td>
+<td>Tot je de pagina herlaadt of sluit; op de server voor de sessie</td>
 </tr>
 <tr>
 <td>Gegevens die de toolkit uit je Central leest (toestellen, serienummers, IP-adressen, hostnames, aliassen, profielen)</td>
