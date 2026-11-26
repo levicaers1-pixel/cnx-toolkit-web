@@ -2,6 +2,17 @@
 
 Versienummers volgen MAJOR.MINOR.PATCH.
 
+## Nog niet uitgebracht
+
+- Nieuw tabblad **Voor/na-controle**: een snapshot van het netwerk (status en firmware per toestel, status en buur per
+  switchpoort, aantal clients per SSID en per AP) voor en na een change, en een vergelijking die toont wat offline of
+  down ging, wat een andere buur kreeg en waar clients wegvielen. Leest enkel; de snapshots staan in de browser, met
+  exporteren en laden.
+- AP-migratie: **Na de migratie: APs afwerken in Central**. De APs uit de AOS-8-inventaris worden in Central gezocht
+  op serienummer of MAC, hernoemd naar hun AOS-8-naam en per AP-groep aan een site en device group toegewezen. Eerst
+  een plan, dan uitvoeren, met nakijken en een logboek.
+- Tabellen: de filterknoppen (zoals Aandacht) worden ook vertaald.
+
 ## 0.2.3 (2026-11-26)
 
 - AP-migratie: knop **Vergeten** wist de inventaris, de afgevinkte stappen en de gekozen clusters van een klant uit de

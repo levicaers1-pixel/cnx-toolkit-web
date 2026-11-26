@@ -23,7 +23,8 @@ remembers the choice.
 |---|---|
 | Onboarding | Choose a device group in new Central, select switches and gateways, review IP and hostname, and download the import file (aliases). See [Onboarding](#onboarding) |
 | Check overrides | What is set locally on a switch compared with what it inherits, for profiles and aliases, and removing overrides. See [Check overrides](#check-overrides) |
-| AP migration | Read in an AOS-8 inventory of the mobility conductor and see what is ready for AOS-10, with a report and a migration plan per cluster. See [AP migration](#ap-migration) |
+| Before/after check | Record the state of the network before and after a change, and see what dropped. See [Before/after check](#beforeafter-check) |
+| AP migration | Read in an AOS-8 inventory of the mobility conductor and see what is ready for AOS-10, with a report and a migration plan per cluster, and after the migration rename and assign the APs in Central. See [AP migration](#ap-migration) |
 | Settings | Only in the local app: fill in `klantconfig.json` for `cnx alias` on the command line |
 | Manual | This manual |
 
@@ -82,6 +83,28 @@ to confirm. Central refuses to remove an object that is still in use (e.g. a VLA
 local management and firmware policy are never removed. With **Download log** you keep a record of what happened; the
 local app also writes it to `cnx-web/overrides-wissen-log-<time>.json`.
 
+### Before/after check
+
+Record the state of the network before a change, a firmware upgrade or a migration, and again afterwards. It only
+reads from Central; nothing is changed.
+
+1. Give the snapshot a name (e.g. *before change 1234*), optionally choose a site and click **Take snapshot**. The
+   toolkit reads the status and firmware of each device, the status and neighbour of each switch port, and the number
+   of clients per SSID and per AP. It does not keep client names or addresses, only the counts. Without a site it reads
+   at most 300 switches port by port.
+2. Take a second snapshot after the change.
+3. In **Saved snapshots**, choose which one is before and which is after and click **Compare**. You see:
+   - *gone or down*: devices that went offline or disappeared from Central, ports that were up and are now down, and
+     SSIDs that lost all their clients;
+   - *check*: ports with a different neighbour or none, a lower speed, SSIDs with at least 20% fewer clients and APs
+     that lost their clients (from 5 clients);
+   - *recovered* and *changed*: devices back online, new firmware, a different name or site.
+   - **Export CSV** takes the result into a change report.
+
+The snapshots are kept only in this browser (the last ten), never on the server. **Export** turns one into a `.json`
+file to pass on or keep; **Load snapshot...** reads one back. Comparing works without signing in. On a shared PC,
+click **Forget** when you are done.
+
 ### AP migration
 
 For the move from AOS-8 (mobility conductor and controllers) to AOS-10 in new Central. It only reads files: nothing is
@@ -115,6 +138,19 @@ changed and you do not need to sign in.
    - Steps marked *check* contain commands that can differ per AOS-8 version (converting controllers and APs): check
      them in HPE's migration guide before you run them.
    - The report and the plan come in the language you chose at the top right.
+5. **After the migration: finish the APs in Central** (sign-in needed). Once the APs are in new Central, the toolkit
+   finds each AP from the inventory by serial number or MAC.
+   - Choose the site and device group in Central for each AP group, or leave *(do not change)*. The choice is kept
+     per customer in this browser.
+   - Leave **Rename APs to their AOS 8 name** ticked to give them their old name back.
+   - **Make a plan (changes nothing)** shows the name, site and device group of each AP now and afterwards, which
+     APs were not found and what is not possible (a name with a space, a name that appears twice or is already used
+     by another AP, a site that does not exist).
+   - **Run** first assigns the sites and device groups (50 APs at a time), then sets the hostname in each AP's System
+     info profile and checks that it is there. **Download log** keeps a record of what happened. **Rename list (CSV)**
+     gives the `serial,new_hostname` list for HPE's own workflow.
+   - According to HPE, assigning to a site or device group only works in an account with new Central only, not
+     together with Classic. Renaming follows HPE's *Rename Hostnames* workflow. Try it on a few APs first.
 
 The support status per model is in `aos10-modellen.json` in the toolkit, with the date of the list. Check it for the
 AOS-10 version you use on HPE's Supported Access Point Platforms and Supported Gateway Platforms pages.

@@ -254,6 +254,7 @@ function lezen(k) { try { return localStorage.getItem("cnx-web-" + k); } catch (
 const TABS = [
   { id: "onboard", label: "Onboarden", eigen: true },
   { id: "overrides", label: "Overrides controleren", eigen: true, aside: true },
+  { id: "snap", label: "Voor/na-controle", eigen: true },
   { id: "aos8", label: "AP-migratie", eigen: true },
   ...(OPSLAG ? [{ id: "klant", label: "Instellingen", eigen: true }] : []),
   { id: "hulp", label: "Handleiding", frame: "/hulp" },
@@ -280,6 +281,7 @@ function openTab(id) {
   if (t.id === "overrides") renderOvr();
   if (t.id === "onboard") renderOnb();
   if (t.id === "aos8") renderAos8();
+  if (t.id === "snap") renderSnap();
   opslaan("tab", t.id);
   history.replaceState(null, "", "#" + t.id);
 }
@@ -316,6 +318,8 @@ function renderAlles() {
   for (const t of TABS) if ($("pane-" + t.id).classList.contains("open")) {
     if (t.id === "onboard") { if (STATUS.aangemeld && ONB.keuzes && ONB.keuzes.fout) ONB.keuzes = undefined; renderOnb(); }
     if (t.id === "overrides") renderOvr();
+    if (t.id === "snap") { if (STATUS.aangemeld && SNAP.keuzes && !(SNAP.keuzes.sites || []).length) SNAP.keuzes = undefined; renderSnap(); }
+    if (t.id === "aos8") { if (AOS8.afw) AOS8.afw.keuzes = undefined; renderAos8(); }
   }
 }
 // ---------------------------------------------------------------- klantconfig (Instellingen)
@@ -554,8 +558,8 @@ function jtabel(o) {
   };
   if (sk && Object.keys(telling).length > 1) {
     chip("__alles__", "Alles (" + items.length + ")");
-    if (o.standaard) chip("__std__", (o.standaardLabel || "Aandacht") + " (" + items.filter(it => o.standaard(waarde(it, sk))).length + ")");
-    for (const [w, n] of Object.entries(telling).sort((a, b) => b[1] - a[1])) chip(w, w + " (" + n + ")", (sk.pill || statusPill)(w));
+    if (o.standaard) chip("__std__", vt(o.standaardLabel || "Aandacht") + " (" + items.filter(it => o.standaard(waarde(it, sk))).length + ")");
+    for (const [w, n] of Object.entries(telling).sort((a, b) => b[1] - a[1])) chip(w, vt(w) + " (" + n + ")", (sk.pill || statusPill)(w));
   }
   const zoek = el("input", { type: "search", placeholder: "Zoeken...", value: st.zoek || "", "aria-label": "Zoeken in " + (o.naam || "tabel"), oninput: e => { st.zoek = e.target.value; vul(); } });
   let zicht = items;
@@ -1081,6 +1085,128 @@ function wisPaneel(ctx) {
   return blok;
 }
 
+// ---------------------------------------------------------------- tabblad Voor/na-controle: snapshots nemen en vergelijken
+// De snapshots staan enkel in deze browser (en in wat je exporteert), nooit op de server.
+const SNAP = { site: lezen("snap-site") || "", naam: "", keuzes: undefined, bezig: "", vg: null, fout: null, voor: "", na: "", vgl: null, st: {} };
+const SNAP_MAX = 10;
+const SNAP_ERNST = { bad: "weg of down", warn: "nakijken", ok: "hersteld", info: "gewijzigd" };
+const SNAP_PILL = Object.fromEntries(Object.entries(SNAP_ERNST).map(([k, v]) => [v, k]));
+function snapIndex() { try { return JSON.parse(lezen("snap-index") || "[]").filter(x => x && x.id); } catch (e) { return []; } }
+function snapData(id) { try { return JSON.parse(lezen("snap-" + id) || "null"); } catch (e) { return null; } }
+function snapTel(s) {
+  const poorten = Object.values(s.poorten || {}).flat();
+  return { toestellen: s.toestellen.length, online: s.toestellen.filter(d => /^(up|online)$/i.test(d.status)).length,
+    poorten_up: poorten.filter(p => /^up$/i.test(p.status)).length, clients: (s.clients || {}).totaal || 0, fouten: (s.fouten || []).length };
+}
+// Bewaren in deze browser; geeft false als de browser vol zit (dan exporteren).
+function snapBewaar(s, naam) {
+  const id = s.tijd.replace(/\D/g, "") + "-" + Math.random().toString(36).slice(2, 6);
+  const index = snapIndex();
+  try { localStorage.setItem("cnx-web-snap-" + id, JSON.stringify(s)); } catch (e) { return null; }
+  index.unshift(Object.assign({ id, naam: naam || "", tijd: s.tijd, site: s.site || "" }, snapTel(s)));
+  for (const oud of index.splice(SNAP_MAX)) { try { localStorage.removeItem("cnx-web-snap-" + oud.id); } catch (e) {} }
+  opslaan("snap-index", JSON.stringify(index));
+  return id;
+}
+function snapVergeet(id) {
+  try { localStorage.removeItem("cnx-web-snap-" + id); } catch (e) {}
+  opslaan("snap-index", JSON.stringify(snapIndex().filter(x => x.id !== id)));
+  if (SNAP.voor === id) SNAP.voor = ""; if (SNAP.na === id) SNAP.na = ""; SNAP.vgl = null;
+}
+function snapExporteer(x) {
+  const s = snapData(x.id);
+  if (s) bewaarBestand("snapshot-" + (x.naam || x.site || "netwerk").replace(/[^A-Za-z0-9._-]+/g, "_") + "-" + x.tijd.replace(/[-:]/g, "").replace("T", "-") + ".json",
+    JSON.stringify(Object.assign({ naam: x.naam }, s), null, 1), "application/json", false);
+}
+async function snapImporteer(bestand) {
+  SNAP.fout = null;
+  try {
+    const s = JSON.parse(await bestand.text());
+    if (!s || s.soort !== "cnx-snapshot" || !Array.isArray(s.toestellen)) throw new Error(vt("geen snapshot van de toolkit"));
+    if (!snapBewaar(s, s.naam || bestand.name.replace(/\.json$/i, ""))) SNAP.fout = vt("De browser heeft geen plaats meer. Vergeet oude snapshots.");
+  } catch (e) { SNAP.fout = t("Dit bestand is geen snapshot: {0}", e.message || e); }
+  renderSnap();
+}
+async function snapNeem() {
+  SNAP.fout = null; SNAP.bezig = "Snapshot nemen in Central..."; renderSnap();
+  const r = await ophaalEnWacht("snapshot", { site: SNAP.site.trim() }, i => { SNAP.vg = i; renderSnap(); });
+  SNAP.bezig = ""; SNAP.vg = null;
+  if (r.fout) { SNAP.fout = r.fout; renderSnap(); return; }
+  const id = snapBewaar(r.resultaat, SNAP.naam.trim());
+  if (!id) { SNAP.fout = vt("De browser heeft geen plaats meer voor deze snapshot. Hij wordt nu gedownload; vergeet oude snapshots."); bewaarBestand("snapshot.json", JSON.stringify(r.resultaat), "application/json", false); }
+  else { if (SNAP.voor && SNAP.voor !== id) SNAP.na = id; else SNAP.voor = id; SNAP.naam = ""; }
+  renderSnap();
+}
+async function snapVergelijk() {
+  SNAP.fout = null; SNAP.vgl = null;
+  const voor = snapData(SNAP.voor), na = snapData(SNAP.na);
+  if (!voor || !na) { SNAP.fout = vt("Kies een snapshot voor en een na."); renderSnap(); return; }
+  SNAP.bezig = "Vergelijken..."; renderSnap();
+  const r = await post("/api/web/snapshot/vergelijk", { voor, na }).catch(e => ({ fout: "Geen antwoord van cnx: " + e }));
+  SNAP.bezig = "";
+  if (r.fout) SNAP.fout = r.fout; else { SNAP.vgl = r; SNAP.st = {}; }
+  renderSnap();
+}
+function renderSnap() {
+  const werk = $("werk-snap");
+  if (!werk) return;
+  if (STATUS.aangemeld && SNAP.keuzes === undefined) {
+    SNAP.keuzes = null;
+    cget("/api/web/ov/keuzes").then(k => { SNAP.keuzes = k.fout ? { sites: [] } : k; renderSnap(); });
+  }
+  const sc = werk.scrollTop, index = snapIndex();
+  const laad = el("input", { type: "file", accept: ".json", hidden: true, "aria-label": "Snapshot laden", onchange: e => { if (e.target.files[0]) snapImporteer(e.target.files[0]); e.target.value = ""; } });
+  const neem = el("div", { class: "card" }, el("h2", {}, "Voor/na-controle"),
+    el("p", { class: "lead" }, "Leg voor een change of migratie de stand van het netwerk vast, en daarna nog eens. De vergelijking toont welke toestellen offline gingen, welke poorten down gingen of een andere buur kregen en op welke SSID's de clients wegvielen. De toolkit leest enkel; er wordt niets gewijzigd."),
+    !STATUS.aangemeld ? el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => $("aanmeldknop").click() }, "Aanmelden"),
+      el("span", { class: "hint" }, "Een snapshot nemen leest uit new Central. Vergelijken van bewaarde of geladen snapshots kan zonder aanmelden.")) :
+    el("div", {},
+      el("div", { class: "row", style: "flex-wrap:wrap;align-items:flex-end" },
+        el("div", { class: "field", style: "margin:0" }, el("label", { for: "snap-naam" }, "Naam"),
+          el("input", { id: "snap-naam", type: "text", value: SNAP.naam, placeholder: "bv. voor change 1234", oninput: e => { SNAP.naam = e.target.value; } })),
+        el("div", { class: "field", style: "margin:0" }, el("label", { for: "snap-site" }, "Site"),
+          el("input", { id: "snap-site", type: "text", list: "snap-sites", value: SNAP.site, placeholder: "alle sites", oninput: e => { SNAP.site = e.target.value; opslaan("snap-site", SNAP.site); } }),
+          el("datalist", { id: "snap-sites" }, ((SNAP.keuzes || {}).sites || []).map(s => el("option", { value: s.naam })))),
+        el("button", { class: "btn primary", disabled: !!SNAP.bezig || null, onclick: snapNeem }, "Snapshot nemen")),
+      el("p", { class: "hint" }, "Bewaart per toestel de status en firmware, per switchpoort de status en de buur, en het aantal clients per SSID en per AP. Geen namen of adressen van clients. Kies een site om het snel te houden; zonder site leest de toolkit hoogstens 300 switches poort per poort.")),
+    SNAP.bezig ? el("div", { class: "banner info", style: "margin-top:12px" }, el("span", {}, SNAP.bezig + (SNAP.vg && SNAP.vg.stap ? " " + SNAP.vg.stap : "")),
+      SNAP.vg && SNAP.vg.totaal ? el("progress", { max: SNAP.vg.totaal, value: SNAP.vg.gedaan, style: "flex:1;min-width:120px" }) : null) : "",
+    SNAP.fout ? el("div", { class: "banner bad", style: "margin-top:12px" }, SNAP.fout) : "");
+  const radio = (x, wie) => el("input", { type: "radio", name: "snap-" + wie, checked: SNAP[wie] === x.id, "aria-label": t(wie === "voor" ? "Voor: {0}" : "Na: {0}", x.naam || x.tijd),
+    onchange: () => { SNAP[wie] = x.id; SNAP.vgl = null; renderSnap(); } });
+  const lijst = el("div", { class: "card" }, el("div", { class: "row" }, el("h2", { style: "margin:0" }, "Bewaarde snapshots"), el("span", { class: "sp" }), laad,
+      el("button", { class: "btn", onclick: () => laad.click() }, "Snapshot laden...")),
+    el("p", { class: "hint" }, t("In deze browser, de laatste {0}. Exporteer een snapshot om hem door te geven of te bewaren; op een gedeelde pc vergeet je ze als je klaar bent.", SNAP_MAX)),
+    index.length ? el("div", { class: "tabelbox", style: "max-height:340px" }, el("table", {},
+      el("thead", {}, el("tr", {}, ["Voor", "Na", "Naam", "Tijd", "Site", "Toestellen online", "Poorten up", "Clients", ""].map(x => el("th", {}, x)))),
+      el("tbody", {}, index.map(x => el("tr", {}, el("td", {}, radio(x, "voor")), el("td", {}, radio(x, "na")), el("td", {}, x.naam || el("span", { class: "muted" }, "-")),
+        el("td", { class: "mono" }, x.tijd.slice(0, 16).replace("T", " ")), el("td", {}, x.site || vt("alle")), el("td", {}, x.online + " / " + x.toestellen), el("td", {}, String(x.poorten_up)),
+        el("td", {}, String(x.clients)), el("td", { style: "white-space:nowrap" }, x.fouten ? el("span", { class: "pill warn", title: "Niet alles gelezen" }, "!") : "", " ",
+          el("button", { class: "btn small", onclick: () => snapExporteer(x) }, "Exporteren"), " ",
+          el("button", { class: "btn small", onclick: () => { if (confirm(t("Snapshot {0} uit deze browser wissen?", x.naam || x.tijd))) { snapVergeet(x.id); renderSnap(); } } }, "Vergeten"))))))) :
+      el("div", { class: "banner info" }, "Nog geen snapshots in deze browser."),
+    el("div", { class: "row", style: "margin-top:12px" }, el("button", { class: "btn primary", disabled: !SNAP.voor || !SNAP.na || SNAP.voor === SNAP.na || !!SNAP.bezig || null, onclick: snapVergelijk }, "Vergelijken"),
+      el("span", { class: "hint" }, "Kies links de snapshot van voor en die van na de wijziging.")));
+  const delen = [neem, lijst];
+  if (SNAP.vgl) delen.push(snapResultaat(SNAP.vgl));
+  werk.replaceChildren(...delen);
+  werk.scrollTop = sc;
+}
+function snapResultaat(r) {
+  const n = r.ernst || {}, v = r.voor, a = r.na;
+  const pijl = (x, y) => x + " → " + y;
+  const items = r.rijen.map(x => Object.assign({}, x, { label: SNAP_ERNST[x.ernst] }));
+  return el("div", { class: "card" }, el("h2", {}, "Vergelijking"),
+    el("p", { class: "hint" }, t("Voor: {0}. Na: {1}.", (v.tijd || "").replace("T", " "), (a.tijd || "").replace("T", " "))),
+    tegels([["Weg of down", n.bad || 0, n.bad ? "bad" : "ok"], ["Nakijken", n.warn || 0, n.warn ? "warn" : ""], ["Hersteld", n.ok || 0], ["Gewijzigd", n.info || 0],
+      ["Toestellen online", pijl(v.online, a.online), a.online < v.online ? "bad" : ""], ["Poorten up", pijl(v.poorten_up, a.poorten_up), a.poorten_up < v.poorten_up ? "warn" : ""],
+      ["Clients", pijl(v.clients, a.clients), a.clients < v.clients * 0.8 ? "warn" : ""]]),
+    (r.let_op || []).map(x => el("div", { class: "banner warn" }, x)),
+    items.length ? jtabel({ st: SNAP.st, naam: "voor-na", items, statusKolom: "label", standaard: w => w === "weg of down" || w === "nakijken", standaardLabel: "Aandacht",
+      kolommen: [{ k: "label", label: "Ernst", pill: w => SNAP_PILL[w] || "neu" }, { k: "soort", label: "Soort" }, { k: "wat", label: "Wat", mono: true }, { k: "detail", label: "Detail", wrap: true }] }) :
+      el("div", { class: "banner ok" }, "Geen verschillen gevonden."));
+}
+
 // ---------------------------------------------------------------- gedeelde hulpjes
 // ---------------------------------------------------------------- tabblad AP-migratie: AOS-8-inventaris -> gereedheid voor AOS-10
 const AOS8 = { bestanden: [], klant: lezen("aos8-klant") || "", res: null, bezig: false, fout: null, deel: "clusters", st: {},
@@ -1103,8 +1229,8 @@ const aos8Inventaris = () => { const inv = Object.assign({}, AOS8.res); delete i
 function aos8Vergeten() {
   const wie = AOS8.klant.trim() || vt("deze klant");
   if (!confirm(t("Inventaris en afgevinkte stappen van {0} uit deze browser wissen? Exporteer eerst als je ze nog nodig hebt.", wie))) return;
-  for (const k of [aos8Sleutel("inventaris"), aos8Sleutel("voortgang"), "aos8-kies-" + AOS8.klant]) { try { localStorage.removeItem("cnx-web-" + k); } catch (e) {} }
-  Object.assign(AOS8, { res: null, vg: {}, kies: new Set(), plan: null, geladen: null, st: {}, bestanden: [], fout: null, planFout: null, gekeken: true, nietBewaard: false });
+  for (const k of [aos8Sleutel("inventaris"), aos8Sleutel("voortgang"), aos8Sleutel("koppeling"), "aos8-kies-" + AOS8.klant]) { try { localStorage.removeItem("cnx-web-" + k); } catch (e) {} }
+  Object.assign(AOS8, { res: null, vg: {}, kies: new Set(), plan: null, afw: null, geladen: null, st: {}, bestanden: [], fout: null, planFout: null, gekeken: true, nietBewaard: false });
   renderAos8();
 }
 function aos8Exporteer() {
@@ -1196,7 +1322,7 @@ function renderAos8() {
   if (AOS8.res) {
     if (AOS8.res.taal && AOS8.res.taal !== TAAL) delen.push(el("div", { class: "banner info", style: "max-width:1180px;margin:0 auto 16px" }, "Deze inventaris werd in een andere taal ingelezen. Lees ze opnieuw in om ook de teksten bij de clusters en modellen in deze taal te krijgen."));
     if (AOS8.geladen) delen.push(el("div", { class: "banner info", style: "max-width:1180px;margin:0 auto 16px" }, "Inventaris van " + (AOS8.res.klant || "deze klant") + " geladen, ingelezen op " + AOS8.geladen.slice(0, 16).replace("T", " ") + "."));
-    delen.push(aos8Resultaat(AOS8.res), aos8PlanKaart(AOS8.res));
+    delen.push(aos8Resultaat(AOS8.res), aos8PlanKaart(AOS8.res), aos8Afwerking(AOS8.res));
   }
   werk.replaceChildren(...delen);
   werk.scrollTop = sc;
@@ -1294,6 +1420,92 @@ function aos8PlanKaart(r) {
     kaart.append(aos8Fasen("Klantbreed (eenmalig)", "_klant", p.klantbreed, ""));
     for (const c of p.clusters)
       kaart.append(aos8Fasen("Cluster " + c.naam, c.naam, c.fasen, c.aps + " APs · " + (c.redundant ? "in stappen" : "een controller: onderhoudsvenster") + (c.blokkade ? " · " + c.blokkade : ""), c.terugval));
+  }
+  return kaart;
+}
+// Na de migratie: APs in Central terugvinden, hernoemen en aan een site en device group toewijzen.
+function aos8Afw() { if (AOS8.afw && AOS8.afw.klant !== AOS8.klant) AOS8.afw = null; return AOS8.afw = AOS8.afw || { klant: AOS8.klant, koppeling: (() => { try { return JSON.parse(lezen(aos8Sleutel("koppeling")) || "{}"); } catch (e) { return {}; } })(),
+  hernoemen: true, keuzes: undefined, plan: null, werk: null, bezig: "", vg: null, fout: null }; }
+function aos8AfwKoppel(groep, veld, waarde) {
+  const f = aos8Afw();
+  f.koppeling[groep] = Object.assign({}, f.koppeling[groep], { [veld]: waarde });
+  opslaan(aos8Sleutel("koppeling"), JSON.stringify(f.koppeling)); f.plan = null; renderAos8();
+}
+async function aos8AfwPlan() {
+  const f = aos8Afw();
+  f.fout = null; f.plan = null; f.werk = null; f.bezig = "APs zoeken in Central..."; renderAos8();
+  const aps = AOS8.res.aps.map(a => ({ naam: a.naam, serial: a.serial, mac: a.mac, groep: a.groep }));
+  const r = await ophaalEnWacht("applan", { aps, koppeling: f.koppeling, hernoemen: f.hernoemen }, i => { f.vg = i; renderAos8(); });
+  f.bezig = ""; f.vg = null;
+  if (r.fout) f.fout = r.fout; else f.plan = r.resultaat;
+  renderAos8();
+}
+async function aos8AfwUitvoeren() {
+  const f = aos8Afw(), p = f.plan;
+  if (!confirm(t("Dit wijzigt {0} APs in new Central: hernoemen en toewijzen aan site of device group zoals in het plan.\n\nDoorgaan?", p.acties.length))) return;
+  f.fout = null; f.bezig = "Uitvoeren in Central..."; renderAos8();
+  const r = await ophaalEnWacht("apuitvoeren", { plan: p.id }, i => { f.vg = i; renderAos8(); });
+  f.bezig = ""; f.vg = null;
+  if (r.fout) f.fout = r.fout; else { f.werk = r.resultaat; f.plan = null; }
+  renderAos8();
+}
+function aos8Afwerking(r) {
+  const f = aos8Afw();
+  const kaart = el("div", { class: "card" }, el("h2", {}, "Na de migratie: APs afwerken in Central"),
+    el("p", { class: "lead" }, "Zodra de APs in new Central staan: hernoem ze naar hun naam uit AOS 8 en wijs ze per AP-groep toe aan een site en device group. De toolkit zoekt elke AP op serienummer of MAC. Eerst zie je een plan; er verandert pas iets als je op Uitvoeren klikt."));
+  if (!STATUS.aangemeld) {
+    kaart.append(el("div", { class: "row" }, el("button", { class: "btn primary", onclick: () => $("aanmeldknop").click() }, "Aanmelden"), el("span", { class: "hint" }, "Hiervoor is aanmelden bij new Central nodig.")));
+    return kaart;
+  }
+  if (f.keuzes === undefined) { f.keuzes = null; cget("/api/web/ov/keuzes").then(k => { f.keuzes = k; renderAos8(); }); }
+  if (!f.keuzes) { kaart.append(el("div", { class: "banner info" }, "Sites en device groups lezen...")); return kaart; }
+  if (f.keuzes.fout) { kaart.append(el("div", { class: "banner bad" }, f.keuzes.fout)); return kaart; }
+  const kies = (groep, veld, namen, label) => el("select", { "aria-label": label + " " + groep, onchange: e => aos8AfwKoppel(groep, veld, e.target.value) },
+    el("option", { value: "" }, "(niet wijzigen)"), namen.map(n => el("option", { value: n, selected: (f.koppeling[groep] || {})[veld] === n || null }, n)));
+  const sites = (f.keuzes.sites || []).map(s => s.naam), groepen = f.keuzes.groepen || [];
+  kaart.append(el("div", { class: "tabelbox", style: "max-height:320px" }, el("table", {},
+      el("thead", {}, el("tr", {}, ["AP-groep (AOS 8)", "APs", "Site in Central", "Device group in Central"].map(x => el("th", {}, x)))),
+      el("tbody", {}, r.groepen.map(g => el("tr", {}, el("td", { class: "mono" }, g.groep || "-"), el("td", {}, String(g.aps)),
+        el("td", {}, kies(g.groep, "site", sites, "Site voor")), el("td", {}, kies(g.groep, "groep", groepen, "Device group voor"))))))),
+    el("div", { class: "row", style: "margin-top:12px;flex-wrap:wrap" },
+      el("label", { class: "row", style: "gap:6px;cursor:pointer" }, el("input", { type: "checkbox", checked: f.hernoemen, onchange: e => { f.hernoemen = e.target.checked; f.plan = null; renderAos8(); } }),
+        "APs hernoemen naar hun naam uit AOS 8"),
+      el("span", { class: "sp" }),
+      el("button", { class: "btn primary", disabled: !!f.bezig || null, onclick: aos8AfwPlan }, f.plan ? "Plan opnieuw maken" : "Plan maken (wijzigt niets)")),
+    el("p", { class: "hint" }, "Toewijzen aan een site of device group werkt volgens HPE enkel in een account met alleen new Central (niet samen met Classic). Het hernoemen zet de hostname in het System-info-profiel van de AP. Probeer het eerst op een paar APs."),
+    f.bezig ? el("div", { class: "banner info" }, el("span", {}, f.bezig + (f.vg && f.vg.stap ? " " + f.vg.stap : "")), f.vg && f.vg.totaal ? el("progress", { max: f.vg.totaal, value: f.vg.gedaan, style: "flex:1;min-width:120px" }) : null) : "",
+    f.fout ? el("div", { class: "banner bad" }, f.fout) : "");
+  const p = f.plan;
+  if (p) {
+    const pijl = (nu, nieuw) => nieuw ? el("span", {}, el("span", { class: "muted" }, nu || "-"), " → ", el("strong", {}, nieuw)) : el("span", { class: "muted" }, nu || "-");
+    kaart.append(tegels([["APs in de inventaris", p.aps], ["Gevonden in Central", p.aps - p.niet_gevonden.length], ["Te wijzigen", p.acties.length, p.acties.length ? "warn" : ""],
+      ["Al in orde", p.gelijk, "ok"], ["Niet gevonden", p.niet_gevonden.length, p.niet_gevonden.length ? "bad" : ""]]));
+    if (p.geweigerd.length) kaart.append(el("div", { class: "banner warn", style: "display:block" }, el("strong", {}, t("{0} wijzigingen niet in het plan:", p.geweigerd.length)),
+      el("ul", { style: "margin:6px 0 0;padding-left:20px" }, p.geweigerd.slice(0, 30).map(x => el("li", {}, x)), p.geweigerd.length > 30 ? el("li", {}, "...") : "")));
+    if (p.niet_gevonden.length) kaart.append(el("details", {}, el("summary", { class: "hint" }, t("{0} APs niet gevonden in Central (nog niet in de inventaris van GreenLake of Central)", p.niet_gevonden.length)),
+      el("p", { class: "hint mono" }, p.niet_gevonden.slice(0, 200).map(x => x.naam || x.serial || x.mac).join(", "))));
+    if (p.acties.length) {
+      kaart.append(el("div", { class: "tabelbox", style: "max-height:360px;margin-top:12px" }, el("table", {},
+          el("thead", {}, el("tr", {}, ["Serienummer", "Naam", "Site", "Device group", "Status"].map(x => el("th", {}, x)))),
+          el("tbody", {}, p.acties.map(a => el("tr", {}, el("td", { class: "mono" }, a.serial), el("td", { class: "mono" }, pijl(a.naam_nu, a.naam)),
+            el("td", {}, pijl(a.site_nu, a.site)), el("td", {}, pijl(a.groep_nu, a.dg)), el("td", {}, el("span", { class: "pill " + statusPill(a.status) }, a.status || "-"))))))),
+        el("div", { class: "banner warn", style: "margin-top:12px" }, el("span", {}, t("{0} APs klaar om te wijzigen.", p.acties.length)),
+          p.acties.some(a => a.naam) ? el("button", { class: "btn small", onclick: () => csvDownload("ap-hernoemen.csv", [{ k: "serial", label: "serial" }, { k: "naam", label: "new_hostname" }], p.acties.filter(a => a.naam)) }, "Hernoemlijst (CSV)") : "",
+          el("button", { class: "btn danger", disabled: !!f.bezig || null, onclick: aos8AfwUitvoeren }, t("Uitvoeren ({0})", p.acties.length))));
+    } else kaart.append(el("div", { class: "banner ok" }, "Niets te wijzigen: de gevonden APs hebben al de juiste naam, site en device group."));
+  }
+  if (f.werk) {
+    const res = f.werk.resultaten, okk = x => !x || x === "ok";
+    const goed = res.filter(x => okk(x.site_uit) && okk(x.dg_uit) && okk(x.naam_uit)).length, tijd = lokaleTijd();
+    const cel = (doel, uit) => doel ? el("span", { class: "pill " + (uit === "ok" ? "ok" : "bad"), title: uit }, doel) : el("span", { class: "muted" }, "-");
+    kaart.append(el("div", { class: "banner " + (goed === res.length ? "ok" : "warn"), style: "margin-top:12px" }, t("{0} van {1} APs zonder fouten.", goed, res.length) + " " +
+        (f.werk.logboek ? t("Het logboek staat in cnx-web/{0}.", f.werk.logboek) : vt("Download het logboek: de server bewaart het niet.")), " ",
+        el("button", { class: "btn small", onclick: () => bewaarBestand("ap-afwerking-log-" + tijd.replace(/[-:]/g, "").replace("T", "-") + ".json",
+          JSON.stringify(res.map(x => Object.assign({ versie: f.werk.versie, tijd }, x)), null, 2), "application/json", false) }, "Logboek downloaden"), " ",
+        el("button", { class: "btn small", onclick: () => { f.werk = null; renderAos8(); } }, "Sluiten")),
+      el("div", { class: "tabelbox" }, el("table", {}, el("thead", {}, el("tr", {}, ["Serienummer", "Naam", "Site", "Device group", "Melding"].map(x => el("th", {}, x)))),
+        el("tbody", {}, res.map(x => el("tr", {}, el("td", { class: "mono" }, x.serial), el("td", {}, cel(x.naam, x.naam_uit)), el("td", {}, cel(x.site, x.site_uit)), el("td", {}, cel(x.dg, x.dg_uit)),
+          el("td", { style: "white-space:normal" }, [x.naam_uit, x.site_uit, x.dg_uit].filter(m => m && m !== "ok").join("; "))))))));
   }
   return kaart;
 }

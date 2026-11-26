@@ -21,7 +21,8 @@ server for several users (`cnx web --server`, or the container image):
 **Public instance: [cnx.caersultancy.com](https://cnx.caersultancy.com)** (currently a closed pilot with an access code).
 
 Tested in server mode on Azure Container Apps behind its HTTPS proxy, with sign-in to a real new Central. The commands in
-the AP migration plan (steps marked *check*) are not yet verified against HPE's migration guide.
+the AP migration plan (steps marked *check*) are not yet verified against HPE's migration guide. Renaming APs and assigning them to
+a site or device group follow HPE's API reference but are not yet tested on a real Central.
 
 See [docs/WEBAPP.md](docs/WEBAPP.md) for the design.
 
@@ -32,7 +33,10 @@ See [docs/WEBAPP.md](docs/WEBAPP.md) for the design.
 - **Overrides controleren**: compare local overrides per switch with the library, and remove them via the API after a
   plan you see first.
 - **AP-migratie**: read an AOS-8 inventory (`show ap database long`, `show switches`, or Excel/CSV), get an AOS-10
-  readiness report and a step-by-step migration plan per cluster.
+  readiness report and a step-by-step migration plan per cluster. After the migration, find the APs in Central by
+  serial or MAC, rename them to their AOS-8 name and assign them to a site and device group (plan first, then run).
+- **Voor/na-controle**: take a read-only snapshot of device status, port status and neighbours, and client counts per
+  SSID and AP before and after a change, and see what went down or dropped. Snapshots stay in the browser.
 
 ## Running with Docker
 

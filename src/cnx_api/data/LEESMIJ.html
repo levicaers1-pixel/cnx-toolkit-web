@@ -70,8 +70,12 @@ voor access points plannen. Gratis open-source software, niet gemaakt of onderst
 <td>Wat lokaal op een switch staat tegenover wat hij erft, voor profielen en aliassen, en overrides wissen. Zie <a href="#overrides-controleren">Overrides controleren</a></td>
 </tr>
 <tr>
+<td>Voor/na-controle</td>
+<td>De stand van het netwerk vastleggen voor en na een change, en zien wat er wegviel. Zie <a href="#voorna-controle">Voor/na-controle</a></td>
+</tr>
+<tr>
 <td>AP-migratie</td>
-<td>Een AOS-8-inventaris van de mobility conductor inlezen en zien wat klaar is voor AOS-10, met een rapport en een migratieplan per cluster. Zie <a href="#ap-migratie">AP-migratie</a></td>
+<td>Een AOS-8-inventaris van de mobility conductor inlezen en zien wat klaar is voor AOS-10, met een rapport en een migratieplan per cluster, en na de migratie de APs in Central hernoemen en toewijzen. Zie <a href="#ap-migratie">AP-migratie</a></td>
 </tr>
 <tr>
 <td>Instellingen</td>
@@ -157,9 +161,30 @@ ter bevestiging WISSEN (in het Engels: DELETE). Een object dat nog gebruikt word
 Central; dat staat als "in gebruik, niet gewist" in het resultaat. Na het wissen kijkt de toolkit na dat het object weg
 is. Systeeminfo, beheerinterface, lokaal beheer en het firmwarebeleid worden nooit gewist. Met <strong>Logboek downloaden</strong>
 bewaar je wat er gebeurd is; de lokale app zet het ook in <code>cnx-web/overrides-wissen-log-&lt;tijd&gt;.json</code>.</p>
+<h3 id="voorna-controle">Voor/na-controle</h3>
+<p>Leg voor een change, een firmware-upgrade of een migratie de stand van het netwerk vast, en daarna nog eens. Leest
+enkel uit Central; er wordt niets gewijzigd.</p>
+<ol>
+<li>Geef de snapshot een naam (bv. <em>voor change 1234</em>), kies eventueel een site en klik op <strong>Snapshot nemen</strong>. De
+   toolkit leest per toestel de status en de firmware, per switchpoort de status en de buur, en het aantal clients per
+   SSID en per AP. Namen en adressen van clients bewaart hij niet, enkel de aantallen. Zonder site leest hij hoogstens
+   300 switches poort per poort.</li>
+<li>Neem na de wijziging een tweede snapshot.</li>
+<li>Kies in <strong>Bewaarde snapshots</strong> welke van voor en welke van na is en klik op <strong>Vergelijken</strong>. Je ziet:</li>
+<li><em>weg of down</em>: toestellen die offline gingen of uit Central verdwenen, poorten die up waren en nu down zijn, en
+     SSID's waar alle clients weg zijn;</li>
+<li><em>nakijken</em>: poorten met een andere of geen buur meer, een lagere snelheid, SSID's met minstens 20 % minder clients
+     en APs die hun clients kwijt zijn (vanaf 5 clients);</li>
+<li><em>hersteld</em> en <em>gewijzigd</em>: toestellen die terug online zijn, nieuwe firmware, een andere naam of site.</li>
+<li>Met <strong>Exporteer CSV</strong> neem je het resultaat mee in een changeverslag.</li>
+</ol>
+<p>De snapshots staan enkel in deze browser (de laatste tien), nooit op de server. <strong>Exporteren</strong> maakt er een
+<code>.json</code>-bestand van, om door te geven of te bewaren; met <strong>Snapshot laden...</strong> lees je er een terug in. Vergelijken kan
+zonder aanmelden. Op een gedeelde pc klik je op <strong>Vergeten</strong> als je klaar bent.</p>
 <h3 id="ap-migratie">AP-migratie</h3>
-<p>Voor de stap van AOS-8 (mobility conductor en controllers) naar AOS-10 in new Central. Leest enkel bestanden: er
-wordt niets gewijzigd en je hoeft niet aan te melden.</p>
+<p>Voor de stap van AOS-8 (mobility conductor en controllers) naar AOS-10 in new Central. De gereedheid en het plan lezen
+enkel bestanden: er wordt niets gewijzigd en je hoeft niet aan te melden. Alleen de afwerking na de migratie (stap 5)
+schrijft naar Central.</p>
 <ol>
 <li>Neem op de mobility conductor de uitvoer van <code>show ap database long</code> en <code>show switches</code>, elk als tekstbestand
    (of samen in een bestand). Een Excel- (.xlsx) of CSV-bestand met dezelfde kolommen kan ook.</li>
@@ -189,6 +214,19 @@ wordt niets gewijzigd en je hoeft niet aan te melden.</p>
 <li>Stappen met <em>nakijken</em> bevatten commando's die per AOS-8-versie kunnen verschillen (omzetten van controllers en
      APs): kijk ze na in de migratiegids van HPE voor je ze uitvoert.</li>
 <li>Het rapport en het plan komen in de taal die je rechtsboven gekozen hebt.</li>
+<li><strong>Na de migratie: APs afwerken in Central</strong> (aanmelden nodig). Zodra de APs in new Central staan, zoekt de toolkit
+   elke AP uit de inventaris op serienummer of MAC.</li>
+<li>Kies per AP-groep de site en de device group in Central, of laat <em>(niet wijzigen)</em> staan. De keuze wordt per klant
+     in deze browser bewaard.</li>
+<li>Laat <strong>APs hernoemen naar hun naam uit AOS 8</strong> aangevinkt om ze hun oude naam terug te geven.</li>
+<li><strong>Plan maken (wijzigt niets)</strong> toont per AP de naam, site en device group nu en straks, welke APs niet gevonden
+     zijn en wat niet kan (een naam met een spatie, een naam die twee keer voorkomt of al aan een andere AP hangt, een
+     site die niet bestaat).</li>
+<li><strong>Uitvoeren</strong> wijst eerst de sites en device groups toe (per 50 APs) en zet daarna de hostname in het
+     System-info-profiel van elke AP, en kijkt na dat hij er staat. Met <strong>Logboek downloaden</strong> bewaar je wat er
+     gebeurd is. <strong>Hernoemlijst (CSV)</strong> geeft de lijst <code>serial,new_hostname</code> voor HPE's eigen workflow.</li>
+<li>Toewijzen aan een site of device group werkt volgens HPE enkel in een account met alleen new Central, niet samen
+     met Classic. Het hernoemen volgt HPE's workflow <em>Rename Hostnames</em>. Probeer het eerst op een paar APs.</li>
 </ol>
 <p>De supportstatus per model staat in <code>aos10-modellen.json</code> in de toolkit, met de datum van de lijst. Kijk ze na voor
 de AOS-10-versie die je gebruikt op de pagina's Supported Access Point Platforms en Supported Gateway Platforms van HPE.</p>

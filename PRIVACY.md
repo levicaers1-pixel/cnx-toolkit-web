@@ -21,7 +21,8 @@ responsible for that instance; the toolkit itself is built so that the server st
 | Central API URL, client ID and secret, and the access token | Server memory, in your session | Until you sign out, 30 minutes without activity, or a restart |
 | Data read from your Central (devices, serial numbers, IP addresses, hostnames, aliases, profiles) | Server memory, to build the screens and files you ask for | For the session; results of long tasks are kept at most for the session |
 | Files you upload (AOS-8 inventory, CSV) | Server memory, only while processing the request | A few seconds |
-| AP migration: inventory, ticked steps, chosen clusters | Your browser (local storage), per customer name | Until you click Forget in the AP migration tab, or clear the site data |
+| Before/after check: snapshots (device status and firmware, port status and neighbours, client counts per SSID and AP; no client names or addresses) | Your browser (local storage), the last ten | Until you click Forget in the Before/after check tab, or clear the site data |
+| AP migration: inventory, ticked steps, chosen clusters, chosen site and device group per AP group | Your browser (local storage), per customer name | Until you click Forget in the AP migration tab, or clear the site data |
 | Preferences: last API URL (not the secret), device group, site, prefix, open tab, table filters | Your browser (local storage) | Until you delete them |
 | Your IP address | Server memory, only to limit new sessions per visitor (1 minute) and wrong pilot codes (15 minutes) | At most 15 minutes; never logged |
 | Logs | The server's console output: date and time, method, path without parameters, status code and duration | As long as the hosting platform keeps console output |

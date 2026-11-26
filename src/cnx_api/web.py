@@ -24,6 +24,8 @@ from . import aos8
 from . import migratieplan
 from . import configapi
 from . import monitor
+from . import snapshot
+from . import apafwerking
 
 POORT = int(os.environ.get("CNX_WEB_POORT", "8766"))
 MAX_BODY = 50 * 1024 * 1024
@@ -228,6 +230,7 @@ class Sessie:
         self.verbinding = verbinding
         self.ophalingen = {}
         self.wisplannen = {}
+        self.applannen = {}
         self.laatst = time.time()
         self.pilot_ok = False                 # servermodus met pilotcode: pas na de juiste code iets te zien
 
@@ -235,6 +238,7 @@ class Sessie:
         self.verbinding.wis()
         self.ophalingen.clear()
         self.wisplannen.clear()
+        self.applannen.clear()
 
 
 SERVER = False              # servermodus (--server): achter een reverse proxy, voor meerdere gebruikers
@@ -730,7 +734,14 @@ class Handler(BaseHTTPRequestHandler):
             finally:
                 ZWAAR.release()
         if u.path == "/api/web/ov/ophaal":
-            return self._monitor(lambda: {"id": start_ophaling(self.sessie, body.get("soort", ""), body.get("opties") or {}).id})
+            opties = body.get("opties") if isinstance(body.get("opties"), dict) else {}
+            opties = dict(opties, tijd=self._klok())
+            return self._monitor(lambda: {"id": start_ophaling(self.sessie, body.get("soort", ""), opties).id})
+        if u.path == "/api/web/snapshot/vergelijk":
+            try:
+                return self._json(snapshot.vergelijk(body.get("voor"), body.get("na")))   # de browser bewaart de snapshots
+            except (ValueError, KeyError, TypeError, AttributeError) as e:
+                return self._json({"fout": str(e) or _("ongeldige snapshot")}, 400)
         if not OPSLAG and u.path.startswith("/api/web/klantconfig"):
             return self._json({"fout": _("niet beschikbaar zonder opslag")}, 404)
         if u.path in ("/api/web/klantconfig", "/api/web/klantconfig/voorstel"):
@@ -798,6 +809,26 @@ def start_ophaling(sessie, soort, opties):
         def doe(v):
             res = configapi.wis_uitvoeren(acties, df, v)
             pad = logboek("overrides-wissen-log", res)
+            return {"resultaten": res, "logboek": os.path.relpath(pad, WERKMAP).replace(os.sep, "/") if pad else None,
+                    "versie": __version__}
+    elif soort == "snapshot":
+        doe = lambda v: snapshot.maak(opties.get("site") or "", opties.get("tijd"), v)  # noqa: E731
+    elif soort == "applan":
+        def doe(v):
+            plan = apafwerking.plan(opties.get("aps"), opties.get("koppeling"), bool(opties.get("hernoemen", True)), v)
+            pid = f"ap-{datetime.datetime.now():%Y%m%d%H%M%S}-{secrets.token_hex(4)}"
+            if plan["acties"]:
+                sessie.applannen.clear()          # een plan tegelijk per sessie
+                sessie.applannen[pid] = plan["acties"]
+            return dict(plan, id=pid)
+    elif soort == "apuitvoeren":
+        acties = sessie.applannen.pop(str(opties.get("plan") or ""), None)
+        if acties is None:
+            raise monitor.Invoer(_("Dit plan is verlopen of al uitgevoerd. Maak een nieuw plan."))
+
+        def doe(v):
+            res = apafwerking.uitvoeren(acties, v)
+            pad = logboek("ap-afwerking-log", res)
             return {"resultaten": res, "logboek": os.path.relpath(pad, WERKMAP).replace(os.sep, "/") if pad else None,
                     "versie": __version__}
     elif soort == "afwijkingen":

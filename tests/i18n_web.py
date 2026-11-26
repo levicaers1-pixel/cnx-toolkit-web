@@ -114,6 +114,18 @@ GEEN_TEKST = {
     'voorstel',
     'voortgang',
     'wisplan',
+    'snap',
+    'radio',
+    'voor',
+    'na',
+    'wat',
+    'koppeling',
+    'applan',
+    'apuitvoeren',
+    'snapshot',
+    'snapshot.json',
+    'ap-hernoemen.csv',
+    'netwerk',
     'wissen',
 }
 

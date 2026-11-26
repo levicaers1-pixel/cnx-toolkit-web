@@ -25,6 +25,20 @@ GATEWAYS = [
      "model": "7210", "siteName": "SITE01", "siteId": "1001", "deviceFunction": "MOBILITY_GW", "deviceGroupName": "WIRELESS",
      "scopeId": "d9", "ipv4": "172.16.0.9", "status": "ONLINE", "isProvisioned": "Yes"},
 ]
+# APs (na een migratie uit AOS 8): enkel in de lijsten als de filter om APs vraagt, of met MET_APS (snapshots)
+APS = [
+    {"id": "CNAP0001", "type": "ap", "serialNumber": "CNAP0001", "macAddress": "aa:bb:cc:00:00:01", "deviceName": "aa:bb:cc:00:00:01",
+     "model": "AP-635", "siteName": "", "siteId": "", "deviceGroupName": "", "deviceFunction": "CAMPUS_AP", "scopeId": "a1",
+     "status": "ONLINE", "firmwareVersion": "10.7.1.0", "ipv4": "10.30.0.11"},
+    {"id": "CNAP0002", "type": "ap", "serialNumber": "CNAP0002", "macAddress": "aa:bb:cc:00:00:02", "deviceName": "OUD-AP-2",
+     "model": "AP-635", "siteName": "SITE01", "siteId": "1001", "deviceGroupName": "WIRELESS", "deviceFunction": "CAMPUS_AP", "scopeId": "a2",
+     "status": "ONLINE", "firmwareVersion": "10.7.1.0", "ipv4": "10.30.0.12"},
+]
+MET_APS = False
+CLIENTS = [{"clientConnectionType": "Wireless", "wlanName": "CORP", "connectedDeviceSerial": "CNAP0001", "macAddress": "11:11:11:11:11:01"}] * 6 + \
+          [{"clientConnectionType": "Wired", "connectedDeviceSerial": "SG00TEST01", "macAddress": "11:11:11:11:11:99"}]
+POORT_WIJZIGING = {}   # (serial, poort) -> velden die anders zijn (voor een tweede snapshot)
+HOSTNAMES = {}         # scope-id van een AP -> hostname uit het System-info-profiel
 AANROEPEN = []
 GEWIST = set()        # (scope-id, profiel-pad, sleutel) van lokaal gewiste objecten
 
@@ -76,6 +90,10 @@ def _config(method, pad, p):
                                                          "device-function": "ACCESS_SWITCH", "scope-id": "d3"}]})
         return Antwoord(404, {"errorCode": "ERR_CN003", "message": "Not found"})
     if pad == CFG + "/system-info":
+        if str(p.get("scope-id", "")).startswith("a"):
+            if p["scope-id"] in HOSTNAMES:
+                return Antwoord(200, {"profile": [{"name": "sys-system-info-profile", "hostname": HOSTNAMES[p["scope-id"]]}]})
+            return Antwoord(404, {"errorCode": "ERR_CN003", "message": "Not found"})
         if p.get("scope-id") == "d3":         # switch uit Classic: eigen profiel van de import
             return Antwoord(200, {"profile": [{"name": "sys-system-info-profile", "hostname": "SITE02-STACK"}]})
         if p.get("scope-id") == "d9":         # gateway: eigen profiel op het toestel
@@ -148,11 +166,21 @@ def api(method, pad, params=None, body=None):
             return Antwoord(200, data)
         if r is not None:
             return r
+    if method in ("POST", "PATCH") and pad.startswith(CFG + "/system-info/") and str(p.get("scope-id", "")).startswith("a"):
+        if p.get("object-type") != "LOCAL" or p.get("device-function") != "CAMPUS_AP":
+            return Antwoord(400, {"message": "object-type LOCAL en device-function nodig"})
+        if method == "POST" and p["scope-id"] in HOSTNAMES:
+            return Antwoord(400, {"message": "profile already exists"})
+        HOSTNAMES[p["scope-id"]] = (body or {}).get("hostname")
+        for ap in APS:
+            if ap["scopeId"] == p["scope-id"]:
+                ap["deviceName"] = HOSTNAMES[p["scope-id"]]
+        return Antwoord(200, {"message": "Success."})
     if method == "POST" and pad in ("/network-config/v1/site-add-devices", "/network-config/v1/device-groups-add-devices",
                                     "/network-config/v1alpha1/persona-assignment/ACCESS_SWITCH"):
         b = body or {}
         serials = b.get("devices") or b.get("device-id") or []
-        for sw in SWITCHES:
+        for sw in SWITCHES + APS:
             if sw["serialNumber"] in serials:
                 if pad.endswith("site-add-devices"):
                     site = next(x for x in SITES if x["scopeId"] == b["desScopeId"])
@@ -175,13 +203,13 @@ def api(method, pad, params=None, body=None):
         if deel == "":
             return Antwoord(200, dict(sw, health="Good", lastRestartReason="Reboot requested", healthReasons={"poorReasons": [], "fairReasons": []}))
         if deel == "/interfaces":
-            return Antwoord(200, {"items": [
+            return Antwoord(200, {"items": [dict(x, **POORT_WIJZIGING.get((sn, x["name"]), {})) for x in [
                 {"id": "1/1/1", "name": "1/1/1", "index": 1, "status": "Up", "adminStatus": "Up", "operStatus": "Up", "speed": 1000, "duplex": "Full",
                  "vlanMode": "Access", "nativeVlan": 10, "allowedVlanIds": [10], "poeStatus": "Delivering", "neighbour": "AP-01", "neighbourPort": "eth0"},
                 {"id": "1/1/2", "name": "1/1/2", "index": 2, "status": "Down", "adminStatus": "Up", "operStatus": "Down", "speed": 0, "vlanMode": "Access",
                  "nativeVlan": 10, "portError": ["CRC"]},
                 {"id": "1/1/49", "name": "1/1/49", "index": 49, "status": "Up", "adminStatus": "Up", "operStatus": "Up", "speed": 10000, "vlanMode": "Trunk",
-                 "allowedVlanIds": [10, 20, 120], "uplink": True, "neighbour": "CORE-01", "neighbourPort": "1/1/12", "lag": "lag1"}],
+                 "allowedVlanIds": [10, 20, 120], "uplink": True, "neighbour": "CORE-01", "neighbourPort": "1/1/12", "lag": "lag1"}]],
                 "count": 3, "total": 3, "offset": None})
         if deel == "/vlans":
             return Antwoord(200, {"items": [{"id": "10", "name": "DATA", "type": "Static", "status": "Up", "voice": "Disabled", "interfaces": ["1/1/1-1/1/48"]},
@@ -225,8 +253,15 @@ def api(method, pad, params=None, body=None):
                               "count": 1, "total": 1, "offset": 0})
     if method == "GET" and pad in ("/network-monitoring/v1/devices", "/network-monitoring/v1/device-inventory"):
         f = str(p.get("filter") or "")
-        alle = ([dict(s, deviceType="SWITCH", configStatus="Synchronized") for s in SWITCHES] if "GATEWAY" not in f else []) +                ([dict(g, deviceType="GATEWAY", configStatus="Synchronized") for g in GATEWAYS] if "SWITCH" not in f else [])
+        if "ACCESS_POINT" in f:
+            alle = [dict(a, deviceType="ACCESS_POINT") for a in APS]
+        else:
+            alle = ([dict(s, deviceType="SWITCH", configStatus="Synchronized") for s in SWITCHES] if "GATEWAY" not in f else []) + \
+                   ([dict(g, deviceType="GATEWAY", configStatus="Synchronized") for g in GATEWAYS] if "SWITCH" not in f else []) + \
+                   ([dict(a, deviceType="ACCESS_POINT") for a in APS] if MET_APS and not f else [])
         return Antwoord(200, _pagina(alle, p))
+    if method == "GET" and pad == "/network-monitoring/v1/clients":
+        return Antwoord(200, _pagina(CLIENTS, p))
     if method == "GET" and pad == "/network-services/v1/firmware-details":
         return Antwoord(200, _pagina([{"serialNumber": s["serialNumber"], "deviceName": s["deviceName"], "deviceType": "SWITCH", "firmwareVersion": s["firmwareVersion"],
                                        "recommendedVersion": "10.16.1051", "upgradeStatus": "Up To Date" if s["firmwareVersion"] == "10.16.1051" else "Upgrade Available",
