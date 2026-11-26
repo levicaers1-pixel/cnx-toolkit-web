@@ -2,7 +2,7 @@
 
 Versienummers volgen MAJOR.MINOR.PATCH.
 
-## Nog niet uitgebracht
+## 0.4.0 (2026-11-26)
 
 - Nieuw tabblad **GreenLake Onboarding**: een lijst met toestellen (plakken, CSV of xlsx) in GreenLake zetten, aan
   new Central en een subscription toewijzen, en in Central aan een site, device group en device function. Aparte
