@@ -29,7 +29,7 @@ def srv(monkeypatch, tmp_path):
     monkeypatch.setattr(web, "_PILOT_FOUT", {})
     monkeypatch.setattr(web, "PILOTCODE", "")
     monkeypatch.setattr(web, "WERKMAP", str(tmp_path / "cnx-web"))
-    monkeypatch.setattr(cx, "_token", lambda v, cid, secret: v.s.headers.update(Authorization="Bearer " + cid) and None)
+    monkeypatch.setattr(cx, "_token", lambda v, cid, secret, url=None: v.s.headers.update(Authorization="Bearer " + cid) and None)
     monkeypatch.setattr(cx, "api", nep_central.api)
     s = web.maak_server(0)
     threading.Thread(target=s.serve_forever, daemon=True).start()

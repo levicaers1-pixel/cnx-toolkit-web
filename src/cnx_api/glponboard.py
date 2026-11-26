@@ -271,6 +271,19 @@ def aanmelden(v, cid, secret, workspace=""):
     return True, _("aangemeld")
 
 
+def aanmelden_met_workspace(v, cid, secret, workspace):
+    """Een API-client van het GreenLake-platform, rechtsboven aangemeld met workspace-ID: dezelfde client krijgt ook
+    een token voor de GreenLake-API. Eerst via het gewone aanmeldadres (sso.common.cloud.hpe.com), anders via de
+    workspace. Geeft (ok, melding)."""
+    ok, melding = aanmelden(v, cid, secret, "")
+    if not ok:
+        ok, tweede = aanmelden(v, cid, secret, workspace)
+        if not ok:
+            return False, melding
+    v.gedeeld = True
+    return True, _("aangemeld")
+
+
 def gebruik_central(v, central):
     """Mag de aanmelding bij Central ook in GreenLake? Dat kan met een API-client van het GreenLake-platform (volgens
     HPE kan die ook de Central-API aanroepen). Zo ja: de GreenLake-verbinding krijgt hetzelfde token en dezelfde

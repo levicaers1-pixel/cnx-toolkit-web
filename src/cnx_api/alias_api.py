@@ -116,14 +116,18 @@ def _token(v, cid, secret, url=None):
     return None
 
 
-def aanmelden(base, cid, secret):
+def aanmelden(base, cid, secret, url=None):
+    """url: een andere token-URL, voor een API-client van het GreenLake-platform (met workspace-ID)."""
     v = verbinding()
     v.base = base.rstrip("/")
-    fout = _token(v, cid, secret)
+    v.gegevens.pop("token_url", None)
+    fout = _token(v, cid, secret, url)
     if fout:
         return False, fout
     v.gegevens.clear()
     v.gegevens.update(id=cid, secret=secret)
+    if url:
+        v.gegevens["token_url"] = url
     v.cache.clear()
     return True, _("aangemeld")
 

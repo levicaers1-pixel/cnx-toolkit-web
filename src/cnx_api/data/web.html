@@ -188,6 +188,8 @@ dialog .field{max-width:none}
   <div class="field"><label for="d-base">Base URL van de API</label><input id="d-base" type="text" placeholder="https://de1.api.central.arubanetworks.com"></div>
   <div class="field"><label for="d-id">Client ID</label><input id="d-id" type="text" autocomplete="off"></div>
   <div class="field"><label for="d-secret">Client secret</label><input id="d-secret" type="password" autocomplete="off"></div>
+  <div class="field"><label for="d-ws">Workspace-ID (enkel voor een GreenLake-API-client)</label><input id="d-ws" type="text" autocomplete="off" placeholder="leeg voor een client van je Central-instantie"></div>
+  <p class="hint">Met een API-client voor HPE GreenLake Platform vul je de workspace-ID in: dan meldt de toolkit met dezelfde client aan bij Central en bij GreenLake.</p>
   <p id="d-fout" class="err" hidden></p>
   <div class="row"><button class="btn primary" id="d-ok">Aanmelden</button><button class="btn" id="d-annuleer">Annuleren</button></div>
 </dialog>
@@ -291,7 +293,7 @@ function openTab(id) {
 // ---------------------------------------------------------------- aanmelden
 async function laadStatus() {
   try { STATUS = await get("/api/status"); } catch (e) { STATUS = { aangemeld: false }; }
-  $("stat").textContent = vt(STATUS.aangemeld ? "aangemeld · " + (STATUS.base || "").replace(/^https?:\/\//, "") : "niet aangemeld");
+  $("stat").textContent = vt(STATUS.aangemeld ? "aangemeld · " + (STATUS.base || "").replace(/^https?:\/\//, "") + (STATUS.glp_gedeeld ? " · GreenLake" : "") : "niet aangemeld");
   $("stat").className = "pill " + (STATUS.aangemeld ? "ok" : "neu");
   $("aanmeldknop").textContent = vt(STATUS.aangemeld ? "Afmelden" : "Aanmelden");
 }
@@ -299,6 +301,7 @@ $("aanmeldknop").onclick = async () => {
   if (STATUS.aangemeld) { await post("/api/web/afmelden", {}); GLP.centraal = null; GLP.nietDelen = false; await laadStatus(); renderAlles(); return; }
   $("d-fout").hidden = true; $("d-secret").value = "";
   $("d-base").value = $("d-base").value || STATUS.base || lezen("base") || "";
+  $("d-ws").value = $("d-ws").value || lezen("ws") || "";
   $("dlg").showModal();
 };
 $("d-annuleer").onclick = () => $("dlg").close();
@@ -307,9 +310,11 @@ $("d-ok").onclick = async () => {
   if (!base || !id || !secret) { $("d-fout").textContent = vt("Vul alle drie de velden in."); $("d-fout").hidden = false; return; }
   $("d-ok").disabled = true;
   try {
-    const r = await post("/api/aanmelden", { base, id, secret });
+    const workspace = $("d-ws").value.trim();
+    const r = await post("/api/aanmelden", { base, id, secret, workspace });
     if (!r.ok) { $("d-fout").textContent = vt(r.melding || r.fout || "Aanmelden mislukt."); $("d-fout").hidden = false; return; }
-    opslaan("base", base); $("d-secret").value = ""; $("dlg").close(); GLP.centraal = null; GLP.nietDelen = false;
+    opslaan("base", base); opslaan("ws", workspace);
+    GLP.melding = workspace ? r.melding : ""; $("d-secret").value = ""; $("dlg").close(); GLP.centraal = null; GLP.nietDelen = false;
     await laadStatus(); renderAlles();
   } finally { $("d-ok").disabled = false; }
 };
@@ -1091,7 +1096,7 @@ function wisPaneel(ctx) {
 // ---------------------------------------------------------------- tabblad GreenLake Onboarding
 // Nieuwe toestellen in GreenLake zetten, aan Central en een subscription toewijzen, en in Central aan site, device
 // group en device function. De lijst blijft enkel in het geheugen van deze pagina.
-const GLP = { id: "", ws: "", centraal: null, nietDelen: false, rijen: null, fouten: [], tekst: "", fout: null, bezig: "", vg: null, keuzes: undefined, app: lezen("glp-app") || "",
+const GLP = { id: "", ws: "", centraal: null, nietDelen: false, melding: "", rijen: null, fouten: [], tekst: "", fout: null, bezig: "", vg: null, keuzes: undefined, app: lezen("glp-app") || "",
   subs: { AP: "", SWITCH: "", GATEWAY: "" }, proef: true, plan: null, werk: null, st: {} };
 const GLP_SOORT = { AP: "AP", SWITCH: "Switch", GATEWAY: "Gateway" };
 const GLP_FN = { ACCESS_SWITCH: "Access Switch", AGG_SWITCH: "Aggregation Switch", CORE_SWITCH: "Core Switch", CAMPUS_AP: "Campus AP",
@@ -1171,6 +1176,7 @@ function renderGlp() {
         el("span", { class: "pill " + (STATUS.aangemeld ? "ok" : "warn") }, STATUS.aangemeld ? "aangemeld bij Central" : "niet aangemeld bij Central"),
         STATUS.aangemeld ? "" : el("span", { class: "hint" }, "Voor site, device group en device function: meld ook rechtsboven aan bij Central.")) :
       el("div", {},
+        GLP.melding && STATUS.aangemeld ? el("div", { class: "banner warn", style: "margin-bottom:10px" }, GLP.melding) : "",
         GLP.centraal === "nee" && STATUS.aangemeld ? el("div", { class: "banner info", style: "margin-bottom:10px" }, "Je aanmelding rechtsboven mag niet in GreenLake: dat is een API-client voor je Central-instantie. Meld hieronder apart aan, of meld rechtsboven aan met een API-client voor HPE GreenLake Platform: die kan volgens HPE ook de Central-API aanroepen, en dan volstaat een aanmelding.") : "",
         el("div", { class: "row", style: "flex-wrap:wrap;align-items:flex-end" },
           el("div", { class: "field", style: "margin:0" }, el("label", { for: "glp-id" }, "Client-ID (GreenLake)"),

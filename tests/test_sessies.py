@@ -60,7 +60,7 @@ def twee(server, monkeypatch):
     monkeypatch.setattr(web, "SESSIES", {})
     monkeypatch.setattr(web, "_NIEUW", {})
     # Aanmelden zonder echte Central: het token draagt de client-ID, zodat we zien welke verbinding een aanvraag deed.
-    monkeypatch.setattr(cx, "_token", lambda v, cid, secret: v.s.headers.update(Authorization="Bearer " + cid) and None)
+    monkeypatch.setattr(cx, "_token", lambda v, cid, secret, url=None: v.s.headers.update(Authorization="Bearer " + cid) and None)
     gezien = []
 
     def api(method, pad, params=None, body=None):

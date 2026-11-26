@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.3.0</title><style>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.4.0</title><style>
 :root{color-scheme:light;--paper:#f4f6f9;--panel:#fff;--panel2:#f8fafc;--ink:#122033;--ink2:#2b3a4f;--muted:#5f6c7f;--line:#e2e7ee;--accent:#2457d6;--soft:#eaf0fd}
 @media (prefers-color-scheme:dark){:root{color-scheme:dark;--paper:#0e131a;--panel:#161d27;--panel2:#1a2230;--ink:#e7ecf3;--ink2:#c9d2df;--muted:#93a0b4;--line:#253042;--accent:#7aa2ff;--soft:#1c2943}}
 *{box-sizing:border-box}
@@ -18,7 +18,7 @@ code{font-family:"Cascadia Mono",Consolas,monospace;font-size:.88em;background:v
 pre{background:var(--panel2);border:1px solid var(--line);padding:14px 16px;border-radius:10px;overflow:auto}pre code{background:none;padding:0}
 @media (max-width:700px){main{margin:0;border-radius:0;padding:20px 16px}}
 </style></head>
-<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Manual</strong><div class="versie">CNX Toolkit, version 0.3.0</div></div></div>
+<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Manual</strong><div class="versie">CNX Toolkit, version 0.4.0</div></div></div>
 <h1 id="cnx-toolkit">CNX Toolkit</h1>
 <p>Tools to bring network devices into HPE Aruba Networking Central (new Central) and keep them tidy there: onboard
 AOS-CX switches and Mobility Gateways, clean up local overrides, and plan the move from AOS-8 to AOS-10 for access
@@ -93,9 +93,16 @@ remembers the choice.</p>
 </tbody>
 </table>
 <p><strong>Signing in.</strong> Click Sign in at the top right and enter the API URL of your new Central (e.g.
-<code>https://de1.api.central.arubanetworks.com</code>), a client ID and a secret. They stay only in the toolkit's memory, for your
-session, and are never stored. A Central token expires after a while; the toolkit then signs in again by itself. AP
-migration does not need a sign-in.</p>
+<code>https://de1.api.central.arubanetworks.com</code>, found in Central under Menu &gt; API Gateway &gt; REST API), a client ID and a
+secret. There are two kinds of API clients, both created in GreenLake (Identity &amp; access management &gt; API access):</p>
+<ul>
+<li>a client for <strong>your Central instance</strong>: leave the workspace ID empty. Works for all tabs except GreenLake Onboarding
+  (sign in separately there);</li>
+<li>a client for <strong>HPE GreenLake Platform</strong>: also fill in the <strong>workspace ID</strong>. With that one client the toolkit signs in
+  to Central and to GreenLake (each with its own token, which it renews by itself), and all tabs work.</li>
+</ul>
+<p>Client ID and secret stay only in the toolkit's memory, for your session, and are never stored. AP migration and
+comparing snapshots do not need a sign-in.</p>
 <h3 id="onboarding">Onboarding</h3>
 <p>For switches and Mobility Gateways. Three screens, no customer config needed:</p>
 <ol>
@@ -177,13 +184,10 @@ them one after the other:</p>
 <li>wait until the device is in Central (at most ten minutes);</li>
 <li>in Central, assign a site, device group and device function, then check.</li>
 </ol>
-<p><strong>Signing in.</strong> You create an API client in GreenLake (Identity &amp; access management &gt; API access). If you choose the
-<strong>HPE GreenLake Platform</strong> service there instead of your Central instance, that client can also call the Central API,
-according to HPE. Sign in with it at the top right and the tab checks whether that sign-in also works in GreenLake; if
-so, that one sign-in is enough for everything. A client for your Central instance is not allowed in GreenLake: then
-sign in separately in the tab with a GreenLake platform client. If that fails, also fill in the workspace ID; some
-clients get their token from GreenLake itself. Tokens of a GreenLake platform client are valid for 15 minutes; the
-toolkit renews them by itself. Client ID and secret stay only in the toolkit's memory. Signing out at the top right also
+<p><strong>Signing in.</strong> The simplest way: sign in at the top right with an API client for HPE GreenLake Platform and your
+workspace ID (see <a href="#web-app">Web app</a>); the tab then shows "signed in to GreenLake (through your sign-in at the top
+right)". With a client for your Central instance, sign in separately in the tab with a GreenLake platform client; if
+that fails, also fill in the workspace ID. Steps 4 and 5 need the sign-in to Central. Signing out at the top right also
 signs you out of GreenLake.</p>
 <p><strong>How it works.</strong></p>
 <ul>

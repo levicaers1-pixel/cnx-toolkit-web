@@ -29,9 +29,17 @@ De webapp is overal dezelfde. Rechtsboven kies je de taal (**NL** of **EN**); de
 | Handleiding | Deze handleiding |
 
 **Aanmelden.** Klik rechtsboven op Aanmelden en geef de API-URL van je new Central (bv.
-`https://de1.api.central.arubanetworks.com`), een client-ID en een secret. Die blijven enkel in het geheugen van de
-toolkit, voor je sessie, en worden nergens bewaard. Een token van Central verloopt na een tijd; de toolkit meldt dan
-zelf opnieuw aan. Voor AP-migratie hoef je niet aan te melden.
+`https://de1.api.central.arubanetworks.com`, te vinden in Central onder Menu > API Gateway > REST API), een client-ID
+en een secret. Er zijn twee soorten API-clients, allebei aan te maken in GreenLake (Identity & access management > API
+access):
+
+- een client voor **je Central-instantie**: laat de workspace-ID leeg. Werkt voor alle tabbladen behalve GreenLake
+  Onboarding (daar meld je dan apart aan);
+- een client voor **HPE GreenLake Platform**: vul ook de **workspace-ID** in. Met die ene client meldt de toolkit aan
+  bij Central en bij GreenLake (elk met een eigen token, dat hij zelf vernieuwt), en werken alle tabbladen.
+
+Client-ID en secret blijven enkel in het geheugen van de toolkit, voor je sessie, en worden nergens bewaard. Voor
+AP-migratie en het vergelijken van snapshots hoef je niet aan te melden.
 
 ### Onboarden
 
@@ -93,14 +101,11 @@ doet ze na elkaar:
 4. wachten tot het toestel in Central staat (hoogstens tien minuten);
 5. in Central toewijzen aan een site, device group en device function, en daarna nakijken.
 
-**Aanmelden.** Een API-client maak je in GreenLake (Identity & access management > API access). Kies je daar de dienst
-**HPE GreenLake Platform** in plaats van je Central-instantie, dan kan die client volgens HPE ook de Central-API
-aanroepen. Meld je daarmee rechtsboven aan, dan kijkt het tabblad of die aanmelding ook in GreenLake mag; zo ja, dan
-volstaat die ene aanmelding voor alles. Een client voor je Central-instantie mag niet in GreenLake: dan meld je in het
-tabblad apart aan met een GreenLake-platform-client. Lukt dat niet, vul dan ook de workspace-ID in; sommige clients
-halen hun token bij GreenLake zelf. Tokens van een GreenLake-platform-client zijn 15 minuten geldig; de toolkit
-vernieuwt ze vanzelf. Client-ID en secret blijven enkel in het geheugen van de toolkit. Afmelden rechtsboven meldt ook
-af bij GreenLake.
+**Aanmelden.** Het eenvoudigst: meld rechtsboven aan met een API-client voor HPE GreenLake Platform en je
+workspace-ID (zie [Webapp](#webapp)); dan staat er "aangemeld bij GreenLake (via je aanmelding rechtsboven)". Met een
+client voor je Central-instantie meld je in het tabblad apart aan met een GreenLake-platform-client; lukt dat niet,
+vul dan ook de workspace-ID in. Voor stap 4 en 5 is de aanmelding bij Central nodig. Afmelden rechtsboven meldt ook af
+bij GreenLake.
 
 **Werkwijze.**
 

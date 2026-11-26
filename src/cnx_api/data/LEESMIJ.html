@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.3.0</title><style>
+<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CNX Toolkit 0.4.0</title><style>
 :root{color-scheme:light;--paper:#f4f6f9;--panel:#fff;--panel2:#f8fafc;--ink:#122033;--ink2:#2b3a4f;--muted:#5f6c7f;--line:#e2e7ee;--accent:#2457d6;--soft:#eaf0fd}
 @media (prefers-color-scheme:dark){:root{color-scheme:dark;--paper:#0e131a;--panel:#161d27;--panel2:#1a2230;--ink:#e7ecf3;--ink2:#c9d2df;--muted:#93a0b4;--line:#253042;--accent:#7aa2ff;--soft:#1c2943}}
 *{box-sizing:border-box}
@@ -18,7 +18,7 @@ code{font-family:"Cascadia Mono",Consolas,monospace;font-size:.88em;background:v
 pre{background:var(--panel2);border:1px solid var(--line);padding:14px 16px;border-radius:10px;overflow:auto}pre code{background:none;padding:0}
 @media (max-width:700px){main{margin:0;border-radius:0;padding:20px 16px}}
 </style></head>
-<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Handleiding</strong><div class="versie">CNX Toolkit, versie 0.3.0</div></div></div>
+<body><main><div class="kop"><span class="logo" aria-hidden="true">CNX</span><div><strong>Handleiding</strong><div class="versie">CNX Toolkit, versie 0.4.0</div></div></div>
 <h1 id="cnx-toolkit">CNX Toolkit</h1>
 <p>Hulpmiddelen om netwerktoestellen naar HPE Aruba Networking Central (new Central) te brengen en daar proper te
 houden: AOS-CX switches en Mobility Gateways onboarden, lokale overrides opkuisen, en de stap van AOS-8 naar AOS-10
@@ -92,9 +92,17 @@ voor access points plannen. Gratis open-source software, niet gemaakt of onderst
 </tbody>
 </table>
 <p><strong>Aanmelden.</strong> Klik rechtsboven op Aanmelden en geef de API-URL van je new Central (bv.
-<code>https://de1.api.central.arubanetworks.com</code>), een client-ID en een secret. Die blijven enkel in het geheugen van de
-toolkit, voor je sessie, en worden nergens bewaard. Een token van Central verloopt na een tijd; de toolkit meldt dan
-zelf opnieuw aan. Voor AP-migratie hoef je niet aan te melden.</p>
+<code>https://de1.api.central.arubanetworks.com</code>, te vinden in Central onder Menu &gt; API Gateway &gt; REST API), een client-ID
+en een secret. Er zijn twee soorten API-clients, allebei aan te maken in GreenLake (Identity &amp; access management &gt; API
+access):</p>
+<ul>
+<li>een client voor <strong>je Central-instantie</strong>: laat de workspace-ID leeg. Werkt voor alle tabbladen behalve GreenLake
+  Onboarding (daar meld je dan apart aan);</li>
+<li>een client voor <strong>HPE GreenLake Platform</strong>: vul ook de <strong>workspace-ID</strong> in. Met die ene client meldt de toolkit aan
+  bij Central en bij GreenLake (elk met een eigen token, dat hij zelf vernieuwt), en werken alle tabbladen.</li>
+</ul>
+<p>Client-ID en secret blijven enkel in het geheugen van de toolkit, voor je sessie, en worden nergens bewaard. Voor
+AP-migratie en het vergelijken van snapshots hoef je niet aan te melden.</p>
 <h3 id="onboarden">Onboarden</h3>
 <p>Voor switches en Mobility Gateways. Drie schermen, zonder klantconfig:</p>
 <ol>
@@ -175,14 +183,11 @@ doet ze na elkaar:</p>
 <li>wachten tot het toestel in Central staat (hoogstens tien minuten);</li>
 <li>in Central toewijzen aan een site, device group en device function, en daarna nakijken.</li>
 </ol>
-<p><strong>Aanmelden.</strong> Een API-client maak je in GreenLake (Identity &amp; access management &gt; API access). Kies je daar de dienst
-<strong>HPE GreenLake Platform</strong> in plaats van je Central-instantie, dan kan die client volgens HPE ook de Central-API
-aanroepen. Meld je daarmee rechtsboven aan, dan kijkt het tabblad of die aanmelding ook in GreenLake mag; zo ja, dan
-volstaat die ene aanmelding voor alles. Een client voor je Central-instantie mag niet in GreenLake: dan meld je in het
-tabblad apart aan met een GreenLake-platform-client. Lukt dat niet, vul dan ook de workspace-ID in; sommige clients
-halen hun token bij GreenLake zelf. Tokens van een GreenLake-platform-client zijn 15 minuten geldig; de toolkit
-vernieuwt ze vanzelf. Client-ID en secret blijven enkel in het geheugen van de toolkit. Afmelden rechtsboven meldt ook
-af bij GreenLake.</p>
+<p><strong>Aanmelden.</strong> Het eenvoudigst: meld rechtsboven aan met een API-client voor HPE GreenLake Platform en je
+workspace-ID (zie <a href="#webapp">Webapp</a>); dan staat er "aangemeld bij GreenLake (via je aanmelding rechtsboven)". Met een
+client voor je Central-instantie meld je in het tabblad apart aan met een GreenLake-platform-client; lukt dat niet,
+vul dan ook de workspace-ID in. Voor stap 4 en 5 is de aanmelding bij Central nodig. Afmelden rechtsboven meldt ook af
+bij GreenLake.</p>
 <p><strong>Werkwijze.</strong></p>
 <ul>
 <li>Plak een tabel uit Excel of kies een CSV- of xlsx-bestand. Verplicht: <em>serial</em> en <em>mac</em>. Verder: <em>soort</em> (AP,

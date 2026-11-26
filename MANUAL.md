@@ -30,9 +30,16 @@ remembers the choice.
 | Manual | This manual |
 
 **Signing in.** Click Sign in at the top right and enter the API URL of your new Central (e.g.
-`https://de1.api.central.arubanetworks.com`), a client ID and a secret. They stay only in the toolkit's memory, for your
-session, and are never stored. A Central token expires after a while; the toolkit then signs in again by itself. AP
-migration does not need a sign-in.
+`https://de1.api.central.arubanetworks.com`, found in Central under Menu > API Gateway > REST API), a client ID and a
+secret. There are two kinds of API clients, both created in GreenLake (Identity & access management > API access):
+
+- a client for **your Central instance**: leave the workspace ID empty. Works for all tabs except GreenLake Onboarding
+  (sign in separately there);
+- a client for **HPE GreenLake Platform**: also fill in the **workspace ID**. With that one client the toolkit signs in
+  to Central and to GreenLake (each with its own token, which it renews by itself), and all tabs work.
+
+Client ID and secret stay only in the toolkit's memory, for your session, and are never stored. AP migration and
+comparing snapshots do not need a sign-in.
 
 ### Onboarding
 
@@ -95,13 +102,10 @@ them one after the other:
 4. wait until the device is in Central (at most ten minutes);
 5. in Central, assign a site, device group and device function, then check.
 
-**Signing in.** You create an API client in GreenLake (Identity & access management > API access). If you choose the
-**HPE GreenLake Platform** service there instead of your Central instance, that client can also call the Central API,
-according to HPE. Sign in with it at the top right and the tab checks whether that sign-in also works in GreenLake; if
-so, that one sign-in is enough for everything. A client for your Central instance is not allowed in GreenLake: then
-sign in separately in the tab with a GreenLake platform client. If that fails, also fill in the workspace ID; some
-clients get their token from GreenLake itself. Tokens of a GreenLake platform client are valid for 15 minutes; the
-toolkit renews them by itself. Client ID and secret stay only in the toolkit's memory. Signing out at the top right also
+**Signing in.** The simplest way: sign in at the top right with an API client for HPE GreenLake Platform and your
+workspace ID (see [Web app](#web-app)); the tab then shows "signed in to GreenLake (through your sign-in at the top
+right)". With a client for your Central instance, sign in separately in the tab with a GreenLake platform client; if
+that fails, also fill in the workspace ID. Steps 4 and 5 need the sign-in to Central. Signing out at the top right also
 signs you out of GreenLake.
 
 **How it works.**

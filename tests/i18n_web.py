@@ -114,6 +114,8 @@ GEEN_TEKST = {
     'voorstel',
     'voortgang',
     'wisplan',
+    ' · GreenLake',
+    'ws',
     'glp',
     'glpplan',
     'glpuitvoeren',

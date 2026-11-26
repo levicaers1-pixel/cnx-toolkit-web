@@ -181,3 +181,29 @@ def test_token_met_workspace(monkeypatch):
     with pytest.raises(glponboard.Invoer):
         glponboard.aanmelden(v, "cid", "x", "../evil")
     assert glponboard.aanmelden(cx.Verbinding(), "cid", "x")[0] and urls[-1] == cx.TOKEN_URL
+
+
+def test_een_aanmelding_met_workspace(server, monkeypatch, central):
+    """Rechtsboven aanmelden met een GreenLake-API-client en workspace-ID: Central krijgt het workspace-token,
+    GreenLake een eigen token van dezelfde client."""
+    urls = []
+    monkeypatch.setattr(cx.requests, "post", lambda url, **k: urls.append(url) or _Antwoord(200, {"access_token": "tok-" + str(len(urls))}))
+    monkeypatch.setattr(glponboard, "_verzend", nep_greenlake.verzend)
+    monkeypatch.setattr(nep_greenlake, "STAAT", nep_greenlake.nieuw())
+    monkeypatch.setattr(web.LOKAAL, "glp", cx.Verbinding(glponboard.GLP))
+    st, b = vraag(server + "/api/aanmelden", {"base": "https://de1.api.central.arubanetworks.com", "id": "cid", "secret": "x", "workspace": "ws-1234-abcd"})
+    r = json.loads(b)
+    assert st == 200 and r["ok"] and r["melding"] == "aangemeld bij Central en GreenLake", r
+    assert urls[0].endswith("/authorization/v2/oauth2/ws-1234-abcd/token") and urls[1] == cx.TOKEN_URL
+    assert cx.verbinding().gegevens["token_url"] == urls[0] and web.LOKAAL.glp.gegevens.get("token_url") is None
+    s = json.loads(vraag(server + "/api/status")[1])
+    assert s["aangemeld"] and s["glp"] and s["glp_gedeeld"]
+
+
+def test_een_aanmelding_central_weigert(server, monkeypatch, central):
+    monkeypatch.setattr(cx.requests, "post", lambda url, **k: _Antwoord(200, {"access_token": "t"}))
+    monkeypatch.setattr(cx, "api", lambda *a, **k: nep_greenlake.Antwoord(401, {"message": "Invalid access token"}))
+    st, b = vraag(server + "/api/aanmelden", {"base": "https://de1.api.central.arubanetworks.com", "id": "cid", "secret": "x", "workspace": "ws-1234-abcd"})
+    r = json.loads(b)
+    assert not r["ok"] and "Invalid access token" in r["melding"] and not cx.verbinding().aangemeld
+    assert not json.loads(vraag(server + "/api/aanmelden", {"base": "https://de1.api.central.arubanetworks.com", "id": "c", "secret": "x", "workspace": "../x"})[1])["ok"]

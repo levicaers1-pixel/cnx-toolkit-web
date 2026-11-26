@@ -2,6 +2,12 @@
 
 Versienummers volgen MAJOR.MINOR.PATCH.
 
+## 0.4.1 (2026-11-26)
+
+- Aanmelden met een API-client voor HPE GreenLake Platform: met de workspace-ID haalt de toolkit het token voor Central
+  bij GreenLake (de oude manier gaf "401 Invalid access token") en meldt hij met dezelfde client ook aan bij de
+  GreenLake-API. Een aanmelding voor alle tabbladen.
+
 ## 0.4.0 (2026-11-26)
 
 - Nieuw tabblad **GreenLake Onboarding**: een lijst met toestellen (plakken, CSV of xlsx) in GreenLake zetten, aan

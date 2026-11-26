@@ -358,5 +358,8 @@
   "Central meldde ok, maar toont nog {nu}": "Central reported ok, but still shows {nu}",
   "Eerst aanmelden bij GreenLake.": "Sign in to GreenLake first.",
   "GreenLake gaf {status}: {melding}": "GreenLake returned {status}: {melding}",
-  "ongeldige workspace-ID": "invalid workspace ID"
+  "ongeldige workspace-ID": "invalid workspace ID",
+  "Token gekregen via de workspace, maar Central weigert het ({status}: {melding}). Kijk de base URL en de workspace-ID na.": "Got a token through the workspace, but Central refuses it ({status}: {melding}). Check the base URL and the workspace ID.",
+  "aangemeld bij Central en GreenLake": "signed in to Central and GreenLake",
+  "aangemeld bij Central; bij GreenLake niet: {reden}": "signed in to Central; not to GreenLake: {reden}"
 }

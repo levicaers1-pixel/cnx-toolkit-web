@@ -553,7 +553,23 @@ class Handler(BaseHTTPRequestHandler):
         base = str(body.get("base") or "")
         if SERVER and not central_url_ok(base):
             return {"ok": False, "melding": _("Geef de API-URL van new Central, bv. https://de1.api.central.arubanetworks.com. Een ander domein moet de beheerder eerst toelaten (CNX_CENTRAL_DOMEINEN).")}
-        ok, msg = cx.aanmelden(base, str(body.get("id") or ""), str(body.get("secret") or ""))
+        cid, secret = str(body.get("id") or ""), str(body.get("secret") or "")
+        try:
+            url = glponboard.token_url(body.get("workspace"))
+        except monitor.Invoer as e:
+            return {"ok": False, "melding": e.melding}
+        ok, msg = cx.aanmelden(base, cid, secret, url)
+        if ok and url:
+            # Een API-client van het GreenLake-platform: kijk na dat Central het token aanvaardt, en meld met dezelfde
+            # client ook aan bij GreenLake (een eigen token voor de GreenLake-API).
+            r = cx.api("GET", "/network-monitoring/v1/devices", {"limit": 1})
+            if r.status_code == 401:
+                melding = monitor._melding(r)
+                cx.verbinding().wis()
+                return {"ok": False, "melding": _("Token gekregen via de workspace, maar Central weigert het ({status}: {melding}). Kijk de base URL en de workspace-ID na.",
+                                                  status=r.status_code, melding=melding)}
+            ok_glp, reden = glponboard.aanmelden_met_workspace(self.sessie.glp, cid, secret, body.get("workspace"))
+            msg = _("aangemeld bij Central en GreenLake") if ok_glp else _("aangemeld bij Central; bij GreenLake niet: {reden}", reden=reden)
         if ok and PER_SESSIE:
             self._nieuwe_sessie = nieuwe_sessie_id(self.sessie)
         return {"ok": ok, "melding": msg}
